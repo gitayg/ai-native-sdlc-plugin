@@ -68,15 +68,24 @@ four produce work:
 | **Duplicate** | already specified | cite the id and stop |
 | **Contradict** | the spec forbids what you asked for | **stop and ask which wins** |
 
-That last row is the point of the whole design. A per-feature spec cannot detect
-a contradiction, because it does not know what else was ever agreed. A living
-spec can — and when it finds one, nothing is merged until a human rules. Agreed
-behaviour never changes because a newer sentence arrived later.
+That last row is the point of the whole design, and it is the one thing this does
+that the alternatives do not. Spec Kit, OpenSpec and BMAD are all good and all
+more popular; two of them can even name a conflict. None of them stop — Spec Kit
+"recommends resolving", BMAD surfaces the conflict and applies the change anyway.
+Detection that does not halt is advice, and advice gets skimmed.
+
+This is not a new idea. Requirements engineering has argued for set-level
+consistency since Nuseibeh and Easterbrook in 2000, and ISO/IEC/IEEE 29148 lists
+it as a property a requirement set must have. What seems to be new is shipping it
+inside an AI coding agent, where the halt actually lands on the thing writing the
+code.
 
 Requirement ids are permanent. Nothing is deleted; a replaced requirement is
 marked `Superseded by R58.` and keeps its original text, because plans, tests,
 review findings and PR titles all cite these ids, and a reused id redirects every
-one of those citations silently.
+one of those citations silently. BMAD holds the same rule in nearly the same
+words, so this is table stakes done properly rather than a differentiator — but
+most tools renumber per feature, which breaks every citation you ever wrote.
 
 ## Where all the intents live
 
@@ -161,7 +170,8 @@ Same idea as `CLAUDE.md`: the repo's conventions belong to the repo.
 - **Nightly evals** regression-test your agent configuration — `CLAUDE.md`,
   skills, hooks — against real past tasks. It reports; it cannot block a merge.
   If you need a gate, that one belongs in CI.
-- **Control bands** watch a metric and act by tier: 1σ log, 2σ diagnose
+- **Control bands** — Anthropic's design from the playbook, not ours — watch a
+  metric and act by tier: 1σ log, 2σ diagnose
   read-only, 3σ propose via PR. Detection is deterministic — no model decides
   whether something broke. A finding is opened as an issue and goes through
   intake like any other intent, which is how the loop closes — and what stops a
