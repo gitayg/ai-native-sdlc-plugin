@@ -17,6 +17,39 @@
     "audit_record": "git_diff",
     "home": "product.spec_repo"
   },
+  "models": {
+    "_note": "Enforced only where a fresh context begins \u2014 a subagent. Stages that run in your session inherit the session model; this block declares intent for those, and the skill says which stage it is in so you can choose.",
+    "intake": {
+      "effort": "high",
+      "model": "inherit",
+      "why": "contradiction detection against the whole spec is the hardest call here"
+    },
+    "build": {
+      "effort": "inherit",
+      "model": "inherit",
+      "why": "your session, your choice"
+    },
+    "evals": {
+      "effort": "low",
+      "model": "cheap",
+      "why": "mechanical pass/fail, 20-50 of them nightly \u2014 this is where cost lives"
+    },
+    "review": {
+      "effort": "high",
+      "model": "inherit",
+      "why": "fresh context, adversarial, low volume"
+    },
+    "diagnose": {
+      "effort": "low",
+      "model": "cheap",
+      "why": "2 sigma is summarising; raise it for 3 sigma"
+    }
+  },
+  "bands": {
+    "config": "ops/bands.yaml",
+    "detection_command": "python3 ops/ci-failure-rate.py",
+    "_note": "The scheduled band check executes detection_command from HERE, never a path read out of bands.yaml. Two sources must agree: this binding and the literal frozen into the scheduled prompt when a human installed it."
+  },
   "intent": {
     "channels": [
       "file",

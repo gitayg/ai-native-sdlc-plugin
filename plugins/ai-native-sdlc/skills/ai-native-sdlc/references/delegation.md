@@ -30,6 +30,14 @@ and the fallback below is a supported path rather than a degraded one.
 | `usable` | it ran and exited 0 | delegate |
 | `present-but-broken` | it exists and does not run | fall back, and report the breakage — do not retry |
 | `absent` | not configured, or not there | fall back |
+| `rejected` | it failed validation and was **not executed** | fall back, and **tell the user what was rejected and why** |
+
+**`rejected` is not the same as `absent`.** Absent means nobody configured a
+runner. Rejected means something pointed at one and the probe refused to run it —
+a relative path, a path inside the work tree, a group- or world-writable file, or
+a file the caller does not own. Any of those can mean a repo tried to choose what
+executes on the machine of whoever cloned it, so it is reported, never silently
+folded into "no runner configured".
 
 **Presence is not usability.** A runner can sit on disk with every dependency
 apparently in place and still fail to load — a packaging mistake one directory

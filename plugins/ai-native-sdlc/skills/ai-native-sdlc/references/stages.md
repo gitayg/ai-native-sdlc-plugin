@@ -48,7 +48,14 @@ agent and authorised by a release manager). Rollback is the most rehearsed path.
 - **Governance:** tier boundaries from version-controlled config; managed settings deny production access; invocations, findings and triage decisions timestamped; changes go through the normal PR gate; runbooks approved in advance.
 - **Leading:** time from band breach to an issue in the triage queue.
 - **Lagging:** share of findings becoming merged fixes; repeat incidents of the same class.
-- **Examples:** CI failure at 3σ → quarantine the flaky test or open a revert PR. Post-deploy 5xx at 3σ with a recent deployment → trigger the rollback pipeline. PR cycle-time drift → write a report for engineering leadership.
+- **Examples:** CI failure at 3σ → open an issue proposing that the flaky test be
+  quarantined. Post-deploy 5xx at 3σ with a recent deployment → open an issue
+  naming the deploy and the evidence. PR cycle-time drift → a report for
+  engineering leadership.
+- **A 3σ breach proposes; it does not act.** The shipped `bands.yaml` routes a
+  breach to a pull request and nothing else. Rolling back is a deploy, and an
+  unattended run at 02:00 has nobody to authorise one — a breach is evidence,
+  not authorisation. Add a runbook route only where a human is in the loop.
 
 ## Legacy systems — pick one source of truth
 1. **Repo as truth** — markdown is authoritative, the legacy system holds a copy or link.

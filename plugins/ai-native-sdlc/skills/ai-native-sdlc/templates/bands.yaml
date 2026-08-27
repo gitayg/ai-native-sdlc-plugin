@@ -1,8 +1,20 @@
+# Data only — never a command. This file is committed, so anyone who lands a
+# commit can change it. The scheduled band check reads the metric, the baseline
+# and the thresholds from here, and takes the detection command it executes from
+# the binding at `.claude/sdlc.json` instead.
 metric: ci_test_failure_rate
 baseline: rolling_30d
 rules: western_electric
 
 tiers:
   1sigma: { action: log }
-  2sigma: { action: diagnose, tools: "Read,Grep,Bash(gh run view *)" }
-  3sigma: { action: propose, routes: [pull_request, runbook:rollback-deploy] }
+  # `tools_note` is documentation of intent for a human reader. Nothing parses
+  # it: it grants nothing and restricts nothing. Enforcement lives in
+  # `templates/managed-settings.json` (permissions and sandbox, which engineers
+  # cannot override) and in the prompt at `templates/scheduled-bands.md`.
+  2sigma: { action: diagnose, tools_note: "intent: Read, Grep, gh run view — read-only. Not enforced here." }
+  # Routes a 3σ breach may take. `runbook:rollback-deploy` is deliberately
+  # absent: the scheduled prompt forbids deploying and rolling back, and a
+  # default that contradicts it hands an unattended run a self-authorised path
+  # to production. Add a rollback route only where a human authorises the run.
+  3sigma: { action: propose, routes: [pull_request] }
