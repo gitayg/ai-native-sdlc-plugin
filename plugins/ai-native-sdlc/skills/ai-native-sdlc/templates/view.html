@@ -1,0 +1,71 @@
+<title>SDLC — <product></title>
+<style>
+:root{
+  --bg:#0d1117; --surface:#161b22; --raised:#21262d; --line:#30363d;
+  --text:#c9d1d9; --muted:#8b949e; --accent:#2f81f7;
+  --ok:#3fb950; --warn:#d29922; --crit:#da3633;
+  --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-size:13px;line-height:1.5;
+  font-family:'Inter',-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+h1,h2{margin:0;font-weight:600;letter-spacing:-.01em}
+.mono,.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+a{color:var(--accent)}
+
+.bar{display:flex;align-items:center;gap:10px;padding:12px 18px;border-bottom:1px solid var(--line)}
+.crumb{font-size:12.5px;color:var(--muted)}
+.crumb b{color:var(--text);font-weight:600}
+.wrap{padding:18px;max-width:1400px;margin:0 auto}
+
+.h{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 9px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:18px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:11px 13px}
+.card .n{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:20px;font-weight:600;margin-top:3px}
+
+.tw{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:720px}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);
+  background:var(--bg);white-space:nowrap;position:sticky;top:0}
+tr:last-child td{border-bottom:0}
+td.k{font-family:var(--mono);font-weight:600;color:var(--accent);white-space:nowrap}
+td.dim{color:var(--muted)}
+.none{color:var(--muted)}                      /* an em dash, never a zero */
+
+.pill{display:inline-block;font-size:10px;padding:2px 7px;border-radius:6px;
+  background:var(--raised);color:var(--muted);white-space:nowrap}
+.pill.ok{color:var(--ok)} .pill.warn{color:var(--warn)} .pill.crit{color:var(--crit)}
+.dot{display:inline-block;width:6px;height:6px;border-radius:999px;vertical-align:middle;margin-right:6px}
+.dot.ok{background:var(--ok)} .dot.warn{background:var(--warn)}
+.dot.crit{background:var(--crit)} .dot.none{background:var(--muted)}
+
+.req{display:grid;grid-template-columns:56px 1fr 150px;gap:12px;align-items:start;
+  border-bottom:1px solid var(--line);padding:10px 12px}
+.req:last-child{border-bottom:0}
+.req.gone{opacity:.6}
+.req.gone .t{text-decoration:line-through;text-decoration-color:var(--line)}
+.why{font-size:12px;color:var(--muted);margin-top:4px}
+
+.note{display:flex;gap:9px;align-items:flex-start;font-size:12px;color:var(--muted);
+  border:1px solid var(--line);border-left:3px solid var(--crit);border-radius:8px;padding:11px 13px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<div class="bar">
+  <span class="crumb"><b>&lt;product&gt;</b> &middot; &lt;view name&gt;</span>
+  <span style="flex:1"></span>
+  <span class="crumb mono">read-only &middot; generated &lt;when&gt;</span>
+</div>
+
+<div class="wrap">
+  <!--
+    Fill from the files. Rules that matter:
+      - a value you could not read is <span class="none">&mdash;</span> plus a reason,
+        never a zero and never a healthy colour
+      - semantic colour (ok/warn/crit) is separate from the accent
+      - requirement ids read as R42 everywhere
+      - superseded and withdrawn requirements stay visible, dimmed, struck through
+      - sort by attention needed, not alphabetically
+  -->
+</div>

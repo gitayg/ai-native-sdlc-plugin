@@ -1,6 +1,6 @@
 ---
 name: ai-native-sdlc
-description: "Run the AI-native software lifecycle. An intent arrives as a GitHub Issue, a Jira ticket, typed text or a file; it is classified against the repo's living spec at .claude/sdlc/spec.md (extend, refine, duplicate, or contradict), merged as a spec delta, then planned and built. Use whenever the user starts a new feature, idea, bug or change and wants it done properly end-to-end; asks to capture an intent, update the spec, write an implementation plan, CLAUDE.md, review policy, approval gate, eval suite or control bands; asks whether something is already specified or contradicts existing requirements; asks how to adopt Claude across an SDLC or make agentic development governable and auditable; or asks what stage a piece of work is in and what comes next. Also use when wiring the lifecycle to GitHub Issues or Jira \u2014 picking a source of truth, binding a repo or project key, or moving tickets and opening PRs as stages complete. Triggers on AI-native SDLC, intent, living spec, spec delta, EARS requirements, plan.md, REVIEW.md, bands.yaml, agent governance, plan mode first."
+description: "Run the AI-native software lifecycle. An intent arrives as a GitHub Issue, a Jira ticket, typed text or a file; it is classified against the repo's living spec at .claude/sdlc/spec.md (extend, refine, duplicate, or contradict), merged as a spec delta, then planned and built. Use whenever the user starts a new feature, idea, bug or change and wants it done properly end-to-end; asks to capture an intent, update the spec, write an implementation plan, CLAUDE.md, review policy, approval gate, eval suite or control bands; asks whether something is already specified or contradicts existing requirements; asks how to adopt Claude across an SDLC or make agentic development governable and auditable; or asks what stage a piece of work is in and what comes next; or asks to SEE the pipeline, the spec, the fleet across repos, or a control band, which is published as a read-only view. Also use when wiring the lifecycle to GitHub Issues or Jira \u2014 picking a source of truth, binding a repo or project key, or moving tickets and opening PRs as stages complete. Triggers on AI-native SDLC, intent, living spec, spec delta, EARS requirements, plan.md, REVIEW.md, bands.yaml, agent governance, plan mode first."
 ---
 
 # AI-Native SDLC
@@ -21,6 +21,57 @@ to its issue by the branch name and PR title.
 
 The spec sits under `.claude/` deliberately: build tooling, packaging and doc
 generators never pick it up there.
+
+## Products and repos
+
+A **product** is one or more repos. A **repo** is where code lands. They are not
+the same thing, and the lifecycle is scoped to the product, not the repo.
+
+Exactly one repo in a product is the **spec home** — it holds
+`.claude/sdlc/spec.md`. Every repo in the product declares the same product and
+points at that home, so there is one living spec, one requirement id space and
+one allocator for the whole product.
+
+```json
+"product": {
+  "name": "curaiq",
+  "spec_repo": "gitayg/curaiq-server",
+  "repos": ["gitayg/curaiq-server", "gitayg/moorai"]
+}
+```
+
+**Why one spec and not one per repo.** Two things break the moment a product's
+requirements are split across specs:
+
+- **Ids collide.** Two specs allocating from their own counters both hand out
+  `R42`. A test asserting `R42` then resolves to whichever spec the reader
+  happens to open. Id reuse is the one unrecoverable mistake in this design, and
+  two allocators guarantee it.
+- **Contradiction detection stops working.** It is the only reason the living
+  spec earns its cost, and it only works against the whole set of agreed
+  requirements. A front end and its API can otherwise agree to opposite
+  behaviour and nothing notices — which is exactly where that bug lives.
+
+With one spec per product, intake classifies against everything the product has
+agreed, whichever repo you are working in. That is strictly better than
+repo-scoped, not a compromise.
+
+**A single-repo product is the ordinary case.** It is its own spec home, the
+`repos` list has one entry, and nothing extra happens. Do not make a separate
+spec repo for a product that is one repo.
+
+**What it costs, plainly.** Working in a repo that is not the spec home means
+reading and writing a file in another repo — through a local clone or the API.
+So:
+
+- If the spec home is unreachable, **intake cannot run.** Say so and stop; never
+  classify against a spec you could not read, and never fall back to a local
+  partial copy.
+- A spec change and the code change it drives are two commits in two repos.
+  The issue number in both is what joins them; put it in the branch name and
+  both PR titles.
+- Acceptance criteria name which repo verifies each requirement, because the
+  requirement and its test no longer necessarily live together.
 
 ## Stage 0 · Bind to your systems
 
@@ -134,6 +185,31 @@ This is the same layering the rest of the lifecycle already uses: the binding
 (`REVIEW.md`), the bands (`ops/bands.yaml`) and the policy skills
 (`.claude/skills/`) are all the repo's. Templates were the one thing that was
 not, which meant every repo got the same shapes whether they fitted or not.
+
+## Showing it — files to edit, artifacts to read
+
+Files are the source of truth and the only edit surface. When someone wants to
+**look** at the lifecycle rather than change it, publish a view as an artifact
+(`references/views.md`, skeleton `templates/view.html`).
+
+| Ask | Response |
+|---|---|
+| "what stage is this in", "is X already specified" | answer in the session, one line |
+| "show me the pipeline", "let me see the spec" | publish a view |
+| "what is in flight across everything" | publish the fleet view |
+| anything that changes something | edit the file, then offer the view |
+
+Four views: **fleet**, **spec**, **intake**, **band**. Each is regenerated from
+the files every time and republished to the same path, so a product keeps one
+URL per view instead of accumulating an artifact per glance.
+
+A view is never authoritative and never editable. Nothing is read back out of a
+published view into the spec — the moment a view becomes the thing people edit,
+the committed chain stops being the audit trail, which is the only thing this
+lifecycle is selling.
+
+Do not publish for a question a sentence answers. Do publish once the answer is
+a table, a trend, or more than about six rows.
 
 ## First: locate the work
 
@@ -324,4 +400,5 @@ quarter — rework rate, escaped defects, repeat incidents, DORA. Full per-stage
 table: `references/stages.md`. Jira and GitHub wiring:
 `references/integrations.md`. Requirements syntax: `references/ears.md`.
 Handing stages 3-5 to an external runner: `references/delegation.md`.
+Publishing a view: `references/views.md`.
 Intent classification: `templates/intake.md`.

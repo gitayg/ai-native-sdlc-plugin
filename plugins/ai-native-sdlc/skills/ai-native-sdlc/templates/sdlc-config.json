@@ -1,27 +1,39 @@
 {
   "version": 2,
   "source_of_truth": "linkage",
-
+  "product": {
+    "name": "<product-name>",
+    "spec_repo": "owner/name",
+    "repos": [
+      "owner/name"
+    ]
+  },
   "spec": {
     "path": ".claude/sdlc/spec.md",
     "requirement_id_prefix": "R",
     "ids_are_permanent": true,
     "on_supersede": "mark_with_pointer",
     "on_contradiction": "ask_human",
-    "audit_record": "git_diff"
+    "audit_record": "git_diff",
+    "home": "product.spec_repo"
   },
-
   "intent": {
-    "channels": ["file", "text", "github_issue", "jira_issue"],
+    "channels": [
+      "file",
+      "text",
+      "github_issue",
+      "jira_issue"
+    ],
     "persist": false
   },
-
   "artifacts": {
     "path": "docs/sdlc/<slug>",
-    "per_change": ["plan.md", "REVIEW.md"],
+    "per_change": [
+      "plan.md",
+      "REVIEW.md"
+    ],
     "commit_each_stage": true
   },
-
   "github": {
     "repo": "owner/name",
     "default_branch": "main",
@@ -40,7 +52,6 @@
       }
     }
   },
-
   "jira": {
     "site": "https://your-org.atlassian.net",
     "project": "PROJ",
@@ -56,5 +67,9 @@
       "deploy": "Ready to Release",
       "done": "Done"
     }
+  },
+  "views": {
+    "publish_as_artifact": true,
+    "refresh": "on_request"
   }
 }

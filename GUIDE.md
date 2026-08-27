@@ -106,6 +106,40 @@ not a requirement. This is what turns "do the tests actually assert the
 criteria?" from an argument into a check. A spec with no `If` requirements has
 not considered failure, and the tests will inherit that gap.
 
+## Products can span repos
+
+A product is one or more repos. Exactly one of them is the **spec home** and
+holds `.claude/sdlc/spec.md`; the others point at it:
+
+```json
+"product": {
+  "name": "curaiq",
+  "spec_repo": "gitayg/curaiq-server",
+  "repos": ["gitayg/curaiq-server", "gitayg/moorai"]
+}
+```
+
+One spec, one id space, one allocator. It has to work this way: two allocators
+both hand out `R42`, and a reused id silently redirects every test, plan and PR
+that cites it. It also means contradiction detection covers the whole product —
+a front end and its API can no longer agree to opposite behaviour, which is
+exactly where that bug lives.
+
+A single-repo product is the ordinary case: it is its own spec home and nothing
+extra happens.
+
+## Seeing it
+
+Files are what you edit. When you want to *look* instead, ask — "show me the
+pipeline", "let me see the spec" — and you get a published view: the fleet
+across every repo, one product's spec, an intake classification, or a band's
+history. Each is regenerated from the files and republished to the same URL, so
+you get one link per view rather than one per glance.
+
+Views are read-only by design. Nothing is ever read back out of one into the
+spec: the moment a view became the thing you edit, the committed chain would
+stop being the audit trail.
+
 ## Make it yours, per repo
 
 Everything the lifecycle produces already lives in the repo: the binding
