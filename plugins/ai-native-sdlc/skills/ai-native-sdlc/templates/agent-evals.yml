@@ -1,0 +1,41 @@
+name: Agent evals
+on:
+  pull_request:
+    paths: ['CLAUDE.md', '.claude/**']
+  schedule:
+    - cron: '0 2 * * *'
+
+jobs:
+  evals:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run eval suite
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          EVAL_THRESHOLD: '90'
+        run: |
+          shopt -s nullglob
+          pass=0; total=0
+          for eval in evals/*/; do
+            total=$((total+1))
+            claude -p "$(cat "$eval/prompt.md")" --output-format json > "$eval/out.json"
+            if ./evals/check.sh "$eval"; then pass=$((pass+1)); fi
+          done
+          echo "pass $pass / $total"
+
+          # evals/threshold.sh exit codes: 0 met the threshold, 3 the gate
+          # refused, 2 bad usage, 1 crash. Refusal and crash both fail the job,
+          # but the log says which — so nobody fixes the evals when the gate
+          # itself is broken.
+          set +e
+          ./evals/threshold.sh "$pass" "$total"
+          rc=$?
+          set -e
+          case $rc in
+            0) echo "evals: threshold met" ;;
+            3) echo "::error::evals REFUSED — pass rate below threshold. The suite failed; read the eval output." ;;
+            2) echo "::error::threshold.sh called wrongly — fix this workflow, not the evals." ;;
+            *) echo "::error::threshold.sh crashed (exit $rc) — the gate never ran, so nothing was verified." ;;
+          esac
+          exit $rc

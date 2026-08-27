@@ -1,0 +1,199 @@
+# AI-Native SDLC — plugin distribution
+
+Packages the `ai-native-sdlc` skill as a Claude Code plugin, served from a
+marketplace in this repository. Written for one publisher and many consumer
+repositories: install once at user scope and the skill is available in every
+project, without copying it into each `.claude/skills/`.
+
+## Layout
+
+```
+ai-native-sdlc-plugin/
+├── .claude-plugin/
+│   └── marketplace.json          # the marketplace catalogue
+├── plugins/
+│   └── ai-native-sdlc/
+│       ├── .claude-plugin/
+│       │   └── plugin.json       # the plugin manifest
+│       └── skills/
+│           └── ai-native-sdlc/
+│               ├── SKILL.md
+│               ├── references/
+│               ├── scripts/
+│               └── templates/
+└── README.md
+```
+
+The marketplace and the plugin live in the same repository. The plugin entry
+uses a relative-path source, `./plugins/ai-native-sdlc`, which resolves against
+the marketplace root — the directory containing `.claude-plugin/`, not the
+`.claude-plugin/` directory itself.
+
+Both manifests pass `claude plugin validate <path> --strict`.
+
+Relative-path sources only resolve when the marketplace is added from a git
+source or a local directory. Adding it by direct URL to `marketplace.json`
+downloads that one file and the path will not resolve.
+
+## Versioning: explicit `version`, bumped per release
+
+`plugin.json` sets `"version": "1.0.0"`.
+
+Claude Code resolves a plugin's version from the first source that is set:
+`plugin.json`, then the marketplace entry, then the resolved commit SHA of the
+source. The version is the cache key that decides whether an update exists.
+
+Two behaviours follow:
+
+- **With `version` set** — consumers receive an update only when the field is
+  bumped. Pushing commits without bumping it changes nothing for them, and
+  `claude plugin update` reports the plugin is already at the latest version.
+- **Without `version` anywhere** — the resolved commit SHA becomes the version,
+  so every commit to this repository ships to everyone on their next update.
+
+Explicit versioning is chosen. This skill governs how work is specified,
+reviewed and gated across many repositories; a half-finished edit to a stage
+definition reaching every repository on the next commit is a worse failure than
+a release lagging by a day. Bumping is the publisher's deliberate act of saying
+the change is ready. SHA versioning is the right choice for a plugin under
+active development by its only consumer — that is not this case.
+
+Follow semantic versioning: MAJOR for breaking stage or artefact changes, MINOR
+for new stages or templates, PATCH for wording and fixes.
+
+## `/plugin` is an interactive panel
+
+`/plugin` and its subcommands open a terminal panel inside a running Claude
+Code session. They cannot be run from a plain shell, a script, or CI. Anything
+below written as `/plugin ...` must be typed inside `claude`. The `claude
+plugin ...` shell equivalents run from any shell and do not open the panel —
+use those for scripting.
+
+## Consumers: add the marketplace
+
+Inside a `claude` session:
+
+```
+/plugin marketplace add gitayg/ai-native-sdlc-plugin
+```
+
+`owner/repo` is the GitHub shorthand. A full git URL works for any other host.
+A local checkout works too, for testing before publishing:
+
+```
+/plugin marketplace add /path/to/ai-native-sdlc-plugin
+```
+
+Shell equivalent: `claude plugin marketplace add gitayg/ai-native-sdlc-plugin`.
+
+## Consumers: install
+
+```
+/plugin install ai-native-sdlc@ai-native-sdlc
+```
+
+The panel then asks for an installation scope. Choose **user** so the skill is
+available in every repository — that is the point of packaging it. Project
+scope writes the plugin into that repository's `.claude/settings.json` and
+shares it with collaborators; local scope is that repository only, for you.
+
+Non-interactive equivalent, which installs to user scope unless `--scope` is
+passed:
+
+```
+claude plugin install ai-native-sdlc@ai-native-sdlc
+```
+
+Naming the marketplace explicitly (`plugin@marketplace`) makes Claude Code
+refresh the marketplace before the lookup, so a freshly published plugin is
+found. Installing by bare plugin name reads the cached catalogue.
+
+A shell install does not affect the running session. Run `/reload-plugins` in
+an open session, or restart.
+
+## Consumers: update
+
+```
+claude plugin update ai-native-sdlc
+```
+
+A restart is required to apply it. `--scope` targets a non-user installation.
+
+If the marketplace catalogue itself is stale, refresh it first:
+
+```
+claude plugin marketplace update ai-native-sdlc
+```
+
+## Consumers: enable auto-update
+
+Auto-update is per marketplace, and it is **off by default** for third-party
+and local marketplaces — only the official Anthropic marketplaces default to
+on. Enable it explicitly:
+
+1. Run `/plugin`
+2. Select **Marketplaces**
+3. Choose `ai-native-sdlc`
+4. Select **Enable auto-update**
+
+With it on, Claude Code refreshes the marketplace and updates installed plugins
+in the background after session start, with a random delay of up to ten
+minutes. The running session keeps the versions it launched with; a
+notification prompts for `/reload-plugins`, or the new version loads next
+launch.
+
+Auto-update never bypasses the version decision above — it still only installs
+when the resolved version changes, which for this plugin means when the
+`version` field is bumped.
+
+`DISABLE_AUTOUPDATER` turns plugin auto-updates off along with Claude Code's
+own. To keep plugin auto-updates while pinning Claude Code, set
+`FORCE_AUTOUPDATE_PLUGINS=1` alongside it.
+
+## Publisher: shipping a change
+
+1. Edit the skill under `plugins/ai-native-sdlc/skills/ai-native-sdlc/`.
+2. Bump `version` in `plugins/ai-native-sdlc/.claude-plugin/plugin.json`.
+   Nothing ships without this.
+3. Run `claude plugin validate ./plugins/ai-native-sdlc --strict` and
+   `claude plugin validate . --strict`. Both must pass.
+4. Commit and push to the default branch.
+5. Optionally tag the release: `claude plugin tag ./plugins/ai-native-sdlc`
+   creates a `{name}--v{version}` git tag and checks that `plugin.json` and the
+   marketplace entry agree.
+
+Consumers with auto-update on pick the change up on their next session.
+Consumers without it run `claude plugin update ai-native-sdlc`.
+
+Step 2 is the whole contract. A change pushed without a bump is invisible.
+
+## Precedence, and the personal copy at `~/.claude/skills/`
+
+Skills at the enterprise, personal and project levels compete for one name:
+enterprise overrides personal, and personal overrides project. Plugin skills do
+not enter that contest. They are namespaced `plugin-name:skill-name`, so a
+plugin skill never overrides — and is never overridden by — a same-named skill
+at another level.
+
+Concretely, once this plugin is installed while
+`~/.claude/skills/ai-native-sdlc/` still exists:
+
+- Both load. Neither wins.
+- Both descriptions sit in context on every session, competing for the same
+  triggers.
+- The personal copy answers the unqualified name; the plugin copy answers its
+  namespaced one.
+- They drift. `claude plugin update` moves the plugin copy and never touches
+  the personal one, so the repository the owner edits and the skill that
+  actually fires diverge silently.
+
+Therefore: **after confirming the plugin loads, remove the personal copy.**
+Move it aside rather than deleting outright, then delete once a session has run
+against the plugin:
+
+```
+mv ~/.claude/skills/ai-native-sdlc ~/.claude/skills/.ai-native-sdlc.bak
+```
+
+From then on this repository is the only source. Edits go here, get a version
+bump, and reach all sixteen repositories through the marketplace.

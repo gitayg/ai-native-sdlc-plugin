@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "source_of_truth": "linkage",
+
+  "artifacts": {
+    "path": "docs/sdlc/<slug>",
+    "commit_each_stage": true
+  },
+
+  "github": {
+    "repo": "owner/name",
+    "default_branch": "main",
+    "gh_account": "your-gh-login",
+    "pr_draft_first": true
+  },
+
+  "jira": {
+    "site": "https://your-org.atlassian.net",
+    "project": "PROJ",
+    "issue_type": "Story",
+    "auth": "env",
+    "epic_field": "customfield_10014",
+    "transitions": {
+      "design": "In Design",
+      "build": "In Progress",
+      "test": "In Review",
+      "deploy": "Ready to Release",
+      "done": "Done"
+    }
+  }
+}

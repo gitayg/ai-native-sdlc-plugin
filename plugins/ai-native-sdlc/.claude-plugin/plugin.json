@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "ai-native-sdlc",
+  "displayName": "AI-Native SDLC",
+  "version": "1.0.0",
+  "description": "Six-stage AI-native software lifecycle: intent.md to spec.md to plan.md to diff and tests to PR review to incident record, each stage committing the artifact the next one reads.",
+  "author": {
+    "name": "Itay Glick"
+  },
+  "repository": "https://github.com/gitayg/ai-native-sdlc-plugin",
+  "license": "MIT",
+  "keywords": [
+    "sdlc",
+    "governance",
+    "spec-driven",
+    "evals",
+    "review"
+  ]
+}
