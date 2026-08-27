@@ -145,9 +145,19 @@ commands safely: `references/integrations.md`.
 
 ## The six stages
 
-A model is pinned only where a **fresh context begins** — a subagent. **Do not
-claim a stage runs on a model it does not**: a preference nothing enforces is
-documentation, not a control.
+Each stage names a model and an effort in `.claude/sdlc.json` under `models`,
+shipped with recommended defaults you can change (`references/models.md`). The
+block has two halves and they are not interchangeable: a stage beginning a
+**fresh context** carries the setting in subagent frontmatter and it is
+enforced; a stage running **in your session** inherits your session's model
+whatever the file says, so the skill's job there is to say which stage it is
+entering and let you choose. **Do not claim a stage runs on a model it does
+not** — a preference nothing enforces is documentation, and documentation that
+reads like a control gets budgeted against and trusted.
+
+Stage 4C takes **no model at all**. It runs declared scripts and compares
+coverage arithmetically; a model asked *did this check pass* believes the green
+summary line, which is the failure the stage exists to prevent.
 
 ### 1 · Plan — capture the intent
 An intent arrives as a **tracker item**, **text** or a **file**. Brainstorm with
@@ -272,7 +282,7 @@ omission and full coverage look identical unless the gap is stated.
 the filename.** A screenshot from the previous release is a lie with a picture
 attached, and it is the one thing in a document that gets published unreviewed.
 
-### 5C · Announce — draft it, a human publishes it
+### 5C · Announce — agent-driven, human-gated
 The release post and the release email are drafted from the spec deltas and the
 merged PRs (`templates/release-blog.md`, `templates/release-email.md`). Different
 audiences: the post is for people who do not use the product, the email is for
@@ -283,10 +293,17 @@ customer names, repo names, internal hostnames and the employer's name — from
 the screenshots too, where a title bar or a sidebar carries more than whoever
 captured it intended.
 
-**Drafting is delegated; publishing is not.** These are the first artefacts that
-leave the building. A post is indexed and forwarded within minutes and mail
-cannot be recalled, so the production gate's reasoning applies unchanged: the
-agent produces a draft and stops.
+**The stage runs as an agent stage; the publish is a hook.** The agent does the
+whole job — writes both artefacts, captures the screenshots from the released
+build, verifies the version is live and installable, runs the pre-publish
+checklist and reports which items it could not verify itself. What it cannot do
+is the last step. `templates/publish-gate.sh` blocks the commands that reach an
+audience — `gh release create`, `npm publish`, a tag push, a mail API, a site
+deploy — and lets everything the agent needs for its own work through.
+
+Same shape as Stage 5, and for the same reason: every other artefact in this
+lifecycle is a commit somebody can revert. A post is indexed and forwarded
+within minutes, and mail cannot be recalled.
 
 ### 6 · Maintain — close the loop
 Detection is deterministic — no model in that path — tiers in version-controlled
@@ -337,6 +354,7 @@ spans several repos, and what breaks when it is split:
 | Views, page skeleton | `references/views.md` |
 | Surfaces, CI vs hook, task install | `references/running-it.md` |
 | Docs and go-to-market, per release | `references/release.md` |
+| Which model runs a stage, and what is enforced | `references/models.md` |
 | Intent classification | `templates/intake.md` |
 
 Scripts. **They disagree on exit codes on purpose only where noted** — check the
@@ -364,6 +382,6 @@ a PR. Repo copies in `.claude/sdlc/templates/` win over these.
 | 4C · checks | `checks.yaml` |
 | 5 · deploy | `agent-reviewer.md` `production-gate.sh` `triage-step.yml` `SKILL-secure-api-review.md` |
 | 5B · document | `user-guide.md` |
-| 5C · announce | `release-blog.md` `release-email.md` |
+| 5C · announce | `release-blog.md` `release-email.md` `publish-gate.sh` |
 | 6 · maintain | `bands.yaml` `converge.md` |
 | any | `view.html` |

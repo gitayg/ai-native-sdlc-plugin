@@ -18,31 +18,66 @@
     "home": "product.spec_repo"
   },
   "models": {
-    "_note": "Enforced only where a fresh context begins \u2014 a subagent. Stages that run in your session inherit the session model; this block declares intent for those, and the skill says which stage it is in so you can choose.",
+    "_note": "Per-stage model and effort. ENFORCED only where a fresh context begins - a subagent with frontmatter. Stages that run in your session inherit the session model whatever this file says; for those this block is a recommendation the skill reads out so you can choose before the stage runs. Values: model = inherit | cheap | <model id>. effort = inherit | low | medium | high. See references/models.md.",
+    "import": {
+      "effort": "high",
+      "model": "inherit",
+      "enforced": false,
+      "why": "inferring requirements from code you have never read is the hardest inference in the lifecycle, and every mistake becomes a requirement someone later confirms"
+    },
     "intake": {
       "effort": "high",
       "model": "inherit",
-      "why": "contradiction detection against the whole spec is the hardest call here"
+      "enforced": false,
+      "why": "contradiction detection against the whole spec is the hardest call here, and a missed contradiction merges silently"
     },
     "build": {
       "effort": "inherit",
       "model": "inherit",
+      "enforced": false,
       "why": "your session, your choice"
+    },
+    "tests": {
+      "effort": "inherit",
+      "model": "inherit",
+      "enforced": false,
+      "why": "runs in your session against a written plan"
     },
     "evals": {
       "effort": "low",
       "model": "cheap",
-      "why": "mechanical pass/fail, 20-50 of them nightly \u2014 this is where cost lives"
+      "enforced": true,
+      "why": "mechanical pass/fail, 20-50 of them nightly - this is where cost lives"
+    },
+    "checks": {
+      "effort": "none",
+      "model": "none",
+      "enforced": true,
+      "why": "NO MODEL IN THIS PATH. Stage 4C runs declared scripts and compares coverage; a model deciding whether a check passed is the failure the stage exists to prevent"
     },
     "review": {
       "effort": "high",
       "model": "inherit",
-      "why": "fresh context, adversarial, low volume"
+      "enforced": true,
+      "why": "fresh context, adversarial, low volume - the one place raising effort is cheap and clearly worth it"
+    },
+    "document": {
+      "effort": "medium",
+      "model": "inherit",
+      "enforced": true,
+      "why": "reads the whole active spec and maps every section to ids; cheap models drop the mapping and write plausible prose"
+    },
+    "announce": {
+      "effort": "high",
+      "model": "inherit",
+      "enforced": true,
+      "why": "every claim has to trace to a merged PR or a requirement id, and this is the one artifact that leaves the building"
     },
     "diagnose": {
       "effort": "low",
       "model": "cheap",
-      "why": "2 sigma is summarising; raise it for 3 sigma"
+      "enforced": true,
+      "why": "2 sigma is summarising; raise it for 3 sigma, which proposes a change"
     }
   },
   "bands": {

@@ -43,10 +43,19 @@ the difference matters enough to ask.
 
 ## The rules that are not negotiable
 
-**A human publishes.** Drafting is delegated; publishing is not. A post is
-indexed and forwarded within minutes and mail cannot be recalled — these are the
-first artefacts in the lifecycle that leave the building, and the production
-gate's reasoning applies to them exactly. The agent produces a draft and stops.
+**Agent-driven, human-gated.** 5C is an agent stage like the rest: it writes
+both artefacts, captures the screenshots, verifies the release is live and
+installable, runs the pre-publish checklist, and says which items it could not
+verify itself. The publish is the exception, and it is enforced as a hook
+(`templates/publish-gate.sh`) rather than left as a convention — a rule the
+agent is asked to remember is a rule it eventually reasons past.
+
+The gate denies the commands that reach an audience — `gh release create`,
+`npm publish`, a tag push, a mail API, a site deploy — and allows everything
+the agent needs to do its own work, including committing drafts and rendering
+images. Same shape as the production gate at Stage 5, for the same reason:
+every other artefact here is a commit someone can revert; a post is indexed and
+forwarded within minutes, and mail cannot be recalled.
 
 **Screenshots come from the released build, in this session, with the version in
 the filename.** A screenshot from the previous release is a lie with a picture

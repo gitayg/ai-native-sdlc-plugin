@@ -223,9 +223,31 @@ images do not.
 deltas and the merged PRs. Every claim traces to one of them, every number was
 measured, and the post names the adjacent thing the release does *not* do.
 
-**You publish.** Drafting is delegated; publishing is not. These are the first
-artefacts that leave the building, a post is forwarded within minutes, and mail
-cannot be recalled. The agent stops at the draft.
+**Agent-driven, human-gated.** 5C runs as an agent stage like the others — it
+writes both artefacts, captures the screenshots, checks the release is actually
+installable, and reports what it could not verify. The publish itself is a hook
+(`publish-gate.sh`), not a convention: it blocks `gh release create`, `npm
+publish`, a tag push, a mail API and a site deploy, and allows everything the
+agent needs for its own work. A rule the agent is only asked to remember is a
+rule it eventually reasons past.
+
+## Choosing the model per stage
+
+Each stage names a model and an effort in `.claude/sdlc.json`, shipped with
+recommended defaults. Two halves, and they are not interchangeable: a stage that
+starts a **subagent** carries the setting in frontmatter and it is enforced; a
+stage that runs **in your session** inherits your session model whatever the
+file says, so the skill tells you which stage it is entering instead of
+pretending to have applied something.
+
+Effort buys most at **intake** and **review** — low volume, expensive to get
+wrong. It buys least on nightly evals and 2σ diagnosis, which run constantly and
+have right answers. Running everything at high effort is the same care with a
+larger bill, and it makes the nightly suite expensive enough to switch off.
+
+Stage 4C takes **no model at all**. It compares coverage arithmetically; a model
+asked *did this check pass* believes the green summary line, which is the
+failure the stage exists to prevent.
 
 ## Starting from a repo that already exists
 
