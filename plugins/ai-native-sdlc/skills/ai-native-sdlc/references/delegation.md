@@ -49,7 +49,7 @@ artifacts down in the first place.
 | Check | Consumes | Stage | Answers |
 |---|---|---|---|
 | plan-vs-diff | `plan.md` | 3A | did what shipped match what was promised |
-| tests-vs-criteria | `spec.md` requirements | 4A | do the tests assert the acceptance criteria |
+| tests-vs-criteria | the living spec's requirements | 4A | do the tests assert the acceptance criteria |
 | review brief | the diff | 5A | what a fresh reviewer should look at |
 | pre-push gate | the diff | 5 | is this safe to push |
 

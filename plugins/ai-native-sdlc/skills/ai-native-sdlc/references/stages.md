@@ -6,14 +6,14 @@ indicators are already sitting in your git timestamps.
 
 ## 1 · Plan
 - **Governance:** the evidence is the committed artifact; full revision history in git.
-- **Leading:** time from first conversation to committed `intent.md` — hours, not weeks.
-- **Lagging:** survival rate of `intent.md` accepted into Design vs closed; changes made after the first `spec.md` commit.
+- **Leading:** time from first conversation to the issue being opened — hours, not weeks.
+- **Lagging:** share of issues that reach a merged spec delta versus those closed unspecified; and how often an intent turns out to be a duplicate of something already specified.
 - **Needs:** Claude access for non-engineers; an agreed template; a shared version-controlled home; optionally a Git connector for non-technical contributors.
 
 ## 2 · Design
 - **Governance:** live policy applied at writing time; prompt, spec and skill versions logged; product owner signs off; tech lead consulted on higher-risk changes.
-- **Leading:** elapsed time between the `intent.md` and `spec.md` commits.
-- **Lagging:** requirements rework after build starts — commits to `spec.md` dated after the first `plan.md` commit.
+- **Leading:** elapsed time from the issue being opened to its spec delta being merged.
+- **Lagging:** requirements rework after build starts — edits to the same requirement ids dated after the first `plan.md` commit. Also the contradiction rate: intents that stopped at intake, which is a healthy number only while it is falling.
 
 ## 3 · Build
 | Play | Governance | Leading | Lagging |
@@ -46,7 +46,7 @@ agent and authorised by a release manager). Rollback is the most rehearsed path.
 
 ## 6 · Maintain
 - **Governance:** tier boundaries from version-controlled config; managed settings deny production access; invocations, findings and triage decisions timestamped; changes go through the normal PR gate; runbooks approved in advance.
-- **Leading:** time from band breach to an `intent.md` in the triage queue.
+- **Leading:** time from band breach to an issue in the triage queue.
 - **Lagging:** share of findings becoming merged fixes; repeat incidents of the same class.
 - **Examples:** CI failure at 3σ → quarantine the flaky test or open a revert PR. Post-deploy 5xx at 3σ with a recent deployment → trigger the rollback pipeline. PR cycle-time drift → write a report for engineering leadership.
 

@@ -16,18 +16,21 @@ Check the control bands for <REPO PATH> and report breaches.
    - **1σ** — log the value and stop. No diagnosis, no report beyond one line.
    - **2σ** — diagnose read-only using the tools bands.yaml permits. Report the
      evidence. Change nothing.
-   - **3σ** — diagnose, then write the finding as an `intent.md` in Stage 1
-     format: anomaly, evidence, proposed outcome, affected systems, open
-     questions. Commit it to the artifact path. Take a pre-approved runbook
-     route only if bands.yaml lists it; otherwise stop at the intent.md.
+   - **3σ** — diagnose, then **open an issue** carrying the finding: anomaly,
+     evidence, proposed outcome, affected systems, open questions. Label it as
+     an intent so it lands in the same triage queue as everything else. Take a
+     pre-approved runbook route only if bands.yaml lists it; otherwise stop at
+     the issue. Do not edit the spec — a production signal goes through intake
+     like any other intent, which is what stops it silently contradicting an
+     agreed requirement.
 4. Never deploy, never roll back, and never touch production credentials — the
    tier config is the boundary, and a breach is not authorisation.
-5. Report: the metric, the band it breached, the evidence, and the path of any
-   intent.md you committed, so it can be triaged.
+5. Report: the metric, the band it breached, the evidence, and the number of any
+   issue you opened, so it can be triaged.
 6. End with exactly one verdict line, always. The evidence above never stands in
    for it, and a long diagnosis is precisely when the reader most needs the tier
    stated rather than inferred. Name the tier explicitly — use one of:
-   - `VERDICT: BREACH 3σ — <metric> at <value>, intent.md at <path>` — triage now.
+   - `VERDICT: BREACH 3σ — <metric> at <value>, issue #<n> opened` — triage now.
    - `VERDICT: BREACH 2σ — <metric> at <value>, diagnosis above` — read it today.
    - `VERDICT: BREACH 1σ — <metric> at <value>, logged only` — no action. This is
      the one line step 3 allows; it is the whole report.

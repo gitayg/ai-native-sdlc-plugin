@@ -1,17 +1,26 @@
 ---
 name: ai-native-sdlc
-description: "Run the AI-native software lifecycle: capture an idea as intent.md, turn it into spec.md, plan it as plan.md, build with CLAUDE.md/skills/hooks, verify with evals, review and gate deploys, and close the loop from production back to intent.md. Use whenever the user starts a new feature, idea or change and wants it done properly end-to-end; asks for an intent, spec, implementation plan, CLAUDE.md, review policy, approval gate, eval suite or control bands; asks how to adopt Claude across an SDLC or make agentic development governable/auditable; or asks what stage a piece of work is in and what comes next. Also use when wiring this lifecycle to Jira or GitHub — picking a source of truth, binding a project key or repo, or moving tickets and opening PRs as stages complete. Triggers on 'AI-native SDLC', 'intent.md', 'spec.md', 'plan.md', 'REVIEW.md', 'bands.yaml', 'agent governance', 'plan mode first'."
+description: "Run the AI-native software lifecycle. An intent arrives as a GitHub Issue, a Jira ticket, typed text or a file; it is classified against the repo's living spec at .claude/sdlc/spec.md (extend, refine, duplicate, or contradict), merged as a spec delta, then planned and built. Use whenever the user starts a new feature, idea, bug or change and wants it done properly end-to-end; asks to capture an intent, update the spec, write an implementation plan, CLAUDE.md, review policy, approval gate, eval suite or control bands; asks whether something is already specified or contradicts existing requirements; asks how to adopt Claude across an SDLC or make agentic development governable and auditable; or asks what stage a piece of work is in and what comes next. Also use when wiring the lifecycle to GitHub Issues or Jira \u2014 picking a source of truth, binding a repo or project key, or moving tickets and opening PRs as stages complete. Triggers on AI-native SDLC, intent, living spec, spec delta, EARS requirements, plan.md, REVIEW.md, bands.yaml, agent governance, plan mode first."
 ---
 
 # AI-Native SDLC
 
 Code is no longer the bottleneck. The stages around it are. This skill runs a
-six-stage lifecycle where **each stage ends by committing an artifact and the
-next stage begins by reading it**. That chain is the audit trail:
+six-stage lifecycle where **each stage leaves a committed record and the next
+stage begins by reading it**. That chain is the audit trail:
 
 ```
-intent.md → spec.md → plan.md → diff + tests → PR + review findings → incident record → intent.md
+intent (issue | text | file)
+  → spec delta → plan.md → diff + tests → PR + findings → incident → new intent
 ```
+
+An intent is an **input**, not an artifact. It is analysed and merged into one
+**living spec per repo** at `.claude/sdlc/spec.md`, which is always current. The
+per-change record is the spec diff — `git log -p .claude/sdlc/spec.md` — joined
+to its issue by the branch name and PR title.
+
+The spec sits under `.claude/` deliberately: build tooling, packaging and doc
+generators never pick it up there.
 
 ## Stage 0 · Bind to your systems
 
@@ -128,20 +137,22 @@ not, which meant every repo got the same shapes whether they fitted or not.
 
 ## First: locate the work
 
-Before doing anything, find which stage this is and say so. Look for the
-artifacts in the repo — they are the state machine.
+Before doing anything, find which stage this is and say so. The living spec
+always exists, so **file presence is not the state machine** — the issue and the
+branch are.
 
-| Present in repo | Stage to run |
+| State | Stage to run |
 |---|---|
-| nothing yet | **1 · Plan** — write `intent.md` |
-| `intent.md` committed | **2 · Design** — write `spec.md` |
-| `spec.md` committed | **3 · Build** — plan mode, then `plan.md`, then implement |
+| no issue for this work | **1 · Plan** — capture the intent, open the issue |
+| issue open, spec unchanged for it | **2 · Design** — intake, then merge the delta |
+| spec delta merged, no branch | **3 · Build** — plan mode, then `plan.md`, then implement |
 | code changed, unverified | **4 · Test** — close the feedback loop before a human looks |
 | change verified | **5 · Deploy** — review passes, gates, PR |
-| running in production | **6 · Maintain** — bands, diagnosis, back to `intent.md` |
+| running in production | **6 · Maintain** — bands, diagnosis, back to a new intent |
 
-Never skip forward. If `spec.md` is missing, do not write `plan.md` — say what
-is missing and offer to produce it.
+Never skip forward. Never plan from an intent that has not been through intake:
+without it you cannot know whether the work extends the spec or contradicts it,
+and the second one is a stop, not a task.
 
 ## What this skill owns, and what it hands off
 
@@ -165,31 +176,55 @@ so. Never reimplement their checks.
 
 ## The six stages
 
-### 1 · Plan — capture as intent.md
-Brainstorm conversationally until the idea is concrete, then write
-`templates/intent.md`. The originator corrects the misunderstandings; you do
-not decide what they meant. Commit it — git records author and timestamp, and
-that commit *is* the approval evidence.
+### 1 · Plan — capture the intent
+An intent arrives three ways and they all converge: a **tracker item** (a
+labelled issue, or a Jira ticket), **text** someone types in a session or a
+panel, or a **file** handed to you. Brainstorm conversationally until it is
+concrete — what customers cannot do today, the better state, who and what it
+touches, the constraints, what is still unknown. The originator corrects the
+misunderstandings; you do not decide what they meant.
 
-### 2 · Design — requirements and design in one pass
-Read the approved `intent.md`. Produce `spec.md` (`templates/spec.md`, prompt
-`templates/spec-command.md`) with the org's brand, security, compliance and UX
-skills applied **while writing**, not as a review pass afterwards. Flag every
-area of concern explicitly, especially where two policies contradict — name the
-conflict and the policy owners, never silently pick a winner.
+Then open the issue, if it did not arrive as one. **That is the durable record**
+— it is queryable, it is where non-engineers already live, and one search
+answers what is in flight across every repo. A committed `intent.md` that nobody
+queries is not a record. `templates/intent.md` is still the shape to fill in
+when the originator wants to draft in a file first.
+
+### 2 · Design — intake, then merge the delta
+Read the intent and read `.claude/sdlc/spec.md` in full. Classify the intent
+against the spec as exactly one of four things (`templates/intake.md`):
+
+| | Meaning | What you do |
+|---|---|---|
+| **Extend** | not covered yet | allocate new ids, write them in EARS |
+| **Refine** | right but imprecise | same id, changed text, recorded |
+| **Duplicate** | already specified | cite the id and **stop** |
+| **Contradict** | the spec forbids what this requires | **stop and ask** |
+
+**A contradiction is a stop, not a merge.** Quote both requirement ids, state
+the conflict in one sentence, ask which wins, and say plainly that nothing has
+been merged. Never supersede silently, and never prefer the newer requirement
+because it is newer — that changes agreed behaviour with nobody approving it,
+and leaves a spec that is confidently wrong rather than obviously incomplete.
+
+Merging is a spec edit: new requirements take the next ids, replaced ones are
+marked superseded with a pointer and never deleted, and every active requirement
+keeps a row in the acceptance criteria table. Ids are never reused and never
+renumbered — plans, tests, review findings and PR titles all cite them, and a
+reused id silently redirects every one of those citations.
 
 **Requirements are written in EARS** (`references/ears.md`): one requirement per
-sentence, one `shall` each, numbered `R1`, `R2`, … and never renumbered. The
-response must be observable from outside the system, or it is a design note
-rather than a requirement. Unquantified adjectives — fast, robust, graceful,
-appropriate — are arguments deferred to review; give a number or drop the word.
-A spec with no `If <trigger>, then …` requirements has not considered failure,
-and the tests will inherit that gap.
+sentence, one `shall` each. The response must be observable from outside the
+system, or it is a design note rather than a requirement. Unquantified
+adjectives — fast, robust, graceful, appropriate — are arguments deferred to
+review; give a number or drop the word. A spec with no `If <trigger>, then …`
+requirements has not considered failure, and the tests will inherit that gap.
 
-This is what makes Stage 4A's question — *do the tests actually assert the
-criteria* — computable instead of a matter of opinion, and it is what a criteria
-checker consumes downstream. Every requirement gets a row in the acceptance
-criteria table; list the ones you could not map rather than omitting them.
+Apply the org's brand, security, compliance and UX skills **while writing**, not
+as a review pass afterwards, and flag areas of concern explicitly — where two
+policies contradict, name the conflict and both policy owners.
+
+Only the **delta** goes to build: the ids added or changed, not the whole spec.
 
 ### 3 · Build — plan first, knowledge as files
 - **Plan mode is not optional.** Read-only first. Produce `plan.md`
@@ -254,8 +289,11 @@ criteria table; list the ones you could not map rather than omitting them.
 ### 6 · Maintain — close the loop
 Detection is deterministic — no model in the detection path. Tiers live in
 version-controlled config (`templates/bands.yaml`): 1σ log, 2σ diagnose
-read-only, 3σ act via PR or pre-approved runbook. Findings are written as an
-`intent.md` in Stage 1 format and enter a human triage queue. Dismissals tune
+read-only, 3σ act via PR or pre-approved runbook. A finding is **opened as an
+issue** — the same door Stage 1 uses — carrying the anomaly, the evidence, the
+proposed outcome, the affected systems and the open questions, and it enters the
+human triage queue. It goes through intake like any other intent, which is what
+stops a production signal from silently contradicting the spec. Dismissals tune
 the bands. When the fix ships, add the eval.
 
 Run it either way: **on a schedule** (`templates/scheduled-bands.md`) so breaches
@@ -265,14 +303,17 @@ notification — after that a human triages, which was always the design.
 
 ## Non-negotiables
 
-1. **Commit the artifact.** An artifact that is not committed did not happen —
-   there is no audit trail without the git history.
-2. **Read the upstream artifact.** Every stage starts by reading the previous
-   one, not by re-deriving intent from the conversation.
-3. **Flag conflicts, never resolve policy silently.**
-4. **Verify before reporting done**, and paste the output.
-5. **Fix the code, not the test.**
-6. **Humans hold every judgement.** Configuration handles mechanics; the agent
+1. **Leave the record.** The issue and the spec diff are the audit trail. Work
+   that changed no spec and cites no issue did not happen.
+2. **Read the spec before changing it.** Every intent is classified against the
+   whole current spec, not against the conversation. You cannot know whether
+   work extends or contradicts without reading what is already agreed.
+3. **A contradiction stops the work.** Never supersede an active requirement
+   without a human deciding, and never because the new one is newer.
+4. **Flag conflicts, never resolve policy silently.**
+5. **Verify before reporting done**, and paste the output.
+6. **Fix the code, not the test.**
+7. **Humans hold every judgement.** Configuration handles mechanics; the agent
    acts up to the production gate and never past it.
 
 ## Measurement
@@ -283,3 +324,4 @@ quarter — rework rate, escaped defects, repeat incidents, DORA. Full per-stage
 table: `references/stages.md`. Jira and GitHub wiring:
 `references/integrations.md`. Requirements syntax: `references/ears.md`.
 Handing stages 3-5 to an external runner: `references/delegation.md`.
+Intent classification: `templates/intake.md`.

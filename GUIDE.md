@@ -2,14 +2,21 @@
 
 Code stopped being the bottleneck. The stages around it — planning, review,
 deployment, maintenance — still run at human speed, and that is where the time
-now goes. This plugin runs a six-stage lifecycle where **every stage ends by
-committing an artifact and the next stage begins by reading it**.
+now goes. This plugin runs a six-stage lifecycle where **every stage leaves a
+committed record and the next stage begins by reading it**.
 
-That chain is the whole idea. It is also the audit trail:
+An intent is an **input**, not a file you keep. It is classified against the
+repo's living spec, merged in, and the work is built from what the spec gained:
 
 ```
-intent.md → spec.md → plan.md → diff + tests → PR + findings → incident → intent.md
+intent (issue | text box | file)
+  → intake → living spec → plan.md → diff + tests → PR → incident → new intent
 ```
+
+The spec lives at `.claude/sdlc/spec.md` — one per repo, always current, and
+inside `.claude/` so no build, packaging step or doc generator ever picks it up.
+The record of any single change is the spec diff, joined to its issue by the
+branch name and PR title.
 
 ## Install
 
@@ -25,8 +32,8 @@ them. Two copies is silent drift.
 
 ## First run in a repo
 
-Just describe what you want. The skill locates the work by looking at which
-artifacts already exist, so it knows whether you are starting or resuming.
+Just describe what you want. The skill works out which stage you are in from
+the issue and the branch, so it knows whether you are starting or resuming.
 
 The first time it needs GitHub or Jira, it asks once — repo, source of truth,
 project key — and writes `.claude/sdlc.json`. It never asks again in that repo,
@@ -38,15 +45,53 @@ and it never asks at all in a scheduled run, where nobody is there to answer.
 
 | | You do | You get |
 |---|---|---|
-| **1 Plan** | describe the problem in plain language | `intent.md`, committed |
-| **2 Design** | review the spec against your intent | `spec.md` with EARS requirements |
+| **1 Plan** | describe the problem in plain language | a labelled issue |
+| **2 Design** | rule on anything that contradicts the spec | a spec delta, in EARS |
 | **3 Build** | interrogate the plan before any code | `plan.md`, then the implementation |
 | **4 Test** | nothing — it verifies before you look | passing checks, pasted |
 | **5 Deploy** | judge intent and risk, not mechanics | draft PR, review findings |
-| **6 Maintain** | triage what production surfaced | a new `intent.md` |
+| **6 Maintain** | triage what production surfaced | a new issue, back to stage 1 |
 
-Stages never skip forward. No `spec.md` means no `plan.md` — it will say what is
-missing rather than invent it.
+Stages never skip forward, and nothing plans from an intent that has not been
+through intake — until then you cannot know whether the work extends the spec or
+contradicts it, and the second one is a stop, not a task.
+
+## The four answers intake can give
+
+Every intent is classified against the whole current spec, and only two of the
+four produce work:
+
+| | Meaning | What happens |
+|---|---|---|
+| **Extend** | not covered yet | new requirement ids, written in EARS |
+| **Refine** | right but imprecise | same id, tightened, recorded |
+| **Duplicate** | already specified | cite the id and stop |
+| **Contradict** | the spec forbids what you asked for | **stop and ask which wins** |
+
+That last row is the point of the whole design. A per-feature spec cannot detect
+a contradiction, because it does not know what else was ever agreed. A living
+spec can — and when it finds one, nothing is merged until a human rules. Agreed
+behaviour never changes because a newer sentence arrived later.
+
+Requirement ids are permanent. Nothing is deleted; a replaced requirement is
+marked `Superseded by R58.` and keeps its original text, because plans, tests,
+review findings and PR titles all cite these ids, and a reused id redirects every
+one of those citations silently.
+
+## Where all the intents live
+
+There is no folder of intents to manage. Under the `issues` model an intent is a
+labelled issue on the repo it concerns, which makes "what is in flight across
+every repo" one query:
+
+```bash
+gh search issues --owner YOUR-ORG --label sdlc:intent --state open --limit 100
+```
+
+Two things to know before relying on that: `--limit` caps at 1000 with no paging
+past it, and an empty result is indistinguishable from a label that exists
+nowhere — both print nothing and exit 0. Validate a negative with a label you
+know exists.
 
 ## What makes stage 2 matter
 
@@ -84,8 +129,9 @@ Same idea as `CLAUDE.md`: the repo's conventions belong to the repo.
   If you need a gate, that one belongs in CI.
 - **Control bands** watch a metric and act by tier: 1σ log, 2σ diagnose
   read-only, 3σ propose via PR. Detection is deterministic — no model decides
-  whether something broke. Findings arrive as an `intent.md` in your triage
-  queue, which is how the loop closes.
+  whether something broke. A finding is opened as an issue and goes through
+  intake like any other intent, which is how the loop closes — and what stops a
+  production signal silently contradicting an agreed requirement.
 
 The skill installs both, refuses to install an eval task against an empty suite,
 and warns that scheduled tasks only run while the app is open.
@@ -104,11 +150,12 @@ file exists, and tells you which way it resolved.
 
 ## The rules it will not bend
 
-1. Commit the artifact. Uncommitted means it did not happen.
-2. Read the upstream artifact, do not re-derive it from conversation.
-3. Flag policy conflicts; never silently pick a winner.
-4. Verify before reporting done, and paste the output.
-5. Fix the code, not the test.
-6. The agent acts up to the production gate and never past it.
+1. Leave the record. Work that changed no spec and cites no issue did not happen.
+2. Read the whole spec before changing it, not just the conversation.
+3. A contradiction stops the work until a human rules.
+4. Flag policy conflicts; never silently pick a winner.
+5. Verify before reporting done, and paste the output.
+6. Fix the code, not the test.
+7. The agent acts up to the production gate and never past it.
 
 Humans keep every judgement. Configuration handles the mechanics.

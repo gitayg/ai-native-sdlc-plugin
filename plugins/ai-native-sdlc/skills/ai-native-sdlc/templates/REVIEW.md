@@ -30,7 +30,9 @@ its base is not readable as evidence.
 ## Passes
 - Bugs: logic errors, edge cases, regressions.
 - Security: injection, auth gaps, PII in logs.
-- Compliance: does the diff match spec.md, plan.md and our design principles?
+- Compliance: does the diff satisfy the requirement ids this change cites, as
+  they read in the living spec, plus plan.md and our design principles? A diff
+  that implements behaviour no requirement asked for is scope, not compliance.
 
 ## Important vs. Nit
 - Important: breaks behaviour, leaks data, or breaches policy.

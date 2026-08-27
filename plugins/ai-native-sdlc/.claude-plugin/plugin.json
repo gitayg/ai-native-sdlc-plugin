@@ -2,8 +2,8 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "ai-native-sdlc",
   "displayName": "AI-Native SDLC",
-  "version": "1.1.0",
-  "description": "Six-stage AI-native software lifecycle: intent.md to spec.md to plan.md to diff and tests to PR review to incident record, each stage committing the artifact the next one reads.",
+  "version": "2.0.0",
+  "description": "A six-stage AI-native software lifecycle as a Claude Code skill. An intent arrives as an issue, a ticket, text or a file, is classified against the repo's living spec, and merged as a spec delta the build plans from.",
   "author": {
     "name": "Itay Glick"
   },

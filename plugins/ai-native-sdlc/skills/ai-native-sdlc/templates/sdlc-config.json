@@ -1,9 +1,24 @@
 {
-  "version": 1,
+  "version": 2,
   "source_of_truth": "linkage",
+
+  "spec": {
+    "path": ".claude/sdlc/spec.md",
+    "requirement_id_prefix": "R",
+    "ids_are_permanent": true,
+    "on_supersede": "mark_with_pointer",
+    "on_contradiction": "ask_human",
+    "audit_record": "git_diff"
+  },
+
+  "intent": {
+    "channels": ["file", "text", "github_issue", "jira_issue"],
+    "persist": false
+  },
 
   "artifacts": {
     "path": "docs/sdlc/<slug>",
+    "per_change": ["plan.md", "REVIEW.md"],
     "commit_each_stage": true
   },
 
@@ -11,7 +26,19 @@
     "repo": "owner/name",
     "default_branch": "main",
     "gh_account": "your-gh-login",
-    "pr_draft_first": true
+    "pr_draft_first": true,
+    "issues": {
+      "label": "sdlc",
+      "branch_pattern": "feature/<issue>-<slug>",
+      "pr_title_pattern": "#<issue>: <summary>",
+      "stage_labels": {
+        "design": "sdlc:design",
+        "build": "sdlc:build",
+        "test": "sdlc:test",
+        "deploy": "sdlc:deploy",
+        "done": "sdlc:done"
+      }
+    }
   },
 
   "jira": {
@@ -20,6 +47,8 @@
     "issue_type": "Story",
     "auth": "env",
     "epic_field": "customfield_10014",
+    "branch_pattern": "feature/<issue>-<slug>",
+    "pr_title_pattern": "<issue>: <summary>",
     "transitions": {
       "design": "In Design",
       "build": "In Progress",
