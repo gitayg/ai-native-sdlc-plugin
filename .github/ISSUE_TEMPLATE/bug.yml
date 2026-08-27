@@ -1,0 +1,27 @@
+name: Something is wrong
+description: The skill did the wrong thing, or a file is broken.
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you asked for, and what the skill did instead.
+    validations: { required: true }
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations: { required: true }
+  - type: input
+    id: version
+    attributes:
+      label: Plugin version
+      placeholder: "2.2.0"
+    validations: { required: false }
+  - type: textarea
+    id: repro
+    attributes:
+      label: How to reproduce
+      description: The prompt, the repo state, anything needed to see it again.
+    validations: { required: false }

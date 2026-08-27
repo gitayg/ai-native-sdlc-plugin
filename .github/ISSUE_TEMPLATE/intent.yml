@@ -1,0 +1,40 @@
+name: Intent — suggest a feature or a change
+description: Describe a problem and the better state. This is the shape the skill itself uses.
+labels: ["sdlc:intent"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        An intent describes a problem, not a solution. It gets classified against the
+        living spec — extend, refine, duplicate, or contradict — so the more concrete
+        the problem, the better that classification is.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What can you not do today?
+    validations: { required: true }
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Proposed outcome
+      description: The better state. Not the implementation — the outcome you want.
+    validations: { required: true }
+  - type: textarea
+    id: affected
+    attributes:
+      label: Affected users and systems
+      description: Who and what this touches. Which stage, which file, which repo.
+    validations: { required: false }
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Constraints
+      description: Boundaries — regulatory, technical, anything that rules an approach out.
+    validations: { required: false }
+  - type: textarea
+    id: open
+    attributes:
+      label: Open questions
+      description: What you do not know yet. An honest unknown is more useful than a guess.
+    validations: { required: false }

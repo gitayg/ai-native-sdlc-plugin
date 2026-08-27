@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Ask a question or float an idea
+    url: https://github.com/gitayg/ai-native-sdlc-plugin/discussions
+    about: For anything not yet shaped like a problem statement.
+  - name: Read the guide first
+    url: https://github.com/gitayg/ai-native-sdlc-plugin/blob/main/GUIDE.md
+    about: One page on what the lifecycle does and how to run it.

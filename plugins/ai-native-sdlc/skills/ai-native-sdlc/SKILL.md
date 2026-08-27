@@ -119,6 +119,42 @@ Commands, the REST recipes, transition handling and the three source-of-truth
 models are in `references/integrations.md`. Read it before the first Jira or
 GitHub write.
 
+## Stage 0a · Scaffold the repo
+
+Binding writes `.claude/sdlc.json`. Scaffolding writes the files the lifecycle
+needs so the repo starts with them rather than with instructions for making
+them. Do it once, right after the binding, and **never overwrite a file that
+already exists** — report what you skipped instead.
+
+Write only what the next stage actually needs:
+
+| File | From | Written as |
+|---|---|---|
+| `.claude/sdlc/spec.md` | `templates/spec.md` | empty living spec: system named, next id `R1`, no requirements, all counts zero |
+| `REVIEW.md` | `templates/REVIEW.md` | as-is, at the repo root |
+| `CLAUDE.md` | `templates/CLAUDE.md` | only if absent, and cut to what is true of this repo |
+
+Nothing else. `ops/bands.yaml` waits until there is a metric worth watching,
+`evals/` until there are real tasks to draw evals from, and the hooks until
+someone has decided what to gate. Writing all twenty templates into a repo is
+how a scaffold becomes clutter nobody reads, and the article's own rule against
+filler applies to files as much as to prose.
+
+**An empty spec is the correct starting state.** It carries the header, the
+allocator sitting at `R1`, the pattern sections and the empty tables. The first
+intake fills it. Do not seed example requirements — an invented `R1` is a
+requirement nobody agreed to, and it will be cited before anyone notices.
+
+**Check the spec path is committable before writing it.** `.claude/` is
+routinely gitignored, and a spec that cannot be committed is not an audit trail.
+Read the repo's `.gitignore`: if `.claude/` is ignored, add the negation
+`!.claude/sdlc/` and say you did. Discovering this at the first commit is too
+late — the work has already happened by then.
+
+Report the paths written, the paths skipped because they existed, and any
+gitignore change, so the first commit is a deliberate act rather than a
+surprise.
+
 ## Stage 0b · Install the scheduled tasks
 
 The two unattended plays are installed **by this skill**, not by hand. Do it
