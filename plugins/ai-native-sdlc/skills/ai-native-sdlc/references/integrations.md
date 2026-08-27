@@ -36,7 +36,7 @@ Put any detected value first and label it `(detected)`:
 ```
 Question 1 — header "Repo"
   "Which GitHub repo should these artifacts and PRs land in?"
-  - gitayg/aide (detected)      — from git remote origin, on main
+  - acme/orders-api (detected)      — from git remote origin, on main
   - A different repo            — user types owner/name
   - No repo yet — local only    — artifacts committed locally, no PRs
 

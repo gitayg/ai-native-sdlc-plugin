@@ -113,9 +113,9 @@ holds `.claude/sdlc/spec.md`; the others point at it:
 
 ```json
 "product": {
-  "name": "curaiq",
-  "spec_repo": "gitayg/curaiq-server",
-  "repos": ["gitayg/curaiq-server", "gitayg/moorai"]
+  "name": "orders",
+  "spec_repo": "acme/orders-api",
+  "repos": ["acme/orders-api", "acme/orders-web"]
 }
 ```
 
