@@ -70,6 +70,19 @@ have() {
     -o -type f -name "$1" -print -quit 2>/dev/null)" ] && echo true || echo false
 }
 
+# Repo-local templates override the skill's defaults. List what this repo actually
+# overrides, so a run can say so rather than silently using a different shape.
+OVERRIDES=""
+if [ -d .claude/sdlc/templates ]; then
+  for f in .claude/sdlc/templates/*; do
+    [ -f "$f" ] || continue
+    b=$(basename "$f")
+    [ -n "$OVERRIDES" ] && OVERRIDES="$OVERRIDES, "
+    OVERRIDES="$OVERRIDES\"$(j "$b")\""
+  done
+fi
+
+
 cat <<JSON
 {
   "config_file": "$(j "$CONFIG")",
@@ -83,6 +96,7 @@ cat <<JSON
   "github_cli": { "state": "$GH_STATE", "account": "$(j "$GH_ACCOUNT")" },
   "jira": { "state": "$JIRA_STATE", "site": "$(j "${JIRA_SITE:-}")", "project": "$(j "${JIRA_PROJECT:-}")" },
   "check_runner": { "state": "$RUNNER_STATE", "path": "$(j "$RUNNER_PATH")", "reason": "$(j "$RUNNER_REASON")" },
+  "template_overrides": [$OVERRIDES],
   "artifacts": {
     "intent": $(have intent.md),
     "spec":   $(have spec.md),

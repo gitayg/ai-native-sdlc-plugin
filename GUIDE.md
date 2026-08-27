@@ -61,6 +61,22 @@ not a requirement. This is what turns "do the tests actually assert the
 criteria?" from an argument into a check. A spec with no `If` requirements has
 not considered failure, and the tests will inherit that gap.
 
+## Make it yours, per repo
+
+Everything the lifecycle produces already lives in the repo: the binding
+(`.claude/sdlc.json`), the artifacts (`docs/sdlc/`), the review policy
+(`REVIEW.md`), the bands (`ops/bands.yaml`). The templates that shape them
+can be too:
+
+```
+.claude/sdlc/templates/spec.md     this repo's spec shape
+.claude/sdlc/templates/REVIEW.md   this repo's review passes
+```
+
+Repo-first, plugin as fallback. Commit only what differs — one file overrides
+one template and inherits the rest — and a plugin update never touches them.
+Same idea as `CLAUDE.md`: the repo's conventions belong to the repo.
+
 ## Two things that run without you
 
 - **Nightly evals** regression-test your agent configuration — `CLAUDE.md`,

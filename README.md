@@ -125,6 +125,19 @@ If the marketplace catalogue itself is stale, refresh it first:
 claude plugin marketplace update ai-native-sdlc
 ```
 
+## Per-repo templates
+
+Every template resolves repo-first:
+
+```
+.claude/sdlc/templates/<name>     the repo's own version
+templates/<name>                  the plugin's default
+```
+
+Commit the ones that differ and the whole repo gets them, the same way
+`CLAUDE.md` is the repo's. Override one file and inherit the rest; a plugin
+update never overwrites them.
+
 ## Consumers: enable auto-update
 
 Auto-update is per marketplace, and it is **off by default** for third-party
@@ -149,6 +162,23 @@ when the resolved version changes, which for this plugin means when the
 `DISABLE_AUTOUPDATER` turns plugin auto-updates off along with Claude Code's
 own. To keep plugin auto-updates while pinning Claude Code, set
 `FORCE_AUTOUPDATE_PLUGINS=1` alongside it.
+
+**A publisher cannot turn this on for you.** There is no `autoUpdate` field in
+`marketplace.json`; the setting lives on the consumer's side. For a team, an
+administrator can set `"autoUpdate": true` on the marketplace's
+`extraKnownMarketplaces` entry in managed settings, which enables it for the
+organisation without each person toggling it:
+
+```json
+{
+  "extraKnownMarketplaces": {
+    "ai-native-sdlc": {
+      "source": { "source": "github", "repo": "gitayg/ai-native-sdlc-plugin" },
+      "autoUpdate": true
+    }
+  }
+}
+```
 
 ## Publisher: shipping a change
 

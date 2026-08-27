@@ -97,6 +97,35 @@ gaps, that one belongs in CI.
 
 To remove, disable the task by id — do not delete the template.
 
+## Template resolution — per repo beats global
+
+Every template this skill names resolves in one order, and the repo wins:
+
+```
+.claude/sdlc/templates/<name>     the repo's own version
+templates/<name>                  this skill's default
+```
+
+So a team that wants its own `intent.md` shape, its own `REVIEW.md` passes, or a
+`spec.md` with an extra compliance section commits them to
+`.claude/sdlc/templates/` and gets them everywhere in that repo, for everyone who
+clones it. Nothing in the skill needs changing, and a plugin update never
+overwrites them — the same way `CLAUDE.md` is the repo's, not yours.
+
+Override only what differs. A directory holding one file overrides one template
+and inherits the rest; there is no need to copy the set.
+
+**Say when an override is in play.** "Using this repo's `spec.md` template"
+takes one clause and prevents the confusion of a spec that does not match the
+documented shape. `scripts/detect-context.sh` lists what it found under
+`template_overrides`.
+
+This is the same layering the rest of the lifecycle already uses: the binding
+(`.claude/sdlc.json`), the artifacts (`docs/sdlc/`), the review policy
+(`REVIEW.md`), the bands (`ops/bands.yaml`) and the policy skills
+(`.claude/skills/`) are all the repo's. Templates were the one thing that was
+not, which meant every repo got the same shapes whether they fitted or not.
+
 ## First: locate the work
 
 Before doing anything, find which stage this is and say so. Look for the
