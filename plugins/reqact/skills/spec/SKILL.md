@@ -1,5 +1,5 @@
 ---
-name: ai-native-sdlc
+name: spec
 description: "Run the AI-native software lifecycle. An intent arrives as a GitHub Issue, a Jira ticket, typed text or a file; it is classified against the repo's living spec at .claude/sdlc/spec.md (extend, refine, duplicate, or contradict), merged as a spec delta, then planned and built. Use whenever the user starts a new feature, idea, bug or change and wants it done properly end-to-end; asks to capture an intent, update the spec, write an implementation plan, CLAUDE.md, review policy, approval gate, eval suite or control bands; asks whether something is already specified or contradicts existing requirements; asks how to adopt Claude across an SDLC or make agentic development governable and auditable; or asks what stage a piece of work is in and what comes next; or asks to SEE the pipeline, the spec, the fleet across repos, or a control band, which is published as a read-only view. Also use when wiring the lifecycle to GitHub Issues or Jira \u2014 picking a source of truth, binding a repo or project key, or moving tickets and opening PRs as stages complete. Triggers on AI-native SDLC, intent, living spec, spec delta, EARS requirements, plan.md, REVIEW.md, bands.yaml, agent governance, plan mode first."
 ---
 
@@ -78,7 +78,7 @@ So:
 Before the first stage that touches Jira or GitHub, run:
 
 ```bash
-~/.claude/skills/ai-native-sdlc/scripts/detect-context.sh
+~/.claude/skills/spec/scripts/detect-context.sh
 ```
 
 It reports the git remote and repo slug, `gh` auth state and account, Jira env

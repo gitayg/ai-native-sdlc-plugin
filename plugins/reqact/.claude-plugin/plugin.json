@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "reqact",
+  "displayName": "ReqAct",
+  "version": "3.0.0",
+  "description": "Track requirements as a living spec. Every request is classified against the whole spec \u2014 extend, refine, duplicate, or contradict \u2014 and a contradiction waits for your ruling.",
+  "author": {
+    "name": "Itay Glick"
+  },
+  "repository": "https://github.com/gitayg/reqact",
+  "license": "MIT",
+  "keywords": [
+    "requirements",
+    "spec",
+    "traceability",
+    "governance",
+    "sdlc"
+  ]
+}

@@ -21,11 +21,11 @@ branch name and PR title.
 ## Install
 
 ```bash
-claude plugin marketplace add gitayg/ai-native-sdlc-plugin
-claude plugin install ai-native-sdlc
+claude plugin marketplace add gitayg/reqact
+claude plugin install reqact
 ```
 
-Already have a personal copy at `~/.claude/skills/ai-native-sdlc/`? Move it
+Already have a personal copy at `~/.claude/skills/spec/`? Move it
 aside. Plugin skills are namespaced, so they do not replace it — both load, both
 compete for the same triggers, and `claude plugin update` moves only one of
 them. Two copies is silent drift.
