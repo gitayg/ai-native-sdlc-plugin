@@ -91,15 +91,42 @@
     "issue_type": "Story",
     "auth": "env",
     "epic_field": "customfield_10014",
+    "epic": null,
     "branch_pattern": "feature/<issue>-<slug>",
     "pr_title_pattern": "<issue>: <summary>",
+    "change_log_ref_pattern": "<issue>",
+    "create_from_intent": true,
+    "create_for_channels": [
+      "text",
+      "file"
+    ],
+    "intent_template": "templates/jira-intent.md",
+    "labels": {
+      "intent": "sdlc-intent",
+      "contradiction": "sdlc-contradiction"
+    },
     "transitions": {
       "design": "In Design",
       "build": "In Progress",
       "test": "In Review",
       "deploy": "Ready to Release",
       "done": "Done"
-    }
+    },
+    "transition_on": [
+      "design",
+      "build",
+      "deploy",
+      "done"
+    ],
+    "writeback": {
+      "spec_delta_comment": true,
+      "requirement_ids": true,
+      "pr_remote_link": true
+    },
+    "remote_link_global_id_prefix": "sdlc",
+    "request_timeout_seconds": 15,
+    "on_failure": "report_and_continue",
+    "_note": "Identifiers only \u2014 JIRA_API_TOKEN stays in the environment. Writes are append-only: a comment, a remote link, a label, or a transition named in `transitions`. The description is written once at creation and never edited, and no requirement text is ever written back \u2014 the spec's authority comes from being committed and diffable, and a copy in a description any Jira user can edit is a second spec that disagrees invisibly. `create_for_channels` must never list `jira_issue`: that intent already has a ticket, and a second one splits the audit trail. `transition_on` is the subset of `transitions` that actually moves the ticket; `test` is deliberately absent. A transition name missing from the project's workflow is reported, never approximated, and ids are looked up per workflow rather than stored here. Labels use hyphens because a Jira label may not contain a space. `on_failure` has one legal value \u2014 the repo is the source of truth and Jira is a view, so every Jira error is reported and none blocks a stage."
   },
   "views": {
     "publish_as_artifact": true,

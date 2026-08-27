@@ -1,0 +1,246 @@
+# .claude/sdlc/checks.yaml — the checks stage, declared.
+#
+# Security and quality checks are a configured stage, not a list baked into the
+# tool. This file is the whole declaration; `scripts/run-checks.sh` only obeys
+# it. Adding, removing or re-scoping a check is a pull request against this
+# file, reviewed like code.
+#
+# WHO OWNS IT. One named person accountable for the checks stage — a security
+# or engineering manager. Not the agent, and not whoever is shipping today. An
+# owner who can be persuaded to loosen a check mid-change is not a gate.
+#
+# DATA ONLY, NEVER A COMMAND LINE. Every `command` is an argv list, never a
+# string. A string would be handed to a shell, and this file is committed, so
+# anyone who can land a commit would then be choosing what executes on the
+# machine of whoever pulls it. The runner refuses a string.
+#
+# THE ONE RULE THIS FILE EXISTS TO ENFORCE:
+#
+#     A CHECK THAT EXAMINED NOTHING IS A FAILURE, NOT A PASS.
+#
+# Every check declares what it must have covered. The runner measures what it
+# actually covered and fails the check when the two disagree — whatever exit
+# code the tool returned. A scanner that grades A while opening one file out of
+# thirty-three is the failure being prevented; `references/checks.md` sets out
+# that case in full.
+#
+# ---------------------------------------------------------------------------
+# THIS IS A TEMPLATE. AN UNEDITED COPY CHECKS AN IMAGINARY REPO.
+#
+#   1. Delete the checks whose tools you do not run. A declared tool that is
+#      not installed fails the run; it is never skipped.
+#   2. Run it once and read the coverage line of every check. A scanner
+#      reporting one file out of thirty-three has found you a bug in your
+#      checks stage, not a green build.
+#   3. Break each check on purpose — plant a fake key, add an unquoted
+#      variable, pin a vulnerable dependency — and watch it go red before you
+#      believe it. A check never observed failing is decoration.
+#   4. Confirm the exit codes below against the builds of the tools you
+#      actually have. They are the vendors' documented codes, not guesses
+#      about yours, and an exit code this file does not describe is treated as
+#      a failure rather than a pass.
+# ---------------------------------------------------------------------------
+
+version: 1
+
+policy:
+  # A change that triggers no check at all is not a passing change: it means
+  # this file does not describe the repo. `refuse` says so out loud. `pass`
+  # hides it, and is here only so a repo mid-adoption can opt in deliberately.
+  empty_run: refuse
+
+  # Where the machine-readable result lands. Stage 5 review reads this file;
+  # it is the evidence that the checks stage ran and what it covered.
+  output: .claude/sdlc/checks-result.json
+
+defaults:
+  timeout_seconds: 120
+  mode: batch
+  severity: block
+
+checks:
+
+  # --- 1 · secret scan ----------------------------------------------------
+  #
+  # Runs against every change, because a secret can be committed into any file
+  # type — a fixture, a notebook, a README.
+  #
+  # Per-file invocation, deliberately. Batch mode would let the tool decide
+  # which files it felt like opening and still exit 0; per-file mode makes the
+  # runner watch each file be accepted or refused, so "it only looked at one of
+  # them" becomes visible instead of green. It costs one process per file.
+  - id: secret-scan
+    why: a secret reaching the remote must be rotated; blocking the merge afterwards fixes nothing
+    when:
+      always: true
+    severity: block
+    requires: [gitleaks]
+    version_command: [gitleaks, version]
+    mode: per_file
+    command: [gitleaks, detect, --no-git, --no-banner, --redact, --source, "{file}"]
+    timeout_seconds: 300
+    exit_codes:
+      pass: [0]
+      fail: [1]        # leaks found
+      refused: [2]     # gitleaks could not run
+    coverage:
+      from: per_file_exit
+      examined_when_exit_in: [0, 1]
+      must_cover: all_triggering
+      min_covered: 1
+
+  # --- 2 · shell linter ---------------------------------------------------
+  #
+  # Scoped by path. A change with no shell in it does not pay for this.
+  - id: shell-lint
+    why: an unquoted variable in a deploy script is a production incident, not a style nit
+    when:
+      paths:
+        - "**/*.sh"
+        - "**/*.bash"
+    severity: block
+    requires: [npx]
+    version_command: [npx, --yes, shellcheck, --version]
+    mode: per_file
+    command: [npx, --yes, shellcheck, --severity=warning, --format=gcc, "{file}"]
+    timeout_seconds: 300
+    exit_codes:
+      pass: [0]
+      fail: [1]           # findings at or above the severity floor
+      refused: [2, 3, 4]  # could not open, could not parse, bad invocation
+    coverage:
+      from: per_file_exit
+      # 0 = clean, 1 = findings. Both mean the file was read. Anything else
+      # means shellcheck bounced off it, and a file it bounced off is not a
+      # file it checked.
+      examined_when_exit_in: [0, 1]
+      must_cover: all_triggering
+      min_covered: 1
+
+  # --- 3 · dependency audit ----------------------------------------------
+  #
+  # Triggered by the manifest and lockfile, and by a requirement tagged
+  # `dependency` even when the diff touches no manifest — a requirement that
+  # says "adopt library X" attracts the audit before the code exists.
+  - id: dependency-audit
+    why: a transitive advisory lands without anyone editing a file; the lockfile is the change
+    when:
+      paths:
+        - "package.json"
+        - "package-lock.json"
+        - "**/package-lock.json"
+      tags: [dependency, supply-chain]
+    severity: block
+    requires: [npm]
+    version_command: [npm, --version]
+    mode: batch
+    # No {files}: npm audits the resolved tree, not a file list.
+    command: [npm, audit, --audit-level=high, --json]
+    timeout_seconds: 180
+    exit_codes:
+      pass: [0]
+      fail: [1]
+    coverage:
+      # The audit's own count of what it resolved. A registry outage that
+      # produces an empty tree exits 0 and looks identical to a clean audit —
+      # this number is what tells them apart.
+      from: stdout_count
+      pattern: '"totalDependencies"\s*:\s*([0-9]+)'
+      min_covered: 1
+
+  # --- 4 · SAST, baseline -------------------------------------------------
+  - id: sast
+    why: the ordinary injection and path-traversal classes, on every change that touches code
+    when:
+      paths:
+        - "**/*.py"
+        - "**/*.js"
+        - "**/*.ts"
+        - "**/*.go"
+    severity: block
+    requires: [semgrep]
+    version_command: [semgrep, --version]
+    mode: batch
+    command: [semgrep, --config, p/default, --json, --quiet, "{files}"]
+    timeout_seconds: 600
+    exit_codes:
+      pass: [0]
+      fail: [1]           # findings
+      refused: [2, 4, 7]  # fatal error, invalid rule, every rule failed to load
+    coverage:
+      # Semgrep names each file it scanned in `paths.scanned`. Compare that
+      # against the files this change actually touched: a parse failure makes
+      # semgrep skip a file and still exit 0, which is a silent hole exactly
+      # the shape of the one that motivated this whole stage.
+      from: stdout_paths
+      pattern: '"([^"]+\.(py|js|ts|go))"'
+      must_cover: all_triggering
+      min_covered: 1
+      # A ruleset that failed to download is an empty ruleset, and an empty
+      # ruleset always passes. Count the rules that actually loaded.
+      min_rules: 50
+      rules_command: [semgrep, --config, p/default, --dump-config, --json]
+      rules_pattern: '"id"\s*:\s*"([^"]+)"'
+
+  # --- 5 · SAST, authentication ------------------------------------------
+  #
+  # THE POINT OF PER-ITEM SCOPING. This check is not on the path list — it is
+  # on the requirement tags. A requirement tagged `auth` attracts a stricter
+  # ruleset, a longer timeout and a blocking verdict; a copy edit attracts
+  # neither. The scoping follows what the change MEANS, which is recorded in
+  # the living spec, not what it happens to touch.
+  - id: sast-auth
+    why: an authentication change earns more scrutiny than a copy edit, and the spec is where that is known
+    when:
+      tags: [auth, authn, authz, session, crypto, secrets]
+    severity: block
+    requires: [semgrep]
+    version_command: [semgrep, --version]
+    mode: batch
+    command: [semgrep, --config, p/jwt, --config, p/secrets, --json, --quiet, "{files}"]
+    timeout_seconds: 900
+    exit_codes:
+      pass: [0]
+      fail: [1]
+      refused: [2, 4, 7]
+    coverage:
+      from: stdout_paths
+      pattern: '"([^"]+\.(py|js|ts|go))"'
+      must_cover: all_triggering
+      min_covered: 1
+      min_rules: 10
+      rules_command: [semgrep, --config, p/jwt, --config, p/secrets, --dump-config, --json]
+      rules_pattern: '"id"\s*:\s*"([^"]+)"'
+
+  # --- 6 · in-house script ------------------------------------------------
+  #
+  # Your own rule, held to the same contract as a vendor's: an argv list, a
+  # version it can state, exit codes that separate a finding from a crash, and
+  # a coverage assertion. `advise` because this one has a known false-positive
+  # rate — it reports into the review brief and does not block the merge.
+  #
+  # Move it to `block` the week its findings stop being argued with. An
+  # advisory check nobody ever promotes is a check nobody reads.
+  - id: pii-log-scan
+    why: PII in a log line survives every retention policy the product promises
+    when:
+      paths:
+        - "**/*.py"
+        - "**/*.js"
+        - "**/*.ts"
+      tags: [pii, logging, privacy]
+    severity: advise
+    requires: [./scripts/check-pii-logging.sh]
+    version_command: [./scripts/check-pii-logging.sh, --version]
+    mode: per_file
+    command: [./scripts/check-pii-logging.sh, "{file}"]
+    timeout_seconds: 60
+    exit_codes:
+      pass: [0]
+      fail: [1]
+      refused: [2]
+    coverage:
+      from: per_file_exit
+      examined_when_exit_in: [0, 1]
+      must_cover: all_triggering
+      min_covered: 1

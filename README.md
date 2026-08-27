@@ -1,6 +1,6 @@
-# AI-Native SDLC — plugin distribution
+# Productizer — plugin distribution
 
-Packages the `reqact` skill as a Claude Code plugin, served from a
+Packages the `spec` skill as a Claude Code plugin, served from a
 marketplace in this repository. Written for one publisher and many consumer
 repositories: install once at user scope and the skill is available in every
 project, without copying it into each `.claude/skills/`.
@@ -8,15 +8,15 @@ project, without copying it into each `.claude/skills/`.
 ## Layout
 
 ```
-reqact-plugin/
+productizer/
 ├── .claude-plugin/
 │   └── marketplace.json          # the marketplace catalogue
 ├── plugins/
-│   └── reqact/
+│   └── productizer/
 │       ├── .claude-plugin/
 │       │   └── plugin.json       # the plugin manifest
 │       └── skills/
-│           └── reqact/
+│           └── spec/
 │               ├── SKILL.md
 │               ├── references/
 │               ├── scripts/
@@ -25,7 +25,7 @@ reqact-plugin/
 ```
 
 The marketplace and the plugin live in the same repository. The plugin entry
-uses a relative-path source, `./plugins/reqact`, which resolves against
+uses a relative-path source, `./plugins/productizer`, which resolves against
 the marketplace root — the directory containing `.claude-plugin/`, not the
 `.claude-plugin/` directory itself.
 
@@ -74,22 +74,22 @@ use those for scripting.
 Inside a `claude` session:
 
 ```
-/plugin marketplace add gitayg/reqact
+/plugin marketplace add gitayg/productizer
 ```
 
 `owner/repo` is the GitHub shorthand. A full git URL works for any other host.
 A local checkout works too, for testing before publishing:
 
 ```
-/plugin marketplace add /path/to/reqact-plugin
+/plugin marketplace add /path/to/productizer
 ```
 
-Shell equivalent: `claude plugin marketplace add gitayg/reqact`.
+Shell equivalent: `claude plugin marketplace add gitayg/productizer`.
 
 ## Consumers: install
 
 ```
-/plugin install reqact@reqact
+/plugin install productizer@productizer
 ```
 
 The panel then asks for an installation scope. Choose **user** so the skill is
@@ -101,7 +101,7 @@ Non-interactive equivalent, which installs to user scope unless `--scope` is
 passed:
 
 ```
-claude plugin install reqact@reqact
+claude plugin install productizer@productizer
 ```
 
 Naming the marketplace explicitly (`plugin@marketplace`) makes Claude Code
@@ -114,7 +114,7 @@ an open session, or restart.
 ## Consumers: update
 
 ```
-claude plugin update reqact
+claude plugin update productizer
 ```
 
 A restart is required to apply it. `--scope` targets a non-user installation.
@@ -122,7 +122,7 @@ A restart is required to apply it. `--scope` targets a non-user installation.
 If the marketplace catalogue itself is stale, refresh it first:
 
 ```
-claude plugin marketplace update reqact
+claude plugin marketplace update productizer
 ```
 
 ## Per-repo templates
@@ -146,7 +146,7 @@ on. Enable it explicitly:
 
 1. Run `/plugin`
 2. Select **Marketplaces**
-3. Choose `reqact`
+3. Choose `productizer`
 4. Select **Enable auto-update**
 
 With it on, Claude Code refreshes the marketplace and updates installed plugins
@@ -172,8 +172,8 @@ organisation without each person toggling it:
 ```json
 {
   "extraKnownMarketplaces": {
-    "reqact": {
-      "source": { "source": "github", "repo": "gitayg/reqact" },
+    "productizer": {
+      "source": { "source": "github", "repo": "gitayg/productizer" },
       "autoUpdate": true
     }
   }
@@ -182,18 +182,18 @@ organisation without each person toggling it:
 
 ## Publisher: shipping a change
 
-1. Edit the skill under `plugins/reqact/skills/spec/`.
-2. Bump `version` in `plugins/reqact/.claude-plugin/plugin.json`.
+1. Edit the skill under `plugins/productizer/skills/spec/`.
+2. Bump `version` in `plugins/productizer/.claude-plugin/plugin.json`.
    Nothing ships without this.
-3. Run `claude plugin validate ./plugins/reqact --strict` and
+3. Run `claude plugin validate ./plugins/productizer --strict` and
    `claude plugin validate . --strict`. Both must pass.
 4. Commit and push to the default branch.
-5. Optionally tag the release: `claude plugin tag ./plugins/reqact`
+5. Optionally tag the release: `claude plugin tag ./plugins/productizer`
    creates a `{name}--v{version}` git tag and checks that `plugin.json` and the
    marketplace entry agree.
 
 Consumers with auto-update on pick the change up on their next session.
-Consumers without it run `claude plugin update reqact`.
+Consumers without it run `claude plugin update productizer`.
 
 Step 2 is the whole contract. A change pushed without a bump is invisible.
 
@@ -211,8 +211,9 @@ Concretely, once this plugin is installed while
 - Both load. Neither wins.
 - Both descriptions sit in context on every session, competing for the same
   triggers.
-- The personal copy answers the unqualified name; the plugin copy answers its
-  namespaced one.
+- The personal copy answers the unqualified name, `spec`; the plugin copy
+  answers `productizer:spec`. The plugin is `productizer`; the skill inside it
+  keeps the name `spec`, which is what it does.
 - They drift. `claude plugin update` moves the plugin copy and never touches
   the personal one, so the repository the owner edits and the skill that
   actually fires diverge silently.
@@ -222,7 +223,7 @@ Move it aside rather than deleting outright, then delete once a session has run
 against the plugin:
 
 ```
-mv ~/.claude/skills/spec ~/.claude/skills/.reqact.bak
+mv ~/.claude/skills/spec ~/.claude/skills/.spec.bak
 ```
 
 From then on this repository is the only source. Edits go here, get a version

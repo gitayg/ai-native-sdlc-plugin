@@ -151,6 +151,12 @@ drove the change; the same identifier appears in the branch name and the PR
 title, so the spec diff and the delivery record line up without anyone
 maintaining a link.
 
+Each row summarises one change; the full statement of that change — every id
+that moved, with its text quoted and its constitution check — is the spec delta
+(`templates/spec-delta.md`) in the PR body. The delta is never committed as a
+file, because a per-change copy of the spec drifts from the spec the first time
+someone edits one and not the other.
+
 | Date | Issue | Branch / PR | Added | Refined | Superseded / withdrawn | Summary |
 |---|---|---|---|---|---|---|
 | <YYYY-MM-DD> | <#123 / PROJ-123> | `<branch>` / <pr> | R41–R43 | R12 | R7 → R41 | <what changed and why> |

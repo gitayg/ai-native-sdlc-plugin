@@ -1,0 +1,857 @@
+#!/usr/bin/env bash
+# scripts/run-checks.sh — run the declared checks stage against one change.
+#
+# The checks stage sits between build and deploy. It reads
+# `.claude/sdlc/checks.yaml` (see `templates/checks.yaml`), works out which
+# declared checks this particular change attracts, runs them, and writes a
+# machine-readable result the review stage consumes. It decides nothing itself:
+# every check, every trigger and every threshold comes out of the config.
+#
+#   run-checks.sh --config .claude/sdlc/checks.yaml \
+#                 --changed changed-files.txt \
+#                 --tags auth,pii \
+#                 --out .claude/sdlc/checks-result.json
+#
+#   --config PATH    the declaration. Default .claude/sdlc/checks.yaml
+#   --changed PATH   file of changed paths, one per line ("-" reads stdin)
+#   --base REF       derive the changed paths from git diff against REF
+#   --tags LIST      comma-separated requirement tags carried by this change
+#   --root DIR       repo root the checks run in. Default: the config's parent
+#   --out PATH       where the result JSON lands ("-" for stdout).
+#                    Default: policy.output from the config
+#
+# EXIT CODES ARE THE CONTRACT.
+#
+#   0  every blocking check passed and covered what it declared
+#   3  REFUSED — a deliberate no. A blocking check failed, was hollow, timed
+#      out, hit an exit code the config does not describe, or its tool is not
+#      installed. Also: nothing triggered, under `policy.empty_run: refuse`
+#   2  bad usage — missing arguments, or a config that cannot be parsed or
+#      does not validate
+#   1  crashed — this script could not reach a verdict
+#
+# 3 and 1 stay distinct because a gate that exits the same way when it says no
+# as when it falls over is unreadable in a log, and the wrong thing gets fixed.
+# Read a 1 as unverified, never as a pass.
+#
+# HOW IT FAILS CLOSED.
+#
+#   - An unparseable or invalid config is exit 2. It is never partially
+#     honoured, because a half-read config silently drops checks.
+#   - A declared tool that is not installed FAILS its check. It is never
+#     skipped. Skipping is how a repo ends up with a green stage and no
+#     scanner.
+#   - An exit code the config does not map is a failure, not a pass. Vendors
+#     add exit codes between releases; an unrecognised one means this file no
+#     longer understands the tool.
+#   - A check that examined nothing FAILS, whatever it printed and whatever it
+#     returned. This is the point of the whole script; see the coverage
+#     section of `references/checks.md`.
+#   - Every check's tool version is recorded in the result. A scanner that
+#     silently stops working usually changes version first, and a version that
+#     cannot be obtained fails the check.
+#
+# WHAT IT DOES NOT DO.
+#
+#   - It does not judge whether the declared checks are the right ones. A
+#     config declaring one weak check passes cleanly. Coverage assertions
+#     police each check; only a human polices the list.
+#   - It does not sandbox the tools it runs. Everything in `checks.yaml`
+#     executes with this script's privileges, which is why the config is
+#     argv-only and reviewed like code.
+#   - Killing a check on timeout kills its process group. A tool that daemonises
+#     out of that group survives.
+
+set -euo pipefail
+set -m   # own process group per background job, so a timeout kills the tree
+
+VERSION_TIMEOUT=60
+
+# 2 means "the caller or the config is wrong", and only argument parsing and
+# the config parser are entitled to say it. Once PARSED is set, a 2 can only
+# have come from a failing command inside this script, so it is rewritten to 1
+# — a crash reported as bad usage sends someone to edit a config that was fine.
+PARSED=""
+
+on_exit() {
+  status=$?
+  case "$status" in
+    0 | 3) ;;
+    2) [ -z "$PARSED" ] || { printf 'run-checks: crashed with status 2 after the config was accepted. Unverified, not a pass.\n' >&2; exit 1; } ;;
+    *)
+      printf 'run-checks: exited %s before reaching a verdict. Treat this as unverified, not as a pass.\n' "$status" >&2
+      exit 1
+      ;;
+  esac
+}
+trap on_exit EXIT
+
+die_usage() { printf 'run-checks: %s\n' "$1" >&2; exit 2; }
+
+CONFIG=""
+CHANGED=""
+BASE=""
+TAGS=""
+ROOT=""
+OUT=""
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --config)  [ "$#" -ge 2 ] || die_usage "--config needs a path";  CONFIG="$2"; shift 2 ;;
+    --changed) [ "$#" -ge 2 ] || die_usage "--changed needs a path"; CHANGED="$2"; shift 2 ;;
+    --base)    [ "$#" -ge 2 ] || die_usage "--base needs a ref";     BASE="$2";    shift 2 ;;
+    --tags)    [ "$#" -ge 2 ] || die_usage "--tags needs a list";    TAGS="$2";    shift 2 ;;
+    --root)    [ "$#" -ge 2 ] || die_usage "--root needs a path";    ROOT="$2";    shift 2 ;;
+    --out)     [ "$#" -ge 2 ] || die_usage "--out needs a path";     OUT="$2";     shift 2 ;;
+    -h | --help) sed -n '2,60p' "$0"; exit 0 ;;
+    *) die_usage "unknown argument: $1" ;;
+  esac
+done
+
+CONFIG="${CONFIG:-.claude/sdlc/checks.yaml}"
+[ -f "$CONFIG" ] || die_usage "no config at $CONFIG. The checks stage is declared in a file; there is no built-in list to fall back on."
+
+command -v python3 >/dev/null 2>&1 ||
+  die_usage "python3 is not on PATH, so the config cannot be read. Refusing rather than guessing what was declared."
+
+CONFIG_ABS="$(cd "$(dirname "$CONFIG")" && pwd)/$(basename "$CONFIG")"
+if [ -z "$ROOT" ]; then
+  ROOT="$(dirname "$CONFIG_ABS")"
+fi
+[ -d "$ROOT" ] || die_usage "--root $ROOT is not a directory"
+ROOT="$(cd "$ROOT" && pwd)"
+
+WORK="$(mktemp -d "${TMPDIR:-/tmp}/run-checks.XXXXXX")"
+cleanup() { [ -n "${KEEP_WORK:-}" ] || rm -rf "$WORK"; }
+trap 'cleanup' HUP INT TERM
+
+# --- the change under test ------------------------------------------------
+
+if [ -n "$CHANGED" ] && [ -n "$BASE" ]; then
+  die_usage "--changed and --base both given. Pick one source for the change; two disagree silently."
+fi
+
+if [ -n "$CHANGED" ]; then
+  if [ "$CHANGED" = "-" ]; then
+    cat > "$WORK/changed.txt"
+  else
+    [ -f "$CHANGED" ] || die_usage "--changed $CHANGED does not exist"
+    cp "$CHANGED" "$WORK/changed.txt"
+  fi
+elif [ -n "$BASE" ]; then
+  command -v git >/dev/null 2>&1 || die_usage "--base needs git on PATH"
+  merge_base="$(cd "$ROOT" && git merge-base "$BASE" HEAD 2>/dev/null)" ||
+    die_usage "cannot resolve a merge base against $BASE. A wrong base makes every result below confidently wrong at once."
+  (cd "$ROOT" && git diff --name-only "$merge_base" HEAD) > "$WORK/changed.txt"
+  if [ ! -s "$WORK/changed.txt" ]; then
+    die_usage "the diff against $BASE is empty. An empty diff is far more often a base problem than a change that did nothing; resolve the base before believing a green run."
+  fi
+else
+  die_usage "no change given. Pass --changed <file> or --base <ref>."
+fi
+
+# --- plan: parse, validate, decide what this change attracts ---------------
+
+cat > "$WORK/plan.py" <<'PY'
+import json, os, re, sys
+
+CONFIG, WORK, CHANGED, TAGS, ROOT = sys.argv[1:6]
+
+def bad(msg):
+    sys.stderr.write("run-checks: %s: %s\n" % (os.path.basename(CONFIG), msg))
+    sys.exit(2)
+
+try:
+    import yaml
+except ImportError:
+    sys.stderr.write("run-checks: python3 has no yaml module, so the config cannot be read. "
+                     "Install PyYAML. Refusing rather than guessing what was declared.\n")
+    sys.exit(2)
+
+try:
+    with open(CONFIG) as fh:
+        doc = yaml.safe_load(fh)
+except yaml.YAMLError as exc:
+    bad("not valid YAML, so nothing was run. %s" % str(exc).replace("\n", " "))
+except OSError as exc:
+    bad("cannot be read: %s" % exc)
+
+if not isinstance(doc, dict):
+    bad("the top level must be a mapping with `version` and `checks` keys")
+if doc.get("version") != 1:
+    bad("unsupported `version: %r`. This runner reads version 1 only; a config it half-understands drops checks silently."
+        % doc.get("version"))
+
+policy = doc.get("policy") or {}
+if not isinstance(policy, dict):
+    bad("`policy` must be a mapping")
+empty_run = policy.get("empty_run", "refuse")
+if empty_run not in ("refuse", "pass"):
+    bad("`policy.empty_run` must be `refuse` or `pass`, not %r" % empty_run)
+
+defaults = doc.get("defaults") or {}
+if not isinstance(defaults, dict):
+    bad("`defaults` must be a mapping")
+
+checks = doc.get("checks")
+if not isinstance(checks, list) or not checks:
+    bad("`checks` must be a non-empty list. A config declaring no checks is not a passing stage; delete the file or fill it in.")
+
+# --- glob matching --------------------------------------------------------
+# Deliberately small: `**` crosses directory separators, `*` and `?` do not.
+# fnmatch is not used because its `*` crosses `/`, which makes `scripts/*.sh`
+# quietly match `scripts/a/b/c.sh` and a reader mis-scope every check.
+
+def glob_re(pat):
+    out, i, n = [], 0, len(pat)
+    while i < n:
+        c = pat[i]
+        if pat.startswith("**/", i):
+            out.append("(?:.*/)?"); i += 3
+        elif pat.startswith("**", i):
+            out.append(".*"); i += 2
+        elif c == "*":
+            out.append("[^/]*"); i += 1
+        elif c == "?":
+            out.append("[^/]"); i += 1
+        else:
+            out.append(re.escape(c)); i += 1
+    return re.compile("^" + "".join(out) + "$")
+
+# --- the change -----------------------------------------------------------
+
+with open(CHANGED) as fh:
+    files = [ln.strip() for ln in fh if ln.strip()]
+files = [f[2:] if f.startswith("./") else f for f in files]
+seen, ordered = set(), []
+for f in files:
+    if f not in seen:
+        seen.add(f); ordered.append(f)
+files = ordered
+
+for f in files:
+    if "\x00" in f or "\n" in f:
+        bad("a changed path contains a control character; refusing rather than splitting it into two paths")
+
+tags = [t.strip() for t in TAGS.split(",") if t.strip()]
+
+# --- validate and select --------------------------------------------------
+
+def argv_of(where, value):
+    if isinstance(value, str):
+        bad("%s is a string. Commands are argv lists, never strings: a string is handed to a shell, "
+            "and this file is committed, so that would let anyone who lands a commit choose what runs "
+            "on the machine of whoever pulls it." % where)
+    if not isinstance(value, list) or not value or not all(isinstance(x, str) and x for x in value):
+        bad("%s must be a non-empty list of non-empty strings" % where)
+    return list(value)
+
+def int_list(where, value):
+    if not isinstance(value, list) or not all(isinstance(x, int) and not isinstance(x, bool) for x in value):
+        bad("%s must be a list of integers" % where)
+    return list(value)
+
+ID_RE = re.compile(r"^[a-z0-9][a-z0-9._-]*$")
+plan, ids = [], set()
+
+for idx, chk in enumerate(checks):
+    if not isinstance(chk, dict):
+        bad("checks[%d] must be a mapping" % idx)
+    cid = chk.get("id")
+    if not isinstance(cid, str) or not ID_RE.match(cid):
+        bad("checks[%d].id must be lower-case and match [a-z0-9][a-z0-9._-]*, got %r" % (idx, cid))
+    if cid in ids:
+        bad("duplicate check id %r. Two checks with one id collapse into one row in the result and one of them stops being read." % cid)
+    ids.add(cid)
+    w = "check %r" % cid
+
+    sev = chk.get("severity", defaults.get("severity", "block"))
+    if sev not in ("block", "advise"):
+        bad("%s.severity must be `block` or `advise`, not %r" % (w, sev))
+
+    mode = chk.get("mode", defaults.get("mode", "batch"))
+    if mode not in ("batch", "per_file"):
+        bad("%s.mode must be `batch` or `per_file`, not %r" % (w, mode))
+
+    timeout = chk.get("timeout_seconds", defaults.get("timeout_seconds", 120))
+    if not isinstance(timeout, int) or isinstance(timeout, bool) or timeout <= 0:
+        bad("%s.timeout_seconds must be a positive integer, not %r" % (w, timeout))
+
+    cmd = argv_of("%s.command" % w, chk.get("command"))
+    if mode == "per_file":
+        if sum(a.count("{file}") for a in cmd) != 1:
+            bad("%s runs per file, so its command must contain {file} exactly once" % w)
+        if any("{files}" in a for a in cmd):
+            bad("%s runs per file and must not contain {files}" % w)
+    else:
+        if any("{file}" in a and "{files}" not in a for a in cmd):
+            bad("%s runs in batch mode; use {files}, not {file}" % w)
+
+    when = chk.get("when")
+    if not isinstance(when, dict) or not any(k in when for k in ("always", "paths", "tags")):
+        bad("%s.when must declare at least one of `always`, `paths` or `tags`. "
+            "A check nothing triggers never runs and is never noticed." % w)
+    w_paths = when.get("paths") or []
+    w_tags = when.get("tags") or []
+    if not isinstance(w_paths, list) or not all(isinstance(p, str) and p for p in w_paths):
+        bad("%s.when.paths must be a list of glob strings" % w)
+    if not isinstance(w_tags, list) or not all(isinstance(t, str) and t for t in w_tags):
+        bad("%s.when.tags must be a list of tag strings" % w)
+
+    ec = chk.get("exit_codes")
+    if not isinstance(ec, dict) or "pass" not in ec:
+        bad("%s.exit_codes must be a mapping declaring at least `pass`. "
+            "Without it every exit code is unrecognised and the check can never pass." % w)
+    ec_pass = int_list("%s.exit_codes.pass" % w, ec.get("pass"))
+    ec_fail = int_list("%s.exit_codes.fail" % w, ec.get("fail", []))
+    ec_ref = int_list("%s.exit_codes.refused" % w, ec.get("refused", []))
+    for a, b, an, bn in ((ec_pass, ec_fail, "pass", "fail"),
+                         (ec_pass, ec_ref, "pass", "refused"),
+                         (ec_fail, ec_ref, "fail", "refused")):
+        overlap = sorted(set(a) & set(b))
+        if overlap:
+            bad("%s.exit_codes lists %s in both `%s` and `%s`" % (w, overlap, an, bn))
+
+    cov = chk.get("coverage")
+    if not isinstance(cov, dict):
+        bad("%s declares no `coverage`. Every check states what it must have examined; "
+            "without that, a scanner that opened nothing reports the same green as one that read every file." % w)
+    frm = cov.get("from")
+    if frm not in ("per_file_exit", "stdout_paths", "stdout_count", "command"):
+        bad("%s.coverage.from must be one of per_file_exit, stdout_paths, stdout_count, command — got %r" % (w, frm))
+    if frm == "per_file_exit" and mode != "per_file":
+        bad("%s.coverage.from is per_file_exit but the check runs in batch mode; "
+            "batch mode has no per-file result to read" % w)
+    if frm in ("stdout_paths", "stdout_count"):
+        if not isinstance(cov.get("pattern"), str) or not cov["pattern"]:
+            bad("%s.coverage.from is %s, so it needs a `pattern` with one capture group" % (w, frm))
+        try:
+            rx = re.compile(cov["pattern"], re.MULTILINE)
+        except re.error as exc:
+            bad("%s.coverage.pattern is not a valid regular expression: %s" % (w, exc))
+        if rx.groups < 1:
+            bad("%s.coverage.pattern has no capture group; the first group is the item it captures" % w)
+    cov_cmd = argv_of("%s.coverage.command" % w, cov.get("command")) if frm == "command" else None
+    must = cov.get("must_cover", "none")
+    if must not in ("all_triggering", "none"):
+        bad("%s.coverage.must_cover must be `all_triggering` or `none`, not %r" % (w, must))
+    if must == "all_triggering" and frm == "stdout_count":
+        bad("%s.coverage.must_cover is all_triggering but `stdout_count` yields a number, not a set of paths" % w)
+    min_cov = cov.get("min_covered", 1)
+    if not isinstance(min_cov, int) or isinstance(min_cov, bool) or min_cov < 0:
+        bad("%s.coverage.min_covered must be a non-negative integer" % w)
+    min_rules = cov.get("min_rules", 0)
+    if not isinstance(min_rules, int) or isinstance(min_rules, bool) or min_rules < 0:
+        bad("%s.coverage.min_rules must be a non-negative integer" % w)
+    rules_cmd = argv_of("%s.coverage.rules_command" % w, cov["rules_command"]) if cov.get("rules_command") else None
+    rules_pat = cov.get("rules_pattern")
+    if min_rules > 0:
+        if not rules_pat or not rules_cmd:
+            bad("%s.coverage.min_rules is set, so it needs both `rules_command` and `rules_pattern`. "
+                "A ruleset that failed to load is an empty ruleset, and an empty ruleset passes everything." % w)
+        try:
+            re.compile(rules_pat)
+        except re.error as exc:
+            bad("%s.coverage.rules_pattern is not a valid regular expression: %s" % (w, exc))
+
+    ver = chk.get("version_command")
+    if ver is None:
+        if sev == "block":
+            bad("%s blocks but declares no `version_command`. A blocking check records the version of the tool "
+                "that produced its verdict, or a scanner can silently regress and nothing notices." % w)
+        ver_argv = None
+    else:
+        ver_argv = argv_of("%s.version_command" % w, ver)
+
+    req = chk.get("requires")
+    req = argv_of("%s.requires" % w, req) if req is not None else [cmd[0]]
+
+    # --- does this change attract it -------------------------------------
+    reasons, matched = [], []
+    if when.get("always") is True:
+        reasons.append("always")
+    for pat in w_paths:
+        rx = glob_re(pat)
+        hits = [f for f in files if rx.match(f)]
+        if hits:
+            reasons.append("path:%s" % pat)
+            matched.extend(hits)
+    hit_tags = [t for t in w_tags if t in tags]
+    if hit_tags:
+        reasons.append("tag:%s" % ",".join(hit_tags))
+
+    # A tag or an `always` says something about the whole change, so the whole
+    # change is the file set. Path triggers scope to what they matched.
+    if "always" in reasons or hit_tags:
+        file_set = list(files)
+    else:
+        seen, file_set = set(), []
+        for f in matched:
+            if f not in seen:
+                seen.add(f); file_set.append(f)
+
+    plan.append({
+        "index": idx, "id": cid, "severity": sev, "mode": mode,
+        "timeout_seconds": timeout, "command": cmd, "requires": req,
+        "version_command": ver_argv, "why": chk.get("why", ""),
+        "exit_codes": {"pass": ec_pass, "fail": ec_fail, "refused": ec_ref},
+        "coverage": {"from": frm, "pattern": cov.get("pattern"), "command": cov_cmd,
+                     "examined_when_exit_in": int_list("%s.coverage.examined_when_exit_in" % w,
+                                                       cov.get("examined_when_exit_in", [0]))
+                                              if frm == "per_file_exit" else None,
+                     "must_cover": must, "min_covered": min_cov,
+                     "min_rules": min_rules, "rules_command": rules_cmd,
+                     "rules_pattern": rules_pat},
+        "triggered": bool(reasons), "triggered_by": reasons, "files": file_set,
+    })
+
+os.makedirs(os.path.join(WORK, "run"), exist_ok=True)
+with open(os.path.join(WORK, "plan.json"), "w") as fh:
+    json.dump({"config": CONFIG, "root": ROOT, "policy": {"empty_run": empty_run,
+               "output": policy.get("output")}, "files": files, "tags": tags,
+               "checks": plan}, fh, indent=2)
+
+for c in plan:
+    if not c["triggered"]:
+        continue
+    d = os.path.join(WORK, "run", str(c["index"]))
+    os.makedirs(d, exist_ok=True)
+    with open(os.path.join(d, "meta"), "w") as fh:
+        fh.write("mode=%s\ntimeout=%d\n" % (c["mode"], c["timeout_seconds"]))
+    with open(os.path.join(d, "argv"), "wb") as fh:
+        fh.write(b"".join(a.encode() + b"\x00" for a in c["command"]))
+    with open(os.path.join(d, "version_argv"), "wb") as fh:
+        if c["version_command"]:
+            fh.write(b"".join(a.encode() + b"\x00" for a in c["version_command"]))
+    with open(os.path.join(d, "rules_argv"), "wb") as fh:
+        rc = c["coverage"]["rules_command"]
+        if rc and c["coverage"]["min_rules"] > 0:
+            fh.write(b"".join(a.encode() + b"\x00" for a in rc))
+    with open(os.path.join(d, "cov_argv"), "wb") as fh:
+        cc = c["coverage"]["command"]
+        if cc:
+            fh.write(b"".join(a.encode() + b"\x00" for a in cc))
+    with open(os.path.join(d, "requires"), "w") as fh:
+        fh.write("".join(r + "\n" for r in c["requires"]))
+    with open(os.path.join(d, "files"), "w") as fh:
+        fh.write("".join(f + "\n" for f in c["files"]))
+
+sys.stdout.write("\n".join(str(c["index"]) for c in plan if c["triggered"]) + "\n")
+PY
+
+TRIGGERED="$(python3 "$WORK/plan.py" "$CONFIG_ABS" "$WORK" "$WORK/changed.txt" "$TAGS" "$ROOT")" || {
+  rc=$?
+  cleanup
+  exit "$rc"
+}
+
+PARSED=1
+
+# --- execute ---------------------------------------------------------------
+
+# Runs argv with a wall-clock limit, appending combined output to $2.
+# Returns the child's status, or 124 when the limit was reached.
+run_limited() {
+  limit="$1"; outfile="$2"; shift 2
+  "$@" >>"$outfile" 2>&1 &
+  pid=$!
+  waited=0
+  while kill -0 "$pid" 2>/dev/null; do
+    if [ "$waited" -ge "$limit" ]; then
+      kill -TERM "-$pid" 2>/dev/null || kill -TERM "$pid" 2>/dev/null || true
+      sleep 2
+      kill -KILL "-$pid" 2>/dev/null || kill -KILL "$pid" 2>/dev/null || true
+      wait "$pid" 2>/dev/null || true
+      return 124
+    fi
+    sleep 1
+    waited=$((waited + 1))
+  done
+  rc=0
+  wait "$pid" || rc=$?
+  return "$rc"
+}
+
+# Reads a NUL-separated argv file into the global array ARGV.
+read_argv() {
+  ARGV=()
+  [ -s "$1" ] || return 0
+  while IFS= read -r -d '' item; do
+    ARGV+=("$item")
+  done < "$1"
+}
+
+cd "$ROOT"
+
+for idx in $TRIGGERED; do
+  [ -n "$idx" ] || continue
+  D="$WORK/run/$idx"
+  # Read, never sourced. `meta` is derived from a committed config, and
+  # sourcing it would turn that data into code in this shell — the exact
+  # mistake the argv-only rule in checks.yaml exists to prevent.
+  mode="$(sed -n 's/^mode=//p' "$D/meta")"
+  timeout="$(sed -n 's/^timeout=//p' "$D/meta")"
+
+  # Every declared tool must be present. Missing is a failure, never a skip:
+  # skipping is how a repo ends up with a green stage and no scanner.
+  MISSING=""
+  while IFS= read -r req; do
+    [ -n "$req" ] || continue
+    case "$req" in
+      */*) [ -x "$req" ] || MISSING="$MISSING $req" ;;
+      *)   command -v "$req" >/dev/null 2>&1 || MISSING="$MISSING $req" ;;
+    esac
+  done < "$D/requires"
+  if [ -n "$MISSING" ]; then
+    printf '%s\n' "${MISSING# }" > "$D/missing"
+    printf 'missing_tool\n' > "$D/status_override"
+    continue
+  fi
+
+  # The tool's own version, recorded in the result. A scanner that silently
+  # stops working usually changes version first.
+  if [ -s "$D/version_argv" ]; then
+    read_argv "$D/version_argv"
+    vrc=0
+    run_limited "$VERSION_TIMEOUT" "$D/version_out" "${ARGV[@]}" || vrc=$?
+    printf '%s\n' "$vrc" > "$D/version_exit"
+  fi
+
+  # Rules the check loaded, where it declares a way to enumerate them. An
+  # empty ruleset passes everything.
+  if [ -s "$D/rules_argv" ]; then
+    read_argv "$D/rules_argv"
+    rrc=0
+    run_limited "$timeout" "$D/rules_out" "${ARGV[@]}" || rrc=$?
+    printf '%s\n' "$rrc" > "$D/rules_exit"
+  fi
+
+  : > "$D/output"
+  started="$(date +%s)"
+
+  if [ "$mode" = "per_file" ]; then
+    : > "$D/file_exits"
+    worst=0
+    while IFS= read -r f; do
+      [ -n "$f" ] || continue
+      read_argv "$D/argv"
+      CMD=()
+      for a in "${ARGV[@]}"; do
+        CMD+=("${a//\{file\}/$f}")
+      done
+      printf '\n===== %s\n' "$f" >> "$D/output"
+      frc=0
+      run_limited "$timeout" "$D/output" "${CMD[@]}" || frc=$?
+      printf '%s\t%s\n' "$frc" "$f" >> "$D/file_exits"
+      [ "$frc" -gt "$worst" ] && worst="$frc"
+    done < "$D/files"
+    printf '%s\n' "$worst" > "$D/exit"
+  else
+    read_argv "$D/argv"
+    CMD=()
+    for a in "${ARGV[@]}"; do
+      if [ "$a" = "{files}" ]; then
+        while IFS= read -r f; do
+          [ -n "$f" ] || continue
+          CMD+=("$f")
+        done < "$D/files"
+      else
+        CMD+=("$a")
+      fi
+    done
+    brc=0
+    run_limited "$timeout" "$D/output" "${CMD[@]}" || brc=$?
+    printf '%s\n' "$brc" > "$D/exit"
+  fi
+
+  printf '%s\n' "$(( $(date +%s) - started ))" > "$D/duration"
+
+  if [ -s "$D/cov_argv" ]; then
+    read_argv "$D/cov_argv"
+    crc=0
+    run_limited "$timeout" "$D/cov_out" "${ARGV[@]}" || crc=$?
+    printf '%s\n' "$crc" > "$D/cov_exit"
+  fi
+done
+
+# --- verdict ---------------------------------------------------------------
+
+cat > "$WORK/verdict.py" <<'PY'
+import json, os, re, sys
+
+WORK, OUT = sys.argv[1], sys.argv[2]
+plan = json.load(open(os.path.join(WORK, "plan.json")))
+
+def read(d, name, default=""):
+    p = os.path.join(d, name)
+    if not os.path.exists(p):
+        return default
+    with open(p, errors="replace") as fh:
+        return fh.read()
+
+def norm(p):
+    p = p.strip()
+    if p.startswith("./"):
+        p = p[2:]
+    root = plan["root"].rstrip("/") + "/"
+    if p.startswith(root):
+        p = p[len(root):]
+    return p
+
+results, blocking_failures, advisory_failures, triggered = [], [], [], 0
+
+for c in plan["checks"]:
+    row = {"id": c["id"], "why": c["why"], "severity": c["severity"],
+           "blocking": c["severity"] == "block", "mode": c["mode"],
+           "command": c["command"], "triggered": c["triggered"],
+           "triggered_by": c["triggered_by"], "files_in_scope": len(c["files"])}
+    if not c["triggered"]:
+        row["status"] = "not_triggered"
+        results.append(row)
+        continue
+    triggered += 1
+    d = os.path.join(WORK, "run", str(c["index"]))
+
+    override = read(d, "status_override").strip()
+    if override == "missing_tool":
+        row["status"] = "missing_tool"
+        row["detail"] = ("declared tool not installed: %s. Not skipped — a check whose tool is absent "
+                         "is a check that did not run." % read(d, "missing").strip())
+        row["tool"] = {"version": None}
+        results.append(row)
+        (blocking_failures if row["blocking"] else advisory_failures).append(row)
+        continue
+
+    ver_exit = read(d, "version_exit").strip()
+    # Whatever the tool printed, collapsed to one line. Not parsed into a
+    # semver: the value only has to change when the tool changes, so that a
+    # scanner which silently regressed can be told apart from one that did not.
+    ver_txt = " ".join(read(d, "version_out").split())[:200]
+    row["tool"] = {"command": c["version_command"],
+                   "version": ver_txt or None if ver_exit == "0" else None,
+                   "exit_code": int(ver_exit) if ver_exit else None}
+
+    exit_code = int(read(d, "exit", "1").strip() or 1)
+    duration = int(read(d, "duration", "0").strip() or 0)
+    output = read(d, "output")
+    row["exit_code"] = exit_code
+    row["duration_seconds"] = duration
+
+    # --- coverage ---------------------------------------------------------
+    cov = c["coverage"]
+    covered, covered_list, timed_out, count_note = 0, [], False, None
+    if cov["from"] == "per_file_exit":
+        ok = set(cov["examined_when_exit_in"] or [0])
+        for line in read(d, "file_exits").splitlines():
+            if "\t" not in line:
+                continue
+            code, path = line.split("\t", 1)
+            code = int(code)
+            if code == 124:
+                timed_out = True
+            if code in ok:
+                covered_list.append(path)
+        covered = len(covered_list)
+    elif cov["from"] == "stdout_paths":
+        # MULTILINE so ^ and $ mean "a line of the tool's output", which is what
+        # anyone writing one of these patterns against a line-oriented scanner
+        # assumes. Without it the pattern silently matches nothing and the check
+        # reads as hollow when the tool was fine.
+        rx = re.compile(cov["pattern"], re.MULTILINE)
+        seen = set()
+        for m in rx.finditer(output):
+            p = norm(m.group(1))
+            if p and p not in seen:
+                seen.add(p); covered_list.append(p)
+        covered = len(covered_list)
+    elif cov["from"] == "stdout_count":
+        # No match means the tool never printed the number it was supposed to,
+        # which is a coverage failure and not a reason to crash the run.
+        m = re.search(cov["pattern"], output, re.MULTILINE)
+        try:
+            covered = int(m.group(1)) if m else 0
+        except (TypeError, ValueError):
+            covered = 0
+            count_note = "the coverage pattern captured %r, which is not a number" % m.group(1)
+    elif cov["from"] == "command":
+        cov_exit = read(d, "cov_exit").strip()
+        if cov_exit == "0":
+            seen = set()
+            for line in read(d, "cov_out").splitlines():
+                p = norm(line)
+                if p and p not in seen:
+                    seen.add(p); covered_list.append(p)
+            covered = len(covered_list)
+
+    if exit_code == 124:
+        timed_out = True
+
+    rules, rules_detail = None, None
+    if cov["min_rules"] > 0:
+        r_exit = read(d, "rules_exit").strip()
+        if r_exit == "0":
+            rules = len(set(re.findall(cov["rules_pattern"], read(d, "rules_out"), re.MULTILINE)))
+        else:
+            rules = 0
+            rules_detail = "the rule enumeration exited %s, so no ruleset was confirmed loaded" % (r_exit or "?")
+
+    missing_files = []
+    if cov["must_cover"] == "all_triggering":
+        have = set(covered_list)
+        # Both sides must be normalised. `have` holds norm()ed paths from the
+        # tool; c["files"] is whatever the caller passed in. An absolute changed
+        # list against a relative-normalised covered set never matches, and every
+        # check reports hollow however much it examined.
+        missing_files = [f for f in c["files"] if norm(f) not in have]
+
+    reasons = []
+    if covered < cov["min_covered"]:
+        reasons.append("examined %d, which is below the declared minimum of %d%s"
+                       % (covered, cov["min_covered"], "; " + count_note if count_note else ""))
+    if missing_files:
+        reasons.append("did not examine %d of the %d files in scope (%s%s)"
+                       % (len(missing_files), len(c["files"]), ", ".join(missing_files[:5]),
+                          ", ..." if len(missing_files) > 5 else ""))
+    if rules is not None and rules < cov["min_rules"]:
+        reasons.append("loaded %d rules, below the declared minimum of %d%s"
+                       % (rules, cov["min_rules"], "; " + rules_detail if rules_detail else ""))
+
+    row["coverage"] = {
+        "from": cov["from"], "required": {"min_covered": cov["min_covered"],
+                                          "must_cover": cov["must_cover"],
+                                          "min_rules": cov["min_rules"]},
+        "observed": {"covered": covered, "covered_items": covered_list[:200],
+                     "rules_loaded": rules, "files_in_scope": len(c["files"]),
+                     "not_examined": missing_files[:200]},
+        "satisfied": not reasons, "reasons": reasons,
+    }
+    row["timed_out"] = timed_out
+    row["output_tail"] = output[-2000:]
+
+    ec = c["exit_codes"]
+    if timed_out:
+        row["status"] = "timeout"
+        row["detail"] = "hit the %ds limit. A killed scanner has no verdict; it is not a pass." % c["timeout_seconds"]
+    elif row["tool"]["exit_code"] is not None and row["tool"]["exit_code"] != 0:
+        row["status"] = "no_version"
+        row["detail"] = ("the tool could not state its version (exit %s), so a silent regression in it "
+                         "would be undetectable." % row["tool"]["exit_code"])
+    elif exit_code in ec["refused"]:
+        row["status"] = "refused"
+        row["detail"] = "the tool refused to run this input (exit %d)." % exit_code
+    elif exit_code not in ec["pass"] and exit_code not in ec["fail"]:
+        row["status"] = "unmapped_exit"
+        row["detail"] = ("exit %d is not described in `exit_codes`. An exit code the config does not "
+                         "recognise is treated as a failure: tools add codes between releases." % exit_code)
+    elif exit_code in ec["fail"]:
+        row["status"] = "fail"
+        row["detail"] = "the check reported findings."
+        if reasons:
+            # A findings-shaped exit can also be a coverage hole — a scanner
+            # that read one file, found something in it, and never opened the
+            # rest. Fixing the finding would then turn this red into a hollow
+            # green, so say both now rather than after the next run.
+            row["detail"] += (" It also failed its coverage assertion: %s. Fixing the finding alone "
+                              "would turn this into a hollow pass." % "; ".join(reasons))
+    elif not row["coverage"]["satisfied"]:
+        row["status"] = "hollow"
+        row["detail"] = ("exited %d but %s. A check that examined nothing is a failure, not a pass."
+                         % (exit_code, "; ".join(reasons)))
+    else:
+        row["status"] = "pass"
+
+    if row["status"] != "pass":
+        (blocking_failures if row["blocking"] else advisory_failures).append(row)
+    elif not row["coverage"]["satisfied"]:
+        row["detail"] = "passed, but the coverage assertion was not met."
+
+    results.append(row)
+
+empty = triggered == 0
+refuse_empty = empty and plan["policy"]["empty_run"] == "refuse"
+
+verdict = "pass"
+code = 0
+if blocking_failures or refuse_empty:
+    verdict = "refused"
+    code = 3
+
+doc = {
+    "schema": "productizer.checks.result/1",
+    "config": plan["config"],
+    "root": plan["root"],
+    "change": {"files": plan["files"], "file_count": len(plan["files"]), "tags": plan["tags"]},
+    "verdict": verdict,
+    "exit_code": code,
+    "counts": {"declared": len(plan["checks"]), "triggered": triggered,
+               "passed": sum(1 for r in results if r["status"] == "pass"),
+               "blocking_failures": len(blocking_failures),
+               "advisory_failures": len(advisory_failures),
+               "not_triggered": sum(1 for r in results if r["status"] == "not_triggered")},
+    "checks": results,
+}
+
+payload = json.dumps(doc, indent=2)
+if OUT == "-":
+    sys.stdout.write(payload + "\n")
+else:
+    os.makedirs(os.path.dirname(os.path.abspath(OUT)) or ".", exist_ok=True)
+    with open(OUT, "w") as fh:
+        fh.write(payload + "\n")
+
+e = sys.stderr
+e.write("checks stage: %d declared, %d triggered by %d changed files%s\n"
+        % (len(plan["checks"]), triggered, len(plan["files"]),
+           " and tags [%s]" % ", ".join(plan["tags"]) if plan["tags"] else ""))
+for r in results:
+    if r["status"] == "not_triggered":
+        continue
+    cv = r.get("coverage")
+    cov_txt = ""
+    if cv:
+        cov_txt = "  covered %d" % cv["observed"]["covered"]
+        if cv["required"]["must_cover"] == "all_triggering":
+            cov_txt += "/%d files" % cv["observed"]["files_in_scope"]
+        if cv["observed"]["rules_loaded"] is not None:
+            cov_txt += ", %d rules" % cv["observed"]["rules_loaded"]
+    e.write("  %-9s %-18s %-6s exit %-4s %s%s\n"
+            % (r["status"].upper(), r["id"], r["severity"],
+               r.get("exit_code", "-"),
+               (r["tool"].get("version") or "version unknown")[:44], cov_txt))
+    if r.get("detail"):
+        e.write("             -> %s\n" % r["detail"])
+
+if refuse_empty:
+    e.write("REFUSED: no declared check was triggered by this change. "
+            "That is a gap in the config, not a clean change. Set `policy.empty_run: pass` "
+            "only if you mean it.\n")
+if advisory_failures:
+    e.write("advisory (does not block): %s\n"
+            % ", ".join("%s (%s)" % (r["id"], r["status"]) for r in advisory_failures))
+if blocking_failures:
+    e.write("REFUSED: %s\n" % ", ".join("%s (%s)" % (r["id"], r["status"]) for r in blocking_failures))
+elif not refuse_empty:
+    # Say what actually passed. "PASS" over a run that examined nothing, or one
+    # with an unread advisory failure in it, is the same hollow green this
+    # whole stage exists to make visible.
+    if empty:
+        e.write("PASS: no declared check was triggered, so nothing was examined. "
+                "`policy.empty_run: pass` is what made that acceptable.\n")
+    elif advisory_failures:
+        e.write("PASS: every blocking check ran and covered what it declared. "
+                "%d advisory check(s) did not — read them above.\n" % len(advisory_failures))
+    else:
+        e.write("PASS: every blocking check ran, covered what it declared, and found nothing.\n")
+e.write("result: %s\n" % ("stdout" if OUT == "-" else os.path.abspath(OUT)))
+sys.exit(code)
+PY
+
+if [ -z "$OUT" ]; then
+  OUT="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["policy"]["output"] or "-")' "$WORK/plan.json")"
+fi
+
+rc=0
+PARSED=""   # the verdict script owns 2 and 3 again from here
+python3 "$WORK/verdict.py" "$WORK" "$OUT" || rc=$?
+cleanup
+exit "$rc"

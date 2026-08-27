@@ -127,6 +127,10 @@ Where this bites in the workflows below:
 | issue title, body | `gh issue create` | `--title "$TITLE" --body-file input.md` — never `--body` with interpolated text |
 | issue number | `gh api repos/{owner}/{repo}/issues/<n>` | validate the shape, see below |
 | label name | `--label` argument | a literal from `.claude/sdlc.json` — never a value read off an issue |
+| label name | `--label` argument, Jira `update.labels` | a literal from `.claude/sdlc.json` — never a value read off an issue |
+| issue key from a create response | branch, curl path | validate the shape **and** that the prefix equals the configured project |
+| transition name | `POST .../transitions` body | resolve to an id with `GET .../transitions`; never hardcode an id, they are per-workflow |
+| summary, epic key | Jira create payload | `jq --arg` into `issue.json`, then `-d @issue.json` |
 
 `-d @issue.json` and `--body-file` are the shape of every example in the GitHub
 and Jira sections for this reason: a file argument is the version of those
@@ -215,10 +219,15 @@ curl -sS -u "$AUTH" -X POST "$JIRA_SITE/rest/api/3/issue/PROJ-123/comment" \
   -d '{"body":{"type":"doc","version":1,"content":[{"type":"paragraph","content":[{"type":"text","text":"spec.md committed as <sha> — <pr url>"}]}]}}'
 ```
 
-Transition **names** are in the config; transition **ids** are per-workflow. Look
-them up with `GET /rest/api/3/issue/<key>/transitions` rather than hardcoding an
-id. If a named transition does not exist in the project's workflow, report the
-available ones instead of picking the closest match.
+Transition **names** are in the config; transition **ids** are per-workflow.
+Look them up rather than hardcoding an id, and report a name the workflow does
+not offer instead of picking the closest match — the lookup and the failure
+handling are in *When Jira is not there* below.
+
+Give every call a timeout — `--connect-timeout 5 --max-time 15`, from
+`jira.request_timeout_seconds`. Without one an unreachable site hangs the stage
+until the pipeline's own timeout fires, and the failure is then attributed to
+the build rather than to Jira.
 
 Descriptions are Atlassian Document Format, not markdown. Convert, or attach the
 markdown artifact and keep the description short.
@@ -226,6 +235,274 @@ markdown artifact and keep the description short.
 If the user later adds an Atlassian MCP server, prefer its tools over `curl` —
 they handle ADF and auth for you. Re-check with a tool search before falling
 back to REST.
+
+## One ticket per intent
+
+Every request can carry a ticket, whichever door the intent came through. Under
+`jira` and `linkage`, an intent arriving as **chat text** or as a **file** gets
+its own issue at Stage 1, so there is a tracker record for work that never
+started in Jira. Under `issues` and `repo` nothing is created: two records for
+one intent is two things to keep current, and the second one is the one that
+goes stale.
+
+`jira.create_from_intent` turns it on. `jira.create_for_channels` says which
+doors it applies to. **Never list `jira_issue` there** — that intent already has
+a ticket, and a second one splits the audit trail and double-counts every "what
+is in flight" query.
+
+**Create exactly once.** Before creating, look for a key that already belongs to
+this work, stopping at the first hit: the current branch name, the change-log
+rows of the spec delta for this change, the PR title. A key found there *is* the
+ticket. Duplicate tickets are the characteristic failure of automated creation,
+and Jira cannot merge two issues afterwards — someone closes one by hand and the
+join key in the branch points at the wrong record for good.
+
+Build the payload from `templates/jira-intent.md`. The summary and body reach
+`jq` as arguments and reach `curl` as a file, so nothing is interpolated:
+
+```bash
+SUMMARY=$(cat summary.txt)          # one line, authored locally, never typed inline
+jq -n \
+  --arg project "$JIRA_PROJECT" \
+  --arg type    "$JIRA_ISSUE_TYPE" \
+  --arg summary "$SUMMARY" \
+  --arg label   "$JIRA_INTENT_LABEL" \
+  --rawfile body ticket-body.txt \
+  '{fields:{
+      project:   {key: $project},
+      issuetype: {name: $type},
+      summary:   $summary,
+      labels:    [$label],
+      description: {type:"doc", version:1,
+        content:[{type:"paragraph", content:[{type:"text", text:$body}]}]}}}' \
+  > issue.json
+
+curl -sS -u "$AUTH" --connect-timeout 5 --max-time 15 \
+  -X POST "$JIRA_SITE/rest/api/3/issue" \
+  -H 'Content-Type: application/json' \
+  -d @issue.json -o create.json -w '%{http_code}\n'
+```
+
+`--rawfile` is absent from very old jq builds; if the description arrives
+empty, check `jq --version` before blaming ADF. `$JIRA_INTENT_LABEL` comes from
+`jira.labels.intent` in the config — a literal, never a word read off a ticket.
+
+**Validate the key that comes back before it becomes anything.** A create
+response is a value read over HTTPS, which makes it untrusted like any other,
+and this one goes straight into a branch name and a URL path:
+
+```bash
+KEY=$(jq -r '.key // empty' create.json)
+[[ "$KEY" =~ ^[A-Z][A-Z0-9]+-[0-9]+$ ]] || { echo "malformed issue key, refusing" >&2; exit 1; }
+[[ "${KEY%%-*}" == "$JIRA_PROJECT" ]]   || { echo "key is not in $JIRA_PROJECT, refusing" >&2; exit 1; }
+```
+
+The second check is the one that is easy to skip and the one that catches a
+misrouted create — a key from another project would silently bind this repo's
+branches and change log to a ticket nobody in this project can see.
+
+Derive the branch slug from the summary yourself, never from the ticket's own
+words as a path component:
+
+```bash
+SLUG=$(printf '%s' "$SUMMARY" | LC_ALL=C tr '[:upper:]' '[:lower:]' \
+       | LC_ALL=C tr -c 'a-z0-9' '-' | LC_ALL=C tr -s '-' | cut -c1-40 | sed 's/-$//')
+git checkout -b "feature/$KEY-$SLUG"
+```
+
+## The join key lives in exactly three places
+
+The whole point of the key is that ticket, spec delta and code line up with
+nobody maintaining a link table. Three places, one key, each written by the
+stage that already had to write something:
+
+| Place | Form | Written at | Config |
+|---|---|---|---|
+| branch name | `feature/PROJ-123-short-slug` | Stage 3 | `jira.branch_pattern` |
+| PR title | `PROJ-123: <summary>` | Stage 5 | `jira.pr_title_pattern` |
+| spec change-log row, Issue column | `PROJ-123`, bare | Stage 2 | `jira.change_log_ref_pattern` |
+
+That is enough to walk the chain in either direction:
+`git log -p .claude/sdlc/spec.md` shows the delta and its change-log row carries
+the key; the branch and the PR title carry the same string; the ticket carries a
+comment naming the spec commit SHA. Under `issues` the same three places take
+the number instead — `feature/123-slug`, `#123: <title>`, `#123` in the Issue
+column — and the two schemes never mix in one repo, because `source_of_truth`
+picks one.
+
+**Do not add a fourth place.** A key repeated somewhere no stage naturally
+writes — a commit trailer, a wiki row, a ticket custom field holding the branch
+name — is a place that is written by hand once and disagrees with the other
+three forever after.
+
+The Issue cell in the change log is the **bare key and nothing else**: no URL,
+no summary. A summary copied there is tracker text pasted into the spec, and it
+ages the moment somebody renames the ticket.
+
+## What syncs, and what never does
+
+Conservative by default. Every write is **append-only** — a comment, a remote
+link, a label, or a transition named in the config. Nothing already in the
+ticket is rewritten.
+
+**Transitions.** Only the stages listed in `jira.transition_on` move the ticket.
+The default is `design`, `build`, `deploy`, `done`.
+
+| Stage | Moves the ticket | Why |
+|---|---|---|
+| 1 Plan | no | the ticket is being created; it is already in its start status |
+| 2 Design | yes, on the spec delta being **committed** | the delta is the evidence; a transition before the commit claims work that does not exist yet |
+| 3 Build | yes, on the branch existing and `plan.md` committed | |
+| 4 Test | **no** | `test` stays in `transitions` for workflows that want it, but out of `transition_on`: a ticket that bounces on every red build trains everyone to ignore its status |
+| 5 Deploy | yes, on **merge** — not on opening the PR | a ticket that says "Ready to Release" while the PR is in review is a lie a release manager acts on |
+| 6 Maintain | no | the finding is a new intent and gets its own ticket |
+
+**Writebacks.** Two comments and one link, each written once:
+
+| When | What | Shape |
+|---|---|---|
+| Stage 2, after the spec commit | classification (extend / refine), requirement ids **added**, **refined**, **superseded**, and the spec commit SHA | comment, ADF built with `jq --arg` |
+| Stage 5, on the PR existing | the PR URL and title | remote issue link, upserted on `globalId` |
+| Stage 2, on a contradiction | see the next section | label plus comment |
+
+The remote link is used for the PR rather than a third comment because it is
+idempotent: `POST /rest/api/3/issue/<key>/remotelink` with the same `globalId`
+replaces the existing link instead of appending, so re-running Stage 5 after a
+force-push does not leave five near-identical comments.
+
+```bash
+jq -n --arg gid "$PREFIX:pr:$KEY" --arg url "$PR_URL" --arg title "$PR_TITLE" \
+  '{globalId:$gid, object:{url:$url, title:$title}}' > link.json
+curl -sS -u "$AUTH" --connect-timeout 5 --max-time 15 \
+  -X POST "$JIRA_SITE/rest/api/3/issue/$KEY/remotelink" \
+  -H 'Content-Type: application/json' -d @link.json -o link-resp.json -w '%{http_code}\n'
+```
+
+`$PREFIX` is `jira.remote_link_global_id_prefix`; `$PR_URL` comes from
+`gh pr view --json url --jq .url` into a variable, never typed into the command.
+
+**What is never written back, under any model:**
+
+- **The spec text.** Not a requirement sentence, not an EARS clause, not the
+  spec diff, not `plan.md` or `REVIEW.md`. The comment names ids and a SHA; the
+  reader follows them into the repo. The spec's authority comes from being
+  committed and diffable — a copy in a description that any Jira user can edit
+  is a second spec, it will disagree, and the disagreement is invisible because
+  Jira's history is not a diff of the spec.
+- **The description, after creation.** It is written once, at Stage 1, and never
+  edited by the lifecycle again. Editing it silently rewrites the record people
+  read, and there is no way to tell afterwards which words were the originator's.
+- **Any status the repo cannot prove.** No `done` before the merge commit
+  exists, no `deploy` from an open PR.
+- **Code, diffs, logs, environment values, or anything pasted out of a build.**
+  A Jira project usually has a wider audience than the repo, and a log line is
+  the cheapest way to move a secret into it.
+- **Back into the spec:** ticket text never goes into `.claude/sdlc/spec.md`
+  without passing through intake. The ticket is an input to classification, not
+  a source of requirement wording.
+
+## A contradiction owes a human ruling
+
+When intake halts on a contradiction (`templates/intake.md`), the ticket must
+show that a decision is owed. Do **both** of these, and **do not transition**:
+
+1. **Add the label `jira.labels.contradiction`** — a literal from the config.
+   This is what makes the queue exist: `labels = "sdlc-contradiction" AND
+   statusCategory != Done` is one JQL filter that answers "what is waiting on a
+   human", across every project.
+2. **Comment the conflict** — both requirement ids, the conflict in one
+   sentence, the question being asked, and the sentence *nothing has been
+   merged*. The label makes it findable; the comment makes it decidable.
+
+Why not a status transition. Three reasons, and the third is the one that bites:
+a "Blocked" status is not in every workflow, so the mechanism fails exactly
+where the project is least standard; moving status trips whatever the project
+has hung off it — SLA clocks, sprint rollups, automation rules — for a condition
+that is not a workflow state; and a workflow may not offer the reverse
+transition to the agent's account, leaving a ticket parked where it cannot be
+un-parked without an admin.
+
+Why not a comment alone. A comment is not queryable as a queue and scrolls out
+of view under the next three comments. A ruling that nobody can filter for is a
+ruling nobody makes.
+
+Labels are configured with hyphens (`sdlc-contradiction`), not the colon form
+used for GitHub labels: a Jira label may not contain a space, and separator
+characters behave differently across deployments, so the hyphen is the form that
+is safe everywhere.
+
+When the human rules, remove the label and comment the ruling and who made it —
+then continue Stage 2 from the ruling. The ruling is also recorded in the spec's
+decision record, which is the copy that survives.
+
+```bash
+jq -n --arg label "$JIRA_CONTRADICTION_LABEL" \
+  '{update:{labels:[{add:$label}]}}' > label.json     # {remove:$label} to clear it
+curl -sS -u "$AUTH" --connect-timeout 5 --max-time 15 \
+  -X PUT "$JIRA_SITE/rest/api/3/issue/$KEY" \
+  -H 'Content-Type: application/json' -d @label.json -w '%{http_code}\n'
+```
+
+## When Jira is not there
+
+**The repo is the source of truth; Jira is a view.** Every failure below is
+reported in the stage output and none of them stops the stage. A lifecycle that
+halts because a tracker is down has made the tracker authoritative by accident.
+
+| Condition | How it shows | What you do | Lifecycle |
+|---|---|---|---|
+| not configured | `"jira": null`, or `JIRA_SITE` / `JIRA_API_TOKEN` unset | say once per session that tracking is repo-only, then stop mentioning it | runs; join key falls back to the commit SHA |
+| unreachable | curl exit 6 (DNS), 7 (connect), 28 (timeout), or a 5xx | one retry, then report the endpoint, the exit code and the status | runs; the writeback is skipped and named as skipped |
+| wrong project key | 404 on create, or 400 naming `project` | report the key you used and where it came from (`.claude/sdlc.json` or `JIRA_PROJECT`) | runs; **do not create in another project** |
+| transition missing from the workflow | the name is absent from `GET .../transitions` | list the names the workflow does offer | runs; ticket stays where it is, no closest match |
+| no permission | 403 on transition, comment or label | report which operation and which account | runs |
+| token missing in a headless run | `JIRA_API_TOKEN` unset, `interactive` false | hard error naming the variable, no prompt | the *binding* stops; never prompt into a pipeline |
+
+Two mechanics make this real rather than aspirational:
+
+- **Every call gets a timeout** — `--connect-timeout 5 --max-time 15`, from
+  `jira.request_timeout_seconds`. Without one, an unreachable site hangs the
+  stage until the *pipeline's* timeout fires, and the failure gets attributed to
+  the build rather than to Jira. A blackholed address returns exit 28 at the
+  deadline rather than hanging:
+
+  ```
+  $ curl -sS --connect-timeout 2 --max-time 4 http://10.255.255.1:80/x -o /dev/null; echo $?
+  curl: (28) Failed to connect to 10.255.255.1 port 80 after 2004 ms: Timeout was reached
+  28
+  ```
+- **Capture the status, never `|| true`.** Under `set -euo pipefail` a bare curl
+  failure aborts the stage, which is the thing that must not happen; but `|| true`
+  makes "Jira said no", "curl is not installed" and "the token is wrong" all look
+  identical. Read the exit code and the HTTP status into variables and report
+  them.
+
+Never put a Jira call in a hook, a pre-push gate or a required check. Those
+block, and the moment one of them blocks on Jira, Jira is the source of truth.
+
+**Look transitions up, never hardcode an id.** Ids are per-workflow; the same
+"In Progress" is `21` in one project and `31` in the next, and a hardcoded id
+moves a ticket to a status nobody chose.
+
+```bash
+curl -sS -u "$AUTH" --connect-timeout 5 --max-time 15 \
+  "$JIRA_SITE/rest/api/3/issue/$KEY/transitions" -o t.json
+TID=$(jq -r --arg n "$NAME" '.transitions[] | select(.name == $n) | .id' t.json)
+if [ -z "$TID" ]; then
+  echo "transition '$NAME' is not in this workflow; available:" >&2
+  jq -r '.transitions[].name' t.json >&2
+else
+  jq -n --arg id "$TID" '{transition:{id:$id}}' > tr.json
+  curl -sS -u "$AUTH" --connect-timeout 5 --max-time 15 \
+    -X POST "$JIRA_SITE/rest/api/3/issue/$KEY/transitions" \
+    -H 'Content-Type: application/json' -d @tr.json -w '%{http_code}\n'
+fi
+```
+
+The name match is exact and case-sensitive. An empty result means the name in
+the config does not exist in this workflow — report it, do not lowercase it and
+try again, because a near-match is how a ticket lands in a status that looks
+close and reports wrong.
 
 ## The four source-of-truth models
 
@@ -326,9 +603,12 @@ Observed behaviour of `gh search issues`, and its limits:
 
 | Stage | GitHub | Jira |
 |---|---|---|
-| 1 Plan | `issues`: open the labelled issue. Otherwise nothing — the intent is an input | create the issue, or read the existing one |
-| 2 Design | commit the delta to `.claude/sdlc/spec.md` | transition to `design`; comment the SHA |
-| 3 Build | branch `feature/KEY-slug` or `feature/123-slug`; commit `plan.md` | transition to `build` |
-| 4 Test | CI status on the branch | nothing — keep the loop tight |
-| 5 Deploy | draft PR titled `KEY: ...` or `#123: ...`; `Closes #123` in the body; review findings as comments | transition to `deploy` on merge |
-| 6 Maintain | issue or PR from the diagnosis | new ticket carrying the generated intent |
+| 1 Plan | `issues`: open the labelled issue. Otherwise nothing — the intent is an input | create the ticket from a `text` or `file` intent, or read the existing one; label `jira.labels.intent` |
+| 2 Design | commit the delta to `.claude/sdlc/spec.md`; the key goes in the change-log Issue column | after the commit: transition `design`, comment the classification, the ids added / refined / superseded, and the spec SHA. On a contradiction: label `jira.labels.contradiction` and comment the conflict — **no transition** |
+| 3 Build | branch `feature/KEY-slug` or `feature/123-slug`; commit `plan.md` | transition `build` |
+| 4 Test | CI status on the branch | nothing — `test` is in `transitions` but out of `transition_on`, because a ticket that bounces on every red build trains everyone to ignore its status |
+| 5 Deploy | draft PR titled `KEY: ...` or `#123: ...`; `Closes #123` in the body; review findings as comments | remote link to the PR on open; transition `deploy` on **merge**, never on opening the PR |
+| 6 Maintain | issue or PR from the diagnosis | new ticket carrying the generated intent, through intake like any other |
+
+Every Jira cell above is skippable. If the write fails, report it and finish the
+stage — the row describes the view, not the lifecycle.

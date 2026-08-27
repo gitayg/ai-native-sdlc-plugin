@@ -1,8 +1,8 @@
 blank_issues_enabled: true
 contact_links:
   - name: Ask a question or float an idea
-    url: https://github.com/gitayg/reqact/discussions
+    url: https://github.com/gitayg/productizer/discussions
     about: For anything not yet shaped like a problem statement.
   - name: Read the guide first
-    url: https://github.com/gitayg/reqact/blob/main/GUIDE.md
+    url: https://github.com/gitayg/productizer/blob/main/GUIDE.md
     about: One page on what the lifecycle does and how to run it.

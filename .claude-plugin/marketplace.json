@@ -1,14 +1,14 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
-  "name": "reqact",
-  "description": "Marketplace hosting the ReqAct plugin.",
+  "name": "productizer",
+  "description": "Marketplace hosting the Productizer plugin.",
   "owner": {
     "name": "Itay Glick"
   },
   "plugins": [
     {
-      "name": "reqact",
-      "source": "./plugins/reqact"
+      "name": "productizer",
+      "source": "./plugins/productizer"
     }
   ]
 }

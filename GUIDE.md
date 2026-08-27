@@ -1,8 +1,8 @@
-# AI-Native SDLC — one-page guide
+# Productizer — one-page guide
 
 Code stopped being the bottleneck. The stages around it — planning, review,
 deployment, maintenance — still run at human speed, and that is where the time
-now goes. This plugin runs a six-stage lifecycle where **every stage leaves a
+now goes. This plugin runs a nine-stage lifecycle where **every stage leaves a
 committed record and the next stage begins by reading it**.
 
 An intent is an **input**, not a file you keep. It is classified against the
@@ -21,8 +21,8 @@ branch name and PR title.
 ## Install
 
 ```bash
-claude plugin marketplace add gitayg/reqact
-claude plugin install reqact
+claude plugin marketplace add gitayg/productizer
+claude plugin install productizer
 ```
 
 Already have a personal copy at `~/.claude/skills/spec/`? Move it
@@ -41,7 +41,7 @@ and it never asks at all in a scheduled run, where nobody is there to answer.
 
 "Skip Jira — GitHub only" is a real answer, not a half-configuration.
 
-## The six stages
+## The stages
 
 | | You do | You get |
 |---|---|---|
@@ -49,8 +49,16 @@ and it never asks at all in a scheduled run, where nobody is there to answer.
 | **2 Design** | rule on anything that contradicts the spec | a spec delta, in EARS |
 | **3 Build** | interrogate the plan before any code | `plan.md`, then the implementation |
 | **4 Test** | nothing — it verifies before you look | passing checks, pasted |
+| **4C Check** | declare which checks matter, once | a result that says what was examined |
 | **5 Deploy** | judge intent and risk, not mechanics | draft PR, review findings |
+| **5B Document** | nothing — it reads the spec | the user guide, regenerated per release |
+| **5C Announce** | publish it yourself | a drafted post and release email |
 | **6 Maintain** | triage what production surfaced | a new issue, back to stage 1 |
+
+The lettered stages do not renumber the ones after them. `Stage 5` means the
+same thing it did before 4C existed, so every plan, test and review finding that
+cites a stage keeps pointing where it pointed — the same rule the requirement
+ids follow.
 
 Stages never skip forward, and nothing plans from an intent that has not been
 through intake — until then you cannot know whether the work extends the spec or
@@ -179,6 +187,54 @@ Same idea as `CLAUDE.md`: the repo's conventions belong to the repo.
 
 The skill installs both, refuses to install an eval task against an empty suite,
 and warns that scheduled tasks only run while the app is open.
+
+## The checks are yours to declare
+
+Stage 4C runs whatever you put in `.claude/sdlc/checks.yaml` — a secret scan on
+every change, a linter on the paths that have one, a heavier ruleset on anything
+touching auth. Triggers are `always`, path globs, or **requirement tags**, which
+is what makes the scrutiny per-item: an auth requirement earns the auth ruleset,
+a copy edit does not.
+
+Every check states what it must have examined, and that is the part that
+matters. A scanner reporting *Grade A (100/100)* after opening one file of
+forty-eight is not a pass, and without a coverage assertion it is
+indistinguishable from one. A check that exits clean having examined less than
+it declared comes back **hollow**, and hollow blocks like a failure.
+
+Commands are argv lists, never shell strings. The file is committed, so a string
+would let anyone who lands a commit choose what runs on the machine of whoever
+pulls it.
+
+## Docs and go-to-market, per release
+
+Two stages run once per **release**, not once per intent.
+
+**5B Document** regenerates the user guide from the active spec. Per intent you
+would get a changelog with headings — every entry accurate, the document as a
+whole describing no product. Per release is also the only cadence at which
+removals are visible: within one change a superseded requirement looks like an
+edit, but across a release the superseded and withdrawn ids are exactly the list
+of things that used to work and no longer do. Screenshots are captured from the
+released build with the version in the filename, because prose gets reviewed and
+images do not.
+
+**5C Announce** drafts the release post and the release email from the spec
+deltas and the merged PRs. Every claim traces to one of them, every number was
+measured, and the post names the adjacent thing the release does *not* do.
+
+**You publish.** Drafting is delegated; publishing is not. These are the first
+artefacts that leave the building, a post is forwarded within minutes, and mail
+cannot be recalled. The agent stops at the draft.
+
+## Starting from a repo that already exists
+
+Stage 0c surveys a repo with history — routes, tests, error paths, config — and
+drafts at most 30 requirements from what it found, each carrying the file, line
+or test it came from. **Every one lands `inferred` and unconfirmed.** Inferred
+requirements cannot trigger the contradiction stop, or the lifecycle starts
+defending whatever the code happened to do on import day, bugs included. A
+human confirming one promotes it, and that promotion is a commit.
 
 ## Optional: delegate the middle
 
