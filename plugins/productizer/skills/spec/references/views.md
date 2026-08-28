@@ -39,6 +39,13 @@ criteria table for how many active requirements still have no test,
 log for releases and when the spec last changed. A number a view keeps for
 itself is a number that goes stale without anyone noticing.
 
+**Colour means "this needs you", never decoration.** Healthy is the *absence*
+of colour, not a green of its own. A board where every tile is coloured has four
+things shouting, which is the same as none — the eye has nowhere to land and the
+reader learns to scan past all of it. Two levels are enough: one for *stop*, one
+for *soon*. Everything else is neutral, and the heading says how many need
+attention so the count is legible before any tile is read.
+
 **Show the uncomfortable ones at the same size as the comfortable ones.** Open
 contradictions, active requirements with no test, the last check run if it
 refused, drift findings. A dashboard where the good numbers are large and the
