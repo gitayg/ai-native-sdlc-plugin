@@ -43,10 +43,20 @@ the difference matters enough to ask.
 
 ## The rules that are not negotiable
 
-**Agent-driven, human-gated.** 5C is an agent stage like the rest: it writes
-both artefacts, captures the screenshots, verifies the release is live and
-installable, runs the pre-publish checklist, and says which items it could not
-verify itself. The publish is the exception, and it is enforced as a hook
+**The agent drafts, a person approves, the agent runs it.** 5C is an agent
+stage like the rest: it writes both artefacts, captures the screenshots,
+verifies the release is live and installable, runs the pre-publish checklist,
+and says which items it could not verify itself. Then it stops and asks.
+
+What the person owns is the **decision**, not the typing. Handing them a command
+to paste is a worse design in both directions: it drops them into a terminal to
+run something they did not compose and cannot easily check, and it makes the
+approval a chore - and a chore becomes a rubber stamp. Asking plainly and then
+executing on an explicit yes keeps the judgement with the human and the
+mechanics with the agent, which is the split the whole lifecycle uses.
+
+An explicit yes means this publish. Not silence, not an inferred yes, and not a
+yes given to some earlier question. The publish is enforced as a hook
 (`templates/publish-gate.sh`) rather than left as a convention — a rule the
 agent is asked to remember is a rule it eventually reasons past.
 

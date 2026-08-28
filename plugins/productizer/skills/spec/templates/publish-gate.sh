@@ -85,10 +85,11 @@ BLOCKED by publish-gate.
 
   $cmd
 
-Stage 5C drafts; a person publishes. This command puts something in front of
-people, and neither a post nor an email can be recalled.
+Stage 5C drafts, a person decides, and then the agent runs it. This command
+puts something in front of people, and neither a post nor an email can be
+recalled - so the decision is a person's. The typing is not.
 
-Before a human runs it, the pre-publish checklist has to actually pass:
+Before you ask, the pre-publish checklist has to actually pass:
   - every claim traces to a merged PR or a requirement id
   - every number was measured, and the measurement is stated
   - every screenshot came from THIS version's build
@@ -97,8 +98,12 @@ Before a human runs it, the pre-publish checklist has to actually pass:
     including in the screenshots
   - names and bylines of anyone credited are correct
 
-Hand the draft and the checklist results to the person publishing. Say plainly
-which checks you could not verify yourself.
+Show the draft and the checklist results, say plainly which checks you could
+not verify yourself, and ASK. On an explicit yes from the person - not an
+inferred one, not silence, not a yes to some earlier question - run the command.
+They should not have to retype a command they did not compose; making them do
+that is how the approval turns into a chore and the chore turns into a rubber
+stamp.
 MSG
     exit 2
   fi

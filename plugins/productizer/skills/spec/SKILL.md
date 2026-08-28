@@ -309,11 +309,14 @@ customer names, repo names, internal hostnames and the employer's name — from
 the screenshots too, where a title bar or a sidebar carries more than whoever
 captured it intended.
 
-**The stage runs as an agent stage; the publish is a hook.** The agent does the
+**The stage runs as an agent stage; the publish waits on a person.** The agent does the
 whole job — writes both artefacts, captures the screenshots from the released
 build, verifies the version is live and installable, runs the pre-publish
-checklist and reports which items it could not verify itself. What it cannot do
-is the last step. `templates/publish-gate.sh` blocks the commands that reach an
+checklist and reports which items it could not verify itself. What it does not do
+is decide. It shows the draft, names what it could not verify, and asks; on an
+explicit yes it runs the command itself. The person owns the judgement, not the
+typing - handing them something to paste makes approval a chore, and a chore
+becomes a rubber stamp. `templates/publish-gate.sh` blocks the commands that reach an
 audience — `gh release create`, `npm publish`, a tag push, a mail API, a site
 deploy — and lets everything the agent needs for its own work through.
 
