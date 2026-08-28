@@ -67,6 +67,11 @@ An item may carry a Jira key, and when it does, **Jira owns its status**.
 - **The key is the join, never the title.** Titles drift on both sides; keys do
   not. This is the same rule the spec follows for requirement ids and for the
   same reason.
+- **In a published view the key is a link**, built from `jira.site` in
+  `.claude/sdlc.json` as `<site>/browse/<KEY>`. A key rendered as plain text
+  makes the reader copy it into a search box, and half of them will not bother —
+  at which point the status on the row is the only thing anyone ever reads, and
+  it is the one thing this file does not own.
 - **Unreachable Jira is a stated fact, not a stale number.** Show
   `unknown (Jira unreachable <when>)`. A status shown without qualification is
   read as current, and a stale "In Progress" is worse than no status at all

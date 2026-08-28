@@ -55,7 +55,11 @@ ruling, no principle, and no claim about the product. Even then it does not
 write the file — a published page has no filesystem. Dragging composes the
 reordered table and hands it back to paste, so `.claude/sdlc/backlog.md` stays
 the source of truth and the only edit surface. Each row carries its own
-`start work`, naming that item rather than the list. Sorting by status is a way
+`start work`, naming that item rather than the list — and every action in a view
+has to be **wired to the copy mechanism the rest of the page uses**, not styled
+to look like it. A button that reports "copied" while the clipboard is untouched
+is worse than no button, because the failure is silent and the reader finds out
+later. Jira keys render as links built from `jira.site`, never as plain text. Sorting by status is a way
 of **looking**: while it is grouped, the visible order is not the ranking, so
 dragging is disabled and the copy-back withdrawn — a priority order silently
 rewritten by a sort is worse than a stale one. A Jira status that could not be
