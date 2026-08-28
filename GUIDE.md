@@ -75,6 +75,34 @@ Stages never skip forward, and nothing plans from an intent that has not been
 through intake — until then you cannot know whether the work extends the spec or
 contradicts it, and the second one is a stop, not a task.
 
+## The backlog, in front of all of it
+
+Stage 1 assumes an intent exists. In practice somebody wanted the thing weeks
+earlier, and in between it lived in a head or a Slack thread. The backlog is
+where that waiting happens on purpose — `.claude/sdlc/backlog.md`, `B`-numbered,
+ordered by priority.
+
+**There is no priority field.** The order of the file is the ranking. Two
+representations of one ordering disagree the first time someone edits one and
+not the other, and then nobody can say which is the real queue.
+
+**Nothing in it is agreed.** An item can be picked up, taken through intake, and
+refused for contradicting a requirement settled two years ago. That is intake
+working, and it is exactly why the backlog is not a second spec.
+
+Five statuses: `todo`, `long-term`, `in-progress`, `blocked`, `done` — where
+`done` means *left the queue*, not *shipped*. What shipped is a question for the
+spec and the release history.
+
+**An item can name a Jira key, and then Jira owns its status.** The mapping is
+declared once in `.claude/sdlc.json`, and nothing is ever written back: a
+markdown table arguing with a Jira workflow, a board filter and three automation
+rules loses, and loses silently. Move the ticket in Jira.
+
+The published backlog view is the one view you may rearrange, because reordering
+changes nothing that was agreed. Even then it does not write the file — it hands
+you the reordered table to paste. Files stay the only edit surface.
+
 ## The four answers intake can give
 
 Every intent is classified against the whole current spec, and only two of the

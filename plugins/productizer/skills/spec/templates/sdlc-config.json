@@ -161,7 +161,21 @@
     "remote_link_global_id_prefix": "sdlc",
     "request_timeout_seconds": 15,
     "on_failure": "report_and_continue",
-    "_note": "Identifiers only \u2014 JIRA_API_TOKEN stays in the environment. Writes are append-only: a comment, a remote link, a label, or a transition named in `transitions`. The description is written once at creation and never edited, and no requirement text is ever written back \u2014 the spec's authority comes from being committed and diffable, and a copy in a description any Jira user can edit is a second spec that disagrees invisibly. `create_for_channels` must never list `jira_issue`: that intent already has a ticket, and a second one splits the audit trail. `transition_on` is the subset of `transitions` that actually moves the ticket; `test` is deliberately absent. A transition name missing from the project's workflow is reported, never approximated, and ids are looked up per workflow rather than stored here. Labels use hyphens because a Jira label may not contain a space. `on_failure` has one legal value \u2014 the repo is the source of truth and Jira is a view, so every Jira error is reported and none blocks a stage."
+    "_note": "Identifiers only \u2014 JIRA_API_TOKEN stays in the environment. Writes are append-only: a comment, a remote link, a label, or a transition named in `transitions`. The description is written once at creation and never edited, and no requirement text is ever written back \u2014 the spec's authority comes from being committed and diffable, and a copy in a description any Jira user can edit is a second spec that disagrees invisibly. `create_for_channels` must never list `jira_issue`: that intent already has a ticket, and a second one splits the audit trail. `transition_on` is the subset of `transitions` that actually moves the ticket; `test` is deliberately absent. A transition name missing from the project's workflow is reported, never approximated, and ids are looked up per workflow rather than stored here. Labels use hyphens because a Jira label may not contain a space. `on_failure` has one legal value \u2014 the repo is the source of truth and Jira is a view, so every Jira error is reported and none blocks a stage.",
+    "status_map": {
+      "_note": "Jira workflow state -> backlog status. Declared once so two boards do not resolve the same state differently. Read only: nothing here is ever written back to Jira.",
+      "To Do": "todo",
+      "Backlog": "todo",
+      "Selected for Development": "todo",
+      "In Progress": "in-progress",
+      "In Dev": "in-progress",
+      "In Review": "in-progress",
+      "Blocked": "blocked",
+      "On Hold": "long-term",
+      "Done": "done",
+      "Closed": "done",
+      "Won't Do": "done"
+    }
   },
   "views": {
     "publish_as_artifact": true,

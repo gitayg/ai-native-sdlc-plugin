@@ -18,8 +18,8 @@ product** at `.claude/sdlc/spec.md`; the per-change record is the spec diff,
 joined to its issue by the branch name.
 
 Files are the only edit surface. Answer a short question in the session; publish
-a read-only **fleet**, **spec**, **intake** or **band** view when someone wants
-to *look*, or the answer runs past six rows (`references/views.md`). **Never
+a read-only **fleet**, **spec**, **intake**, **backlog** or **band** view when
+someone wants to *look*, or the answer runs past six rows (`references/views.md`). **Never
 read anything back out of a view into the spec**: once a view is what people
 edit, the chain is no longer the audit trail.
 
@@ -168,6 +168,13 @@ coverage arithmetically; a model asked *did this check pass* believes the green
 summary line, which is the failure the stage exists to prevent.
 
 ### 1 · Plan — capture the intent
+Wanted-but-not-yet-agreed waits in `.claude/sdlc/backlog.md`
+(`templates/backlog.md`, `references/backlog.md`). It is the queue **in front
+of** the lifecycle: `B`-numbered, ordered by priority with no priority field —
+the order *is* the ranking — and nothing in it is binding, so an item can be
+picked up and still refused at intake. Where an item names a Jira key, **Jira
+owns its status** and nothing is ever written back.
+
 An intent arrives as a **tracker item**, **text** or a **file**. Brainstorm with
 the originator until it is concrete (`templates/intake.md`); one too vague to
 classify is not ready, and you do not decide what they meant. Then open the
@@ -364,6 +371,7 @@ spans several repos, and what breaks when it is split:
 | Docs and go-to-market, per release | `references/release.md` |
 | Which model runs a stage, and what is enforced | `references/models.md` |
 | Intent classification | `templates/intake.md` |
+| The queue in front of intake | `references/backlog.md` |
 
 Scripts. **They disagree on exit codes on purpose only where noted** — check the
 contract before wiring one into a gate.
@@ -384,7 +392,7 @@ a PR. Repo copies in `.claude/sdlc/templates/` win over these.
 | 0 · bind, scaffold | `sdlc-config.json` `spec.md` `constitution.md` `CLAUDE.md` `REVIEW.md` |
 | 0 · schedule, hooks | `session-start.sh` `hooks-settings.json` `managed-settings.json` `scheduled-evals.md` `scheduled-bands.md` |
 | 0c · import | `import.md` |
-| 1 · intent | `intent.md` `jira-intent.md` |
+| 1 · intent | `backlog.md` `intent.md` `jira-intent.md` |
 | 2 · design | `intake.md` `spec-delta.md` `spec-command.md` `ruling.md` |
 | 3 · build | `plan.md` |
 | 4 · test | `verification-section.md` `agent-verifier.md` `agent-evals.yml` `threshold.sh` |

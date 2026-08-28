@@ -47,6 +47,16 @@ contradiction, both requirements quoted in full with the conflict stated in one
 sentence, and an explicit line saying nothing has been merged. The ruling still
 happens in the session — the view shows what is being ruled on.
 
+**Backlog** — the queue in front of the lifecycle, in priority order, with each
+item's status and its Jira state where it has a key
+(`references/backlog.md`). It is the one view that may be **rearranged**, and
+only because reordering it changes nothing that was agreed: no requirement, no
+ruling, no principle, and no claim about the product. Even then it does not
+write the file — a published page has no filesystem. Dragging composes the
+reordered table and hands it back to paste, so `.claude/sdlc/backlog.md` stays
+the source of truth and the only edit surface. A Jira status that could not be
+read is drawn as unreadable, never as its last known value.
+
 **Band** — one metric's history against its centreline and sigma limits, the
 current point, and which rule fired if any. Cold start is drawn as cold start,
 never as a flat healthy line.
