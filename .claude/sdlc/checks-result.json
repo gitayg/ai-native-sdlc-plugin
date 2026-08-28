@@ -1,0 +1,319 @@
+{
+  "schema": "productizer.checks.result/1",
+  "config": "/private/tmp/claude-502/-Users-itay-glick-Documents-GAI-Apps-InCyber/4933da2c-ebae-4cea-8935-16ef016611ca/scratchpad/pz/.claude/sdlc/checks.yaml",
+  "root": "/private/tmp/claude-502/-Users-itay-glick-Documents-GAI-Apps-InCyber/4933da2c-ebae-4cea-8935-16ef016611ca/scratchpad/pz",
+  "change": {
+    "files": [
+      ".claude-plugin/marketplace.json",
+      ".claude/hooks/publish-gate.sh",
+      ".claude/settings.json",
+      ".github/ISSUE_TEMPLATE/bug.yml",
+      ".github/ISSUE_TEMPLATE/config.yml",
+      ".github/ISSUE_TEMPLATE/intent.yml",
+      ".gitignore",
+      "CONTRIBUTING.md",
+      "GUIDE.md",
+      "LICENSE",
+      "README.md",
+      "plugins/productizer/.claude-plugin/plugin.json",
+      "plugins/productizer/skills/spec/SKILL.md",
+      "plugins/productizer/skills/spec/references/backlog.md",
+      "plugins/productizer/skills/spec/references/checks.md",
+      "plugins/productizer/skills/spec/references/constitution.md",
+      "plugins/productizer/skills/spec/references/delegation.md",
+      "plugins/productizer/skills/spec/references/drift.md",
+      "plugins/productizer/skills/spec/references/ears.md",
+      "plugins/productizer/skills/spec/references/import.md",
+      "plugins/productizer/skills/spec/references/integrations.md",
+      "plugins/productizer/skills/spec/references/models.md",
+      "plugins/productizer/skills/spec/references/release.md",
+      "plugins/productizer/skills/spec/references/rulings.md",
+      "plugins/productizer/skills/spec/references/running-it.md",
+      "plugins/productizer/skills/spec/references/session-start.md",
+      "plugins/productizer/skills/spec/references/solver.md",
+      "plugins/productizer/skills/spec/references/spec-stores.md",
+      "plugins/productizer/skills/spec/references/stages.md",
+      "plugins/productizer/skills/spec/references/views.md",
+      "plugins/productizer/skills/spec/scripts/contradiction-check.py",
+      "plugins/productizer/skills/spec/scripts/detect-context.sh",
+      "plugins/productizer/skills/spec/scripts/import-survey.sh",
+      "plugins/productizer/skills/spec/scripts/run-checks.sh",
+      "plugins/productizer/skills/spec/scripts/scaffold.sh",
+      "plugins/productizer/skills/spec/templates/CLAUDE.md",
+      "plugins/productizer/skills/spec/templates/REVIEW.md",
+      "plugins/productizer/skills/spec/templates/SKILL-secure-api-review.md",
+      "plugins/productizer/skills/spec/templates/agent-evals.yml",
+      "plugins/productizer/skills/spec/templates/agent-reviewer.md",
+      "plugins/productizer/skills/spec/templates/agent-verifier.md",
+      "plugins/productizer/skills/spec/templates/backlog.md",
+      "plugins/productizer/skills/spec/templates/bands.yaml",
+      "plugins/productizer/skills/spec/templates/checks.yaml",
+      "plugins/productizer/skills/spec/templates/constitution.md",
+      "plugins/productizer/skills/spec/templates/converge.md",
+      "plugins/productizer/skills/spec/templates/hooks-settings.json",
+      "plugins/productizer/skills/spec/templates/import.md",
+      "plugins/productizer/skills/spec/templates/intake.md",
+      "plugins/productizer/skills/spec/templates/intent.md",
+      "plugins/productizer/skills/spec/templates/jira-intent.md",
+      "plugins/productizer/skills/spec/templates/managed-settings.json",
+      "plugins/productizer/skills/spec/templates/plan.md",
+      "plugins/productizer/skills/spec/templates/production-gate.sh",
+      "plugins/productizer/skills/spec/templates/publish-gate.sh",
+      "plugins/productizer/skills/spec/templates/release-blog.md",
+      "plugins/productizer/skills/spec/templates/release-email.md",
+      "plugins/productizer/skills/spec/templates/ruling.md",
+      "plugins/productizer/skills/spec/templates/scheduled-bands.md",
+      "plugins/productizer/skills/spec/templates/scheduled-evals.md",
+      "plugins/productizer/skills/spec/templates/sdlc-config.json",
+      "plugins/productizer/skills/spec/templates/session-start.sh",
+      "plugins/productizer/skills/spec/templates/spec-command.md",
+      "plugins/productizer/skills/spec/templates/spec-delta.md",
+      "plugins/productizer/skills/spec/templates/spec.md",
+      "plugins/productizer/skills/spec/templates/threshold.sh",
+      "plugins/productizer/skills/spec/templates/triage-step.yml",
+      "plugins/productizer/skills/spec/templates/user-guide.md",
+      "plugins/productizer/skills/spec/templates/verification-section.md",
+      "plugins/productizer/skills/spec/templates/view.html"
+    ],
+    "file_count": 70,
+    "tags": []
+  },
+  "verdict": "pass",
+  "exit_code": 0,
+  "counts": {
+    "declared": 3,
+    "triggered": 3,
+    "passed": 3,
+    "blocking_failures": 0,
+    "advisory_failures": 0,
+    "not_triggered": 0
+  },
+  "checks": [
+    {
+      "id": "hygiene",
+      "why": "this repo is public and installed by strangers; an employer name, a private repo name or a credential in it cannot be unpublished",
+      "severity": "block",
+      "blocking": true,
+      "mode": "batch",
+      "command": [
+        "./scripts/check-hygiene.sh",
+        "{files}"
+      ],
+      "triggered": true,
+      "triggered_by": [
+        "always"
+      ],
+      "files_in_scope": 70,
+      "tool": {
+        "command": [
+          "./scripts/check-hygiene.sh",
+          "--version"
+        ],
+        "version": "check-hygiene 1.0",
+        "exit_code": 0
+      },
+      "exit_code": 0,
+      "duration_seconds": 1,
+      "coverage": {
+        "from": "stdout_paths",
+        "required": {
+          "min_covered": 1,
+          "must_cover": "all_triggering",
+          "min_rules": 0
+        },
+        "observed": {
+          "covered": 70,
+          "covered_items": [
+            ".claude-plugin/marketplace.json",
+            ".claude/hooks/publish-gate.sh",
+            ".claude/settings.json",
+            ".github/ISSUE_TEMPLATE/bug.yml",
+            ".github/ISSUE_TEMPLATE/config.yml",
+            ".github/ISSUE_TEMPLATE/intent.yml",
+            ".gitignore",
+            "CONTRIBUTING.md",
+            "GUIDE.md",
+            "LICENSE",
+            "README.md",
+            "plugins/productizer/.claude-plugin/plugin.json",
+            "plugins/productizer/skills/spec/SKILL.md",
+            "plugins/productizer/skills/spec/references/backlog.md",
+            "plugins/productizer/skills/spec/references/checks.md",
+            "plugins/productizer/skills/spec/references/constitution.md",
+            "plugins/productizer/skills/spec/references/delegation.md",
+            "plugins/productizer/skills/spec/references/drift.md",
+            "plugins/productizer/skills/spec/references/ears.md",
+            "plugins/productizer/skills/spec/references/import.md",
+            "plugins/productizer/skills/spec/references/integrations.md",
+            "plugins/productizer/skills/spec/references/models.md",
+            "plugins/productizer/skills/spec/references/release.md",
+            "plugins/productizer/skills/spec/references/rulings.md",
+            "plugins/productizer/skills/spec/references/running-it.md",
+            "plugins/productizer/skills/spec/references/session-start.md",
+            "plugins/productizer/skills/spec/references/solver.md",
+            "plugins/productizer/skills/spec/references/spec-stores.md",
+            "plugins/productizer/skills/spec/references/stages.md",
+            "plugins/productizer/skills/spec/references/views.md",
+            "plugins/productizer/skills/spec/scripts/contradiction-check.py",
+            "plugins/productizer/skills/spec/scripts/detect-context.sh",
+            "plugins/productizer/skills/spec/scripts/import-survey.sh",
+            "plugins/productizer/skills/spec/scripts/run-checks.sh",
+            "plugins/productizer/skills/spec/scripts/scaffold.sh",
+            "plugins/productizer/skills/spec/templates/CLAUDE.md",
+            "plugins/productizer/skills/spec/templates/REVIEW.md",
+            "plugins/productizer/skills/spec/templates/SKILL-secure-api-review.md",
+            "plugins/productizer/skills/spec/templates/agent-evals.yml",
+            "plugins/productizer/skills/spec/templates/agent-reviewer.md",
+            "plugins/productizer/skills/spec/templates/agent-verifier.md",
+            "plugins/productizer/skills/spec/templates/backlog.md",
+            "plugins/productizer/skills/spec/templates/bands.yaml",
+            "plugins/productizer/skills/spec/templates/checks.yaml",
+            "plugins/productizer/skills/spec/templates/constitution.md",
+            "plugins/productizer/skills/spec/templates/converge.md",
+            "plugins/productizer/skills/spec/templates/hooks-settings.json",
+            "plugins/productizer/skills/spec/templates/import.md",
+            "plugins/productizer/skills/spec/templates/intake.md",
+            "plugins/productizer/skills/spec/templates/intent.md",
+            "plugins/productizer/skills/spec/templates/jira-intent.md",
+            "plugins/productizer/skills/spec/templates/managed-settings.json",
+            "plugins/productizer/skills/spec/templates/plan.md",
+            "plugins/productizer/skills/spec/templates/production-gate.sh",
+            "plugins/productizer/skills/spec/templates/publish-gate.sh",
+            "plugins/productizer/skills/spec/templates/release-blog.md",
+            "plugins/productizer/skills/spec/templates/release-email.md",
+            "plugins/productizer/skills/spec/templates/ruling.md",
+            "plugins/productizer/skills/spec/templates/scheduled-bands.md",
+            "plugins/productizer/skills/spec/templates/scheduled-evals.md",
+            "plugins/productizer/skills/spec/templates/sdlc-config.json",
+            "plugins/productizer/skills/spec/templates/session-start.sh",
+            "plugins/productizer/skills/spec/templates/spec-command.md",
+            "plugins/productizer/skills/spec/templates/spec-delta.md",
+            "plugins/productizer/skills/spec/templates/spec.md",
+            "plugins/productizer/skills/spec/templates/threshold.sh",
+            "plugins/productizer/skills/spec/templates/triage-step.yml",
+            "plugins/productizer/skills/spec/templates/user-guide.md",
+            "plugins/productizer/skills/spec/templates/verification-section.md",
+            "plugins/productizer/skills/spec/templates/view.html"
+          ],
+          "rules_loaded": null,
+          "files_in_scope": 70,
+          "not_examined": []
+        },
+        "satisfied": true,
+        "reasons": []
+      },
+      "timed_out": false,
+      "output_tail": "ffold.sh\nplugins/productizer/skills/spec/templates/CLAUDE.md\nplugins/productizer/skills/spec/templates/REVIEW.md\nplugins/productizer/skills/spec/templates/SKILL-secure-api-review.md\nplugins/productizer/skills/spec/templates/agent-evals.yml\nplugins/productizer/skills/spec/templates/agent-reviewer.md\nplugins/productizer/skills/spec/templates/agent-verifier.md\nplugins/productizer/skills/spec/templates/backlog.md\nplugins/productizer/skills/spec/templates/bands.yaml\nplugins/productizer/skills/spec/templates/checks.yaml\nplugins/productizer/skills/spec/templates/constitution.md\nplugins/productizer/skills/spec/templates/converge.md\nplugins/productizer/skills/spec/templates/hooks-settings.json\nplugins/productizer/skills/spec/templates/import.md\nplugins/productizer/skills/spec/templates/intake.md\nplugins/productizer/skills/spec/templates/intent.md\nplugins/productizer/skills/spec/templates/jira-intent.md\nplugins/productizer/skills/spec/templates/managed-settings.json\nplugins/productizer/skills/spec/templates/plan.md\nplugins/productizer/skills/spec/templates/production-gate.sh\nplugins/productizer/skills/spec/templates/publish-gate.sh\nplugins/productizer/skills/spec/templates/release-blog.md\nplugins/productizer/skills/spec/templates/release-email.md\nplugins/productizer/skills/spec/templates/ruling.md\nplugins/productizer/skills/spec/templates/scheduled-bands.md\nplugins/productizer/skills/spec/templates/scheduled-evals.md\nplugins/productizer/skills/spec/templates/sdlc-config.json\nplugins/productizer/skills/spec/templates/session-start.sh\nplugins/productizer/skills/spec/templates/spec-command.md\nplugins/productizer/skills/spec/templates/spec-delta.md\nplugins/productizer/skills/spec/templates/spec.md\nplugins/productizer/skills/spec/templates/threshold.sh\nplugins/productizer/skills/spec/templates/triage-step.yml\nplugins/productizer/skills/spec/templates/user-guide.md\nplugins/productizer/skills/spec/templates/verification-section.md\nplugins/productizer/skills/spec/templates/view.html\n",
+      "status": "pass"
+    },
+    {
+      "id": "shell-lint",
+      "why": "these scripts run on other people's machines, and an unquoted expansion there is their problem, not ours",
+      "severity": "block",
+      "blocking": true,
+      "mode": "per_file",
+      "command": [
+        "npx",
+        "--yes",
+        "shellcheck",
+        "--severity=warning",
+        "--format=gcc",
+        "{file}"
+      ],
+      "triggered": true,
+      "triggered_by": [
+        "path:**/*.sh"
+      ],
+      "files_in_scope": 9,
+      "tool": {
+        "command": [
+          "npx",
+          "--yes",
+          "shellcheck",
+          "--version"
+        ],
+        "version": "ShellCheck - shell script analysis tool version: 0.11.0 license: GNU General Public License, version 3 website: https://www.shellcheck.net",
+        "exit_code": 0
+      },
+      "exit_code": 0,
+      "duration_seconds": 9,
+      "coverage": {
+        "from": "per_file_exit",
+        "required": {
+          "min_covered": 1,
+          "must_cover": "all_triggering",
+          "min_rules": 0
+        },
+        "observed": {
+          "covered": 9,
+          "covered_items": [
+            ".claude/hooks/publish-gate.sh",
+            "plugins/productizer/skills/spec/scripts/detect-context.sh",
+            "plugins/productizer/skills/spec/scripts/import-survey.sh",
+            "plugins/productizer/skills/spec/scripts/run-checks.sh",
+            "plugins/productizer/skills/spec/scripts/scaffold.sh",
+            "plugins/productizer/skills/spec/templates/production-gate.sh",
+            "plugins/productizer/skills/spec/templates/publish-gate.sh",
+            "plugins/productizer/skills/spec/templates/session-start.sh",
+            "plugins/productizer/skills/spec/templates/threshold.sh"
+          ],
+          "rules_loaded": null,
+          "files_in_scope": 9,
+          "not_examined": []
+        },
+        "satisfied": true,
+        "reasons": []
+      },
+      "timed_out": false,
+      "output_tail": "\n===== .claude/hooks/publish-gate.sh\n\n===== plugins/productizer/skills/spec/scripts/detect-context.sh\n\n===== plugins/productizer/skills/spec/scripts/import-survey.sh\n\n===== plugins/productizer/skills/spec/scripts/run-checks.sh\n\n===== plugins/productizer/skills/spec/scripts/scaffold.sh\n\n===== plugins/productizer/skills/spec/templates/production-gate.sh\n\n===== plugins/productizer/skills/spec/templates/publish-gate.sh\n\n===== plugins/productizer/skills/spec/templates/session-start.sh\n\n===== plugins/productizer/skills/spec/templates/threshold.sh\n",
+      "status": "pass"
+    },
+    {
+      "id": "solver-corpus",
+      "why": "precision must stay at 1.00 - a contradiction checker that halts on a non-conflict gets switched off, and then nothing is checked",
+      "severity": "block",
+      "blocking": true,
+      "mode": "batch",
+      "command": [
+        "python3",
+        "plugins/productizer/skills/spec/scripts/contradiction-check.py",
+        "--selftest"
+      ],
+      "triggered": true,
+      "triggered_by": [
+        "path:**/contradiction-check.py"
+      ],
+      "files_in_scope": 1,
+      "tool": {
+        "command": [
+          "python3",
+          "--version"
+        ],
+        "version": "Python 3.14.6",
+        "exit_code": 0
+      },
+      "exit_code": 0,
+      "duration_seconds": 1,
+      "coverage": {
+        "from": "stdout_count",
+        "required": {
+          "min_covered": 1,
+          "must_cover": "none",
+          "min_rules": 0
+        },
+        "observed": {
+          "covered": 7,
+          "covered_items": [],
+          "rules_loaded": null,
+          "files_in_scope": 1,
+          "not_examined": []
+        },
+        "satisfied": true,
+        "reasons": []
+      },
+      "timed_out": false,
+      "output_tail": "ed requirements                                                                  different subjects: 'CI service' and 'storage service'\n N7   CONSISTENT     CONSISTENT     one bounded, one not \u2014 no shared quantity                                               no incompatibility inside the decidable fragment\n*S1   CONTRADICTION  CONSISTENT     semantic: conflicts only if the audit log holds personal data                           no incompatibility inside the decidable fragment\n*S2   CONTRADICTION  CONSISTENT     semantic: same event, disjoint vocabulary                                               guards cannot both apply \u2014 guards share 0% of their terms\n*S3   CONTRADICTION  CONSISTENT     semantic: unquantified adjective against a bound                                        no incompatibility inside the decidable fragment\n N8   CONSISTENT     CONSISTENT     opposite triggers, opposite-sounding responses                                          no incompatibility inside the decidable fragment\n N9   CONSISTENT     CONSISTENT     complementary guards the parser cannot prove disjoint                                   no incompatibility inside the decidable fragment\n N10  CONSISTENT     CONSISTENT     overlapping numeric guards, compatible responses                                        no incompatibility inside the decidable fragment\n U1   UNDECIDED      UNDECIDED      lexicon fires but the guards are not resolvable \u2014 must escalate, not halt               mutually exclusive responses: 'allow' against 'deny', but guards share 33% of their terms, neither clearly the same nor clearly apart\n\nConfusion matrix \u2014 the binary question: halt, or do not halt\n  true positives   (caught a real contradiction) : 7\n  false negatives  (missed one, silently)        : 3\n  false positives  (halted on a non-conflict)    : 0\n  true negatives   (correctly stayed quiet)      : 10\n  undecided        (handed back for judgement)   : 1\n  precision : 1.00\n  recall    : 0.70\n  decided   : 20/21\n",
+      "status": "pass"
+    }
+  ]
+}

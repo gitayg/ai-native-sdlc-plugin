@@ -1,0 +1,74 @@
+# Stage 4C for this repo. Not the shipped template: these are the checks that
+# actually matter for a plugin published publicly and installed by other people.
+version: 1
+
+policy:
+  empty_run: refuse
+  output: .claude/sdlc/checks-result.json
+
+defaults:
+  timeout_seconds: 180
+  mode: batch
+  severity: block
+
+checks:
+
+  # --- repo hygiene --------------------------------------------------------
+  - id: hygiene
+    why: this repo is public and installed by strangers; an employer name, a private repo name or a credential in it cannot be unpublished
+    when:
+      always: true
+    severity: block
+    requires: [./scripts/check-hygiene.sh]
+    version_command: [./scripts/check-hygiene.sh, --version]
+    mode: batch
+    command: [./scripts/check-hygiene.sh, "{files}"]
+    exit_codes:
+      pass: [0]
+      fail: [1]
+      refused: [2]
+    coverage:
+      from: stdout_paths
+      pattern: '^(\S+)$'
+      must_cover: all_triggering
+      min_covered: 1
+
+  # --- shell linting -------------------------------------------------------
+  - id: shell-lint
+    why: these scripts run on other people's machines, and an unquoted expansion there is their problem, not ours
+    when:
+      paths: ["**/*.sh"]
+    severity: block
+    requires: [npx]
+    version_command: [npx, --yes, shellcheck, --version]
+    mode: per_file
+    command: [npx, --yes, shellcheck, --severity=warning, --format=gcc, "{file}"]
+    timeout_seconds: 600
+    exit_codes:
+      pass: [0]
+      fail: [1]
+      refused: [2, 3, 4]
+    coverage:
+      from: per_file_exit
+      examined_when_exit_in: [0, 1]
+      must_cover: all_triggering
+      min_covered: 1
+
+  # --- the solver's own corpus --------------------------------------------
+  - id: solver-corpus
+    why: precision must stay at 1.00 - a contradiction checker that halts on a non-conflict gets switched off, and then nothing is checked
+    when:
+      paths: ["**/contradiction-check.py"]
+    severity: block
+    requires: [python3]
+    version_command: [python3, --version]
+    mode: batch
+    command: [python3, plugins/productizer/skills/spec/scripts/contradiction-check.py, --selftest]
+    exit_codes:
+      pass: [0]
+      fail: [1]
+      refused: [2]
+    coverage:
+      from: stdout_count
+      pattern: 'true positives[^0-9]*([0-9]+)'
+      min_covered: 1
