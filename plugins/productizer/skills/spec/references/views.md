@@ -54,7 +54,11 @@ only because reordering it changes nothing that was agreed: no requirement, no
 ruling, no principle, and no claim about the product. Even then it does not
 write the file — a published page has no filesystem. Dragging composes the
 reordered table and hands it back to paste, so `.claude/sdlc/backlog.md` stays
-the source of truth and the only edit surface. A Jira status that could not be
+the source of truth and the only edit surface. Each row carries its own
+`start work`, naming that item rather than the list. Sorting by status is a way
+of **looking**: while it is grouped, the visible order is not the ranking, so
+dragging is disabled and the copy-back withdrawn — a priority order silently
+rewritten by a sort is worse than a stale one. A Jira status that could not be
 read is drawn as unreadable, never as its last known value.
 
 **Band** — one metric's history against its centreline and sigma limits, the

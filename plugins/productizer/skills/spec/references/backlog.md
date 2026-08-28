@@ -95,6 +95,23 @@ composing an edit, not a way of skipping one.
 
 Adding an item is the same: the view can compose one, and the file records it.
 
+**Every row carries its own action.** `start work` on an item names *that* item —
+its id, its text, its Jira key if it has one — so nothing has to be re-typed or
+re-identified, and the prompt it hands over says what Stage 1 must do: classify
+against the whole spec before anything is planned, record the issue in Notes,
+and **stop if it contradicts something agreed**. An item already `in-progress`
+offers `open it` instead: where it got to, and what is holding it.
+
+**Sorting by status is a way of looking, not a reordering — and the view has to
+know the difference.** While the list is grouped by status, its visible order is
+no longer the ranking. So dragging is disabled and the copy-back is withdrawn:
+the only thing worse than a stale priority order is one that was silently
+rewritten by a sort. Switching back to rank restores the file's order exactly.
+
+Status precedence for that grouping is `in-progress`, `blocked`, `todo`,
+`long-term`, `done` — what is moving first, what is stuck second, and what is
+deliberately parked near the bottom. Within a group, file order is preserved.
+
 ## What does not belong in it
 
 - **Requirements.** Agreed behaviour has an `R` id and lives in the spec.
