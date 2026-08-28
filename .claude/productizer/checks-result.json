@@ -6,8 +6,12 @@
     "files": [
       ".claude-plugin/marketplace.json",
       ".claude/hooks/publish-gate.sh",
+      ".claude/productizer/backlog.md",
       ".claude/productizer/checks-result.json",
       ".claude/productizer/checks.yaml",
+      ".claude/productizer/config.json",
+      ".claude/productizer/constitution.md",
+      ".claude/productizer/spec.md",
       ".claude/settings.json",
       ".github/ISSUE_TEMPLATE/bug.yml",
       ".github/ISSUE_TEMPLATE/config.yml",
@@ -36,6 +40,7 @@
       "plugins/productizer/skills/spec/references/spec-stores.md",
       "plugins/productizer/skills/spec/references/stages.md",
       "plugins/productizer/skills/spec/references/views.md",
+      "plugins/productizer/skills/spec/scripts/build-release-notes.sh",
       "plugins/productizer/skills/spec/scripts/build-view.sh",
       "plugins/productizer/skills/spec/scripts/contradiction-check.py",
       "plugins/productizer/skills/spec/scripts/detect-context.sh",
@@ -80,7 +85,7 @@
       "plugins/productizer/skills/spec/templates/view.html",
       "scripts/check-hygiene.sh"
     ],
-    "file_count": 75,
+    "file_count": 80,
     "tags": []
   },
   "verdict": "pass",
@@ -108,7 +113,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 75,
+      "files_in_scope": 80,
       "tool": {
         "command": [
           "./scripts/check-hygiene.sh",
@@ -127,12 +132,16 @@
           "min_rules": 0
         },
         "observed": {
-          "covered": 75,
+          "covered": 80,
           "covered_items": [
             ".claude-plugin/marketplace.json",
             ".claude/hooks/publish-gate.sh",
+            ".claude/productizer/backlog.md",
             ".claude/productizer/checks-result.json",
             ".claude/productizer/checks.yaml",
+            ".claude/productizer/config.json",
+            ".claude/productizer/constitution.md",
+            ".claude/productizer/spec.md",
             ".claude/settings.json",
             ".github/ISSUE_TEMPLATE/bug.yml",
             ".github/ISSUE_TEMPLATE/config.yml",
@@ -161,6 +170,7 @@
             "plugins/productizer/skills/spec/references/spec-stores.md",
             "plugins/productizer/skills/spec/references/stages.md",
             "plugins/productizer/skills/spec/references/views.md",
+            "plugins/productizer/skills/spec/scripts/build-release-notes.sh",
             "plugins/productizer/skills/spec/scripts/build-view.sh",
             "plugins/productizer/skills/spec/scripts/contradiction-check.py",
             "plugins/productizer/skills/spec/scripts/detect-context.sh",
@@ -206,7 +216,7 @@
             "scripts/check-hygiene.sh"
           ],
           "rules_loaded": null,
-          "files_in_scope": 75,
+          "files_in_scope": 80,
           "not_examined": []
         },
         "satisfied": true,
@@ -234,7 +244,7 @@
       "triggered_by": [
         "path:**/*.sh"
       ],
-      "files_in_scope": 12,
+      "files_in_scope": 13,
       "tool": {
         "command": [
           "npx",
@@ -246,7 +256,7 @@
         "exit_code": 0
       },
       "exit_code": 0,
-      "duration_seconds": 13,
+      "duration_seconds": 16,
       "coverage": {
         "from": "per_file_exit",
         "required": {
@@ -255,9 +265,10 @@
           "min_rules": 0
         },
         "observed": {
-          "covered": 12,
+          "covered": 13,
           "covered_items": [
             ".claude/hooks/publish-gate.sh",
+            "plugins/productizer/skills/spec/scripts/build-release-notes.sh",
             "plugins/productizer/skills/spec/scripts/build-view.sh",
             "plugins/productizer/skills/spec/scripts/detect-context.sh",
             "plugins/productizer/skills/spec/scripts/import-survey.sh",
@@ -271,14 +282,14 @@
             "scripts/check-hygiene.sh"
           ],
           "rules_loaded": null,
-          "files_in_scope": 12,
+          "files_in_scope": 13,
           "not_examined": []
         },
         "satisfied": true,
         "reasons": []
       },
       "timed_out": false,
-      "output_tail": "\n===== .claude/hooks/publish-gate.sh\n\n===== plugins/productizer/skills/spec/scripts/build-view.sh\n\n===== plugins/productizer/skills/spec/scripts/detect-context.sh\n\n===== plugins/productizer/skills/spec/scripts/import-survey.sh\n\n===== plugins/productizer/skills/spec/scripts/run-checks.sh\n\n===== plugins/productizer/skills/spec/scripts/scaffold.sh\n\n===== plugins/productizer/skills/spec/scripts/stage-status.sh\n\n===== plugins/productizer/skills/spec/templates/production-gate.sh\n\n===== plugins/productizer/skills/spec/templates/publish-gate.sh\n\n===== plugins/productizer/skills/spec/templates/session-start.sh\n\n===== plugins/productizer/skills/spec/templates/threshold.sh\n\n===== scripts/check-hygiene.sh\n",
+      "output_tail": "\n===== .claude/hooks/publish-gate.sh\n\n===== plugins/productizer/skills/spec/scripts/build-release-notes.sh\n\n===== plugins/productizer/skills/spec/scripts/build-view.sh\n\n===== plugins/productizer/skills/spec/scripts/detect-context.sh\n\n===== plugins/productizer/skills/spec/scripts/import-survey.sh\n\n===== plugins/productizer/skills/spec/scripts/run-checks.sh\n\n===== plugins/productizer/skills/spec/scripts/scaffold.sh\n\n===== plugins/productizer/skills/spec/scripts/stage-status.sh\n\n===== plugins/productizer/skills/spec/templates/production-gate.sh\n\n===== plugins/productizer/skills/spec/templates/publish-gate.sh\n\n===== plugins/productizer/skills/spec/templates/session-start.sh\n\n===== plugins/productizer/skills/spec/templates/threshold.sh\n\n===== scripts/check-hygiene.sh\n",
       "status": "pass"
     },
     {

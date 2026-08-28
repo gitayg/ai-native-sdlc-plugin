@@ -1,0 +1,128 @@
+{
+  "version": 2,
+  "source_of_truth": "linkage",
+  "product": {
+    "name": "productizer",
+    "spec_home": "gitayg/productizer",
+    "repos": [
+      "gitayg/productizer"
+    ]
+  },
+  "spec": {
+    "path": ".claude/productizer/spec.md",
+    "requirement_id_prefix": "R",
+    "ids_are_permanent": true,
+    "on_supersede": "mark_with_pointer",
+    "on_contradiction": "ask_human",
+    "audit_record": "git_diff",
+    "home": "product.spec_repo"
+  },
+  "models": {
+    "_note": "Per-stage model and effort. ENFORCED only where a fresh context begins - a subagent with frontmatter. Stages that run in your session inherit the session model whatever this file says; for those this block is a recommendation the skill reads out so you can choose before the stage runs. Values: model = inherit | cheap | <model id>. effort = inherit | low | medium | high. See references/models.md.",
+    "import": {
+      "effort": "high",
+      "model": "inherit",
+      "enforced": false,
+      "why": "inferring requirements from code you have never read is the hardest inference in the lifecycle, and every mistake becomes a requirement someone later confirms"
+    },
+    "intake": {
+      "effort": "high",
+      "model": "inherit",
+      "enforced": false,
+      "why": "contradiction detection against the whole spec is the hardest call here, and a missed contradiction merges silently"
+    },
+    "build": {
+      "effort": "inherit",
+      "model": "inherit",
+      "enforced": false,
+      "why": "your session, your choice"
+    },
+    "tests": {
+      "effort": "inherit",
+      "model": "inherit",
+      "enforced": false,
+      "why": "runs in your session against a written plan"
+    },
+    "evals": {
+      "effort": "low",
+      "model": "cheap",
+      "enforced": true,
+      "why": "mechanical pass/fail, 20-50 of them nightly - this is where cost lives"
+    },
+    "checks": {
+      "effort": "none",
+      "model": "none",
+      "enforced": true,
+      "why": "NO MODEL IN THIS PATH. Stage 5 runs declared scripts and compares coverage; a model deciding whether a check passed is the failure the stage exists to prevent"
+    },
+    "review": {
+      "effort": "high",
+      "model": "inherit",
+      "enforced": true,
+      "why": "fresh context, adversarial, low volume - the one place raising effort is cheap and clearly worth it"
+    },
+    "document": {
+      "effort": "medium",
+      "model": "inherit",
+      "enforced": true,
+      "why": "reads the whole active spec and maps every section to ids; cheap models drop the mapping and write plausible prose"
+    },
+    "announce": {
+      "effort": "high",
+      "model": "inherit",
+      "enforced": true,
+      "why": "every claim has to trace to a merged PR or a requirement id, and this is the one artifact that leaves the building"
+    },
+    "diagnose": {
+      "effort": "low",
+      "model": "cheap",
+      "enforced": true,
+      "why": "2 sigma is summarising; raise it for 3 sigma, which proposes a change"
+    }
+  },
+  "bands": {
+    "config": "ops/bands.yaml",
+    "detection_command": "python3 ops/ci-failure-rate.py",
+    "_note": "The scheduled band check executes detection_command from HERE, never a path read out of bands.yaml. Two sources must agree: this binding and the literal frozen into the scheduled prompt when a human installed it."
+  },
+  "intent": {
+    "channels": [
+      "file",
+      "text",
+      "github_issue",
+      "jira_issue"
+    ],
+    "persist": false
+  },
+  "artifacts": {
+    "path": "docs/sdlc/<slug>",
+    "per_change": [
+      "plan.md",
+      "REVIEW.md"
+    ],
+    "commit_each_stage": true
+  },
+  "github": {
+    "repo": "gitayg/productizer",
+    "default_branch": "main",
+    "gh_account": "your-gh-login",
+    "pr_draft_first": true,
+    "issues": {
+      "label": "sdlc",
+      "branch_pattern": "feature/<issue>-<slug>",
+      "pr_title_pattern": "#<issue>: <summary>",
+      "stage_labels": {
+        "design": "sdlc:design",
+        "build": "sdlc:build",
+        "test": "sdlc:test",
+        "deploy": "sdlc:deploy",
+        "done": "sdlc:done"
+      }
+    }
+  },
+  "jira": null,
+  "views": {
+    "publish_as_artifact": true,
+    "refresh": "on_request"
+  }
+}

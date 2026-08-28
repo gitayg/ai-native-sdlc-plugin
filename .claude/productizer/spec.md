@@ -9,7 +9,7 @@ site generators, doc builds and packaging all skip that directory, so the spec
 is never rendered as a page or shipped in a release.
 
 Next requirement id
-: `R<n>` — allocate from here, then increment. This is the highest id the spec
+: `R23` — allocate from here, then increment. This is the highest id the spec
 has ever used, not a count of the rows on screen. Ids are never reused and
 never renumbered, and stay unique across the whole repo even if this spec is
 later split into several files.
@@ -74,49 +74,43 @@ file stays skimmable at two hundred. One row per requirement, in id order.
 | R3 | <area> | state | withdrawn | — |
 
 ## Requirements
-<!-- EXAMPLE:BEGIN — worked examples, not agreed content.
-     Scaffolding DELETES this block. A seeded requirement or principle is one
-     nobody agreed to, and it gets cited before anyone notices it was a sample. -->
-
-Within each pattern, add `####` area sub-headings once that pattern passes
-roughly twenty requirements. Ids stay monotonic across every section and every
-area regardless of how the file is subdivided.
 
 ### Ubiquitous — always active
 
-- **R1** — The `<system>` shall `<response>`.
+- **R1** — The lifecycle shall hold exactly one living spec per product.
+- **R2** — The lifecycle shall keep requirement ids permanent: never reused, never renumbered.
+- **R3** — The lifecycle shall keep a replaced requirement's original text in the spec, marked superseded.
+- **R4** — Every published view shall be read-only with respect to the spec.
+- **R5** — Every check shall declare what it must have examined for its pass to count.
 
 ### Event-driven
 
-- **R2** — When `<trigger>`, the `<system>` shall `<response>`.
-  Superseded by R41. <Why, in one line, naming the decision.>
+- **R6** — When an intent arrives, the lifecycle shall classify it against the whole living spec as exactly one of extend, refine, duplicate or contradict.
+- **R7** — When an intent is classified, the lifecycle shall record the classification in the spec's change log.
+- **R8** — When a requirement is added, the lifecycle shall allocate the next unused id and record it in the acceptance criteria table.
+- **R9** — When a release is prepared, the lifecycle shall regenerate the user guide from the active requirements.
+- **R10** — When a repository with history is imported, the lifecycle shall mark every drafted requirement inferred and unconfirmed.
+- **R11** — When a published view is regenerated, the lifecycle shall read every figure in it from a file in the repository.
 
 ### State-driven
 
-- **R3** — While `<state>`, the `<system>` shall `<response>`.
-  Withdrawn. <Why the behaviour no longer exists.>
+- **R12** — While a contradiction is unruled, the lifecycle shall merge no spec change that depends on it.
+- **R13** — While a check tool named by the configuration is absent, the lifecycle shall report that check as missing rather than skipped.
 
 ### Unwanted behaviour
 
-A spec with nothing here has not considered failure, and the tests will inherit
-that gap.
-
-- **R4** — If `<unwanted trigger>`, then the `<system>` shall `<response>`.
+- **R14** — If an intent contradicts an active requirement, then the lifecycle shall stop and ask which wins, and shall merge nothing.
+- **R15** — If a check exits zero having examined less than it declared, then the lifecycle shall report it as hollow and treat it as a failure.
+- **R16** — If a value could not be measured, then the lifecycle shall report it as unmeasured and shall not record it as zero.
+- **R17** — If a command would publish or deploy, then the gate shall block it until a person approves.
+- **R18** — If a configured command names a shell or an interpreter with an inline program, then the lifecycle shall refuse to run it.
+- **R19** — If the spec home is unreachable, then the lifecycle shall stop rather than classify against a remembered copy.
+- **R20** — If a survey finds too little evidence to draft from, then the lifecycle shall refuse to draft a spec from it.
 
 ### Optional
 
-- **R5** — Where `<feature is included>`, the `<system>` shall `<response>`.
-
-### Complex
-
-- **R6** — While `<state>`, when `<trigger>`, the `<system>` shall
-  `<response>`.
-
-Superseded and withdrawn requirements stay in the pattern section they were
-written in. There is no archive section, because moving them would break the
-one thing keeping their ids findable.
-
-<!-- EXAMPLE:END -->
+- **R21** — Where a backlog item names a Jira key, the lifecycle shall read that item's status from Jira and shall write nothing back.
+- **R22** — Where a repository declares its own check tools, the lifecycle shall run them only if the configuration explicitly opts in.
 
 ## Design
 
@@ -136,22 +130,21 @@ until a human rules on it.
 
 | # | Concern | Requirements | Policy / owner | Raised by | Status |
 |---|---|---|---|---|---|
-<!-- EXAMPLE:BEGIN — a shape to copy, not a live concern.
-     Scaffolding DELETES this block: a placeholder row with 'open' in it reads
-     as an unruled contradiction and blocks Stage 2 in a brand-new repo. -->
-| C1 | <what is unresolved or contested> | R12, R31 | <policy, owner> | <issue> | open / resolved: <ruling, date> |
-<!-- EXAMPLE:END -->
 
 ## Acceptance criteria
 
-Every **active** requirement has at least one row. A requirement with no row is
-the answer to "do the tests assert the criteria", stated as a fact. Superseded
-and withdrawn requirements have no row — remove theirs when the status changes,
-which is what keeps this table the same length as the active set.
-
-| Requirement | Verified by | How |
-|---|---|---|
-| R1 | `<test name or command>` | <the observable that proves it> |
+| Requirement | Verified by |
+|---|---|
+| R2 | `references/ears.md` id-lifecycle rules; reviewed at intake |
+| R5 | `scripts/run-checks.sh` coverage assertion; `hollow` path |
+| R11 | `scripts/build-view.sh` — byte-identical across runs and timezones |
+| R14 | `scripts/contradiction-check.py --selftest` — 7 true positives, precision 1.00 |
+| R15 | `run-checks.sh` hollow detection — proven on a stub and on real semgrep |
+| R16 | `check-hygiene.sh`, `stage-status.sh`, `build-view.sh` unmeasured states |
+| R17 | `templates/publish-gate.sh` — 42-case block corpus, 41-case allow corpus |
+| R18 | `run-checks.sh` argv[0] validation — shells, interpreters, repo-local paths |
+| R20 | `scripts/import-survey.sh` Verdict section |
+| R22 | `policy.allow_repo_local_tools`, default false |
 
 ## Change log
 

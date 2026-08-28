@@ -60,17 +60,17 @@ fi
 # to files and parsed in python so the shell does no interpretation of its own.
 if git -C "$ROOT" rev-parse --git-dir >/dev/null 2>&1; then
   : >"$TMP/is-git"
-  git -C "$ROOT" log --no-color --date=format:'%Y-%m-%d %H:%M' \
+  TZ=UTC git -C "$ROOT" log --no-color --date=format-local:'%Y-%m-%d %H:%M' \
       --pretty=format:'%x01%H%x1f%h%x1f%ad%x1f%s%x1f%b%x02' >"$TMP/log" 2>/dev/null || :
-  git -C "$ROOT" log --no-color --date=format:'%Y-%m-%dT%H:%M' \
+  TZ=UTC git -C "$ROOT" log --no-color --date=format-local:'%Y-%m-%dT%H:%M' \
       --pretty=format:'%x01%ad' --name-only >"$TMP/log-files" 2>/dev/null || :
   git -C "$ROOT" for-each-ref --format='%(objectname) %(*objectname) %(refname:short)' \
       refs/tags >"$TMP/tags" 2>/dev/null || :
   git -C "$ROOT" ls-files -z >"$TMP/files" 2>/dev/null || :
   git -C "$ROOT" remote get-url origin >"$TMP/remote" 2>/dev/null || :
   git -C "$ROOT" rev-parse --short HEAD >"$TMP/head" 2>/dev/null || :
-  git -C "$ROOT" log -1 --date=format:'%Y-%m-%d' --pretty=format:'%ad' >"$TMP/head-date" 2>/dev/null || :
-  git -C "$ROOT" log -1 --date=format:'%Y-%m-%d' --pretty=format:'%ad' \
+  TZ=UTC git -C "$ROOT" log -1 --date=format-local:'%Y-%m-%d' --pretty=format:'%ad' >"$TMP/head-date" 2>/dev/null || :
+  TZ=UTC git -C "$ROOT" log -1 --date=format-local:'%Y-%m-%d' --pretty=format:'%ad' \
       -- .claude/productizer/spec.md >"$TMP/spec-date" 2>/dev/null || :
 fi
 

@@ -114,7 +114,14 @@ fi
 # --- Stage 2 ---------------------------------------------------------------
 if [ -f "$SPEC" ]; then
   # An open contradiction blocks everything downstream of it, by design.
-  con=$(grep -ciE '^\| C[0-9]+.*(open|unruled|waiting)' "$SPEC" 2>/dev/null || echo 0)
+  # A row still carrying <angle-bracket> placeholders is template shape, not a
+  # live concern. Blocking Stage 2 on one is a false stop, and a gate that
+  # fires on nothing gets ignored when it fires on something.
+  # grep -c prints its count AND exits 1 when that count is zero, so a naive
+  # `|| echo 0` appends a second zero and the test below sees "0\n0".
+  con=$(grep -iE '^\| C[0-9]+.*(open|unruled|waiting)' "$SPEC" 2>/dev/null \
+        | grep -vc '<[a-z ,]*>' || true)
+  con=${con:-0}
   if [ "$con" -gt 0 ]; then row 2 Design blocked "$con open contradiction(s) - nothing merges"
   else row 2 Design ok "no open contradictions"; fi
 else
