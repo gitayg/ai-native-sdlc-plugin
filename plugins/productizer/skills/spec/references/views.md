@@ -29,6 +29,35 @@ read-only unless asked; it is obvious from the content.
 
 ## The four views
 
+**Overview** — one product at a glance, and the first thing a view should open
+on. Two halves: counted state, and what is moving.
+
+The counts come from the files, never from anything the view stores — the spec
+for requirement totals and how many are superseded or withdrawn, the acceptance
+criteria table for how many active requirements still have no test,
+`backlog.md` for the queue, `checks-result.json` for the last check run, the git
+log for releases and when the spec last changed. A number a view keeps for
+itself is a number that goes stale without anyone noticing.
+
+**Show the uncomfortable ones at the same size as the comfortable ones.** Open
+contradictions, active requirements with no test, the last check run if it
+refused, drift findings. A dashboard where the good numbers are large and the
+bad ones are a footnote is a dashboard people learn to feel reassured by.
+
+The second half is a **kanban of what is actually moving**, one card per item,
+each sitting in the column of the stage that is *holding* it — not the stage it
+will reach next. Columns follow the lifecycle: backlog, intake, build, check,
+review, gated. Cards carry what is blocking them, in words.
+
+That last column is the point of the whole board. **A full `Gated` column means
+work is finished and waiting on a person**, which is the only queue on the board
+that no amount of agent time will drain. It should be the first thing anyone
+looks at, and it is worth keeping it last so the eye lands there.
+
+An empty board is drawn as an empty board. A lifecycle with nothing in flight is
+a real answer, and inventing motion to fill columns is the same lie as a scanner
+reporting a grade for files it never opened.
+
 **Fleet** — every bound repo: product, current stage, open intents, control band
 state, eval pass rate, last spec change. Sorted by attention needed, not
 alphabetically: breaches first, then contradictions waiting on a ruling, then

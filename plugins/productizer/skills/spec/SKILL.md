@@ -18,8 +18,9 @@ product** at `.claude/sdlc/spec.md`; the per-change record is the spec diff,
 joined to its issue by the branch name.
 
 Files are the only edit surface. Answer a short question in the session; publish
-a read-only **fleet**, **spec**, **intake**, **backlog** or **band** view when
-someone wants to *look*, or the answer runs past six rows (`references/views.md`). **Never
+a read-only **overview**, **fleet**, **spec**, **intake**, **backlog** or **band**
+view when someone wants to *look*, or the answer runs past six rows
+(`references/views.md`). **Never
 read anything back out of a view into the spec**: once a view is what people
 edit, the chain is no longer the audit trail.
 
