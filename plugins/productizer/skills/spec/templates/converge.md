@@ -1,7 +1,7 @@
 # Drift report — <product>, <YYYY-MM-DD>
 
 Spec read
-: `<owner/spec-repo>` @ `<sha>`, `.claude/sdlc/spec.md` — `<n>` active
+: `<owner/spec-repo>` @ `<sha>`, `.claude/productizer/spec.md` — `<n>` active
 requirements. A run that could not read the spec produces no report.
 
 Repos scanned

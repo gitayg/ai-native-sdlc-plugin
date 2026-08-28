@@ -18,14 +18,15 @@ PATTERNS='opswat|deployhub|appCrane|agentclub|raisemehost|nanoai|LMmOS-[A-Z0-9]+
 found=0
 for f in "$@"; do
   [ -f "$f" ] || continue
-  # The tool's own pattern list is not a finding.
-  case "$f" in */check-hygiene.sh) continue ;; esac
-  if grep -EnI "$PATTERNS" "$f" >/dev/null 2>&1; then
-    echo "$f"                       # coverage: one line per file examined
-    grep -EnI "$PATTERNS" "$f" | sed 's/^/    /'
+  # This file is checked like every other. Skipping it made the checker exempt
+  # from its own rule AND made the run hollow - it never named the file, so
+  # coverage saw it as unexamined. The only genuine false positive is the line
+  # that DEFINES the pattern list, so drop exactly that line and nothing else.
+  echo "$f"                          # coverage: one line per file examined
+  hits=$(grep -EnI "$PATTERNS" "$f" 2>/dev/null | grep -v '^[0-9]*:PATTERNS=' || true)
+  if [ -n "$hits" ]; then
+    printf '%s\n' "$hits" | sed 's/^/    /'
     found=1
-  else
-    echo "$f"
   fi
 done
 exit "$found"

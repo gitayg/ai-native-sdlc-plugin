@@ -11,8 +11,8 @@ Resolution order for every setting, in this order, stopping at the first hit:
 
 1. **Detected** — `git remote`, `gh auth status`, existing branch. GitHub
    identity is always detected. Never ask for a repo slug you can read.
-2. **Config file** — `.claude/sdlc.json` in the repo (template:
-   `templates/sdlc-config.json`).
+2. **Config file** — `.claude/productizer/config.json` in the repo (template:
+   `templates/config.json`).
 3. **Ask** — one `AskUserQuestion` call, only when the session is interactive.
 4. **Environment** — headless fallback, see the contract below.
 5. **Fail loudly** — name the exact missing key and how to supply it. Never
@@ -27,8 +27,8 @@ remote, or an `origin` that is not where these artifacts belong are all normal
 starting states.
 
 Ask **once per repo**, on the first stage that touches an external system —
-Stage 1 if a ticket carries the intent, Stage 5 if it is GitHub only. Do not ask
-on skill load. Do not ask again once `.claude/sdlc.json` exists.
+Stage 1 if a ticket carries the intent, Stage 6 if it is GitHub only. Do not ask
+on skill load. Do not ask again once `.claude/productizer/config.json` exists.
 
 One `AskUserQuestion` call, three questions, so the user answers a single prompt.
 Put any detected value first and label it `(detected)`:
@@ -59,7 +59,7 @@ not a broken one:
 
 | Answer | Config | Consequence |
 |---|---|---|
-| No repo yet | `"github": null` | artifacts committed locally; offer `git init` and `gh repo create` before Stage 5, never silently |
+| No repo yet | `"github": null` | artifacts committed locally; offer `git init` and `gh repo create` before Stage 6, never silently |
 | Skip Jira | `"jira": null` | GitHub-only lifecycle; source of truth is `issues` or `repo` |
 | Both skipped | both `null` | the lifecycle still runs — artifacts on disk, no external writes |
 
@@ -67,12 +67,12 @@ When a repo **is** detected and the user picks it, still say what you are bindin
 to before the first write: *"Using `owner/repo` on `main` as `<gh account>`."*
 Several authenticated `gh` accounts means a fourth question, not a guess.
 
-Write the answers to `.claude/sdlc.json` immediately and name the path. That
+Write the answers to `.claude/productizer/config.json` immediately and name the path. That
 file is the reason you only ask once.
 
 ## Secrets never go in the config file
 
-`.claude/sdlc.json` gets committed. It holds identifiers only — site URL,
+`.claude/productizer/config.json` gets committed. It holds identifiers only — site URL,
 project key, field IDs. The Jira API token lives in the environment:
 
 ```
@@ -126,8 +126,8 @@ Where this bites in the workflows below:
 | issue title | PR title `#123: <title>` | `gh pr create --title "$TITLE"` with the title in a variable |
 | issue title, body | `gh issue create` | `--title "$TITLE" --body-file input.md` — never `--body` with interpolated text |
 | issue number | `gh api repos/{owner}/{repo}/issues/<n>` | validate the shape, see below |
-| label name | `--label` argument | a literal from `.claude/sdlc.json` — never a value read off an issue |
-| label name | `--label` argument, Jira `update.labels` | a literal from `.claude/sdlc.json` — never a value read off an issue |
+| label name | `--label` argument | a literal from `.claude/productizer/config.json` — never a value read off an issue |
+| label name | `--label` argument, Jira `update.labels` | a literal from `.claude/productizer/config.json` — never a value read off an issue |
 | issue key from a create response | branch, curl path | validate the shape **and** that the prefix equals the configured project |
 | transition name | `POST .../transitions` body | resolve to an id with `GET .../transitions`; never hardcode an id, they are per-workflow |
 | summary, epic key | Jira create payload | `jq --arg` into `issue.json`, then `-d @issue.json` |
@@ -181,10 +181,10 @@ API calls by hand and never embed a token.
 
 ```bash
 gh repo view --json nameWithOwner,defaultBranchRef      # confirm the binding
-gh pr create --draft --title "..." --body-file pr.md    # Stage 5 output
+gh pr create --draft --title "..." --body-file pr.md    # Stage 6 output
 gh pr comment <n> --body-file findings.md               # review findings
 gh issue create --title "..." --body-file input.md      # record an intent, `issues` model
-gh run view <id> --log-failed                           # Stage 6 diagnosis
+gh run view <id> --log-failed                           # Stage 9 diagnosis
 ```
 
 If several `gh` accounts are authenticated, record the chosen one in
@@ -319,11 +319,11 @@ stage that already had to write something:
 | Place | Form | Written at | Config |
 |---|---|---|---|
 | branch name | `feature/PROJ-123-short-slug` | Stage 3 | `jira.branch_pattern` |
-| PR title | `PROJ-123: <summary>` | Stage 5 | `jira.pr_title_pattern` |
+| PR title | `PROJ-123: <summary>` | Stage 6 | `jira.pr_title_pattern` |
 | spec change-log row, Issue column | `PROJ-123`, bare | Stage 2 | `jira.change_log_ref_pattern` |
 
 That is enough to walk the chain in either direction:
-`git log -p .claude/sdlc/spec.md` shows the delta and its change-log row carries
+`git log -p .claude/productizer/spec.md` shows the delta and its change-log row carries
 the key; the branch and the PR title carry the same string; the ticket carries a
 comment naming the spec commit SHA. Under `issues` the same three places take
 the number instead — `feature/123-slug`, `#123: <title>`, `#123` in the Issue
@@ -362,12 +362,12 @@ The default is `design`, `build`, `deploy`, `done`.
 | When | What | Shape |
 |---|---|---|
 | Stage 2, after the spec commit | classification (extend / refine), requirement ids **added**, **refined**, **superseded**, and the spec commit SHA | comment, ADF built with `jq --arg` |
-| Stage 5, on the PR existing | the PR URL and title | remote issue link, upserted on `globalId` |
+| Stage 6, on the PR existing | the PR URL and title | remote issue link, upserted on `globalId` |
 | Stage 2, on a contradiction | see the next section | label plus comment |
 
 The remote link is used for the PR rather than a third comment because it is
 idempotent: `POST /rest/api/3/issue/<key>/remotelink` with the same `globalId`
-replaces the existing link instead of appending, so re-running Stage 5 after a
+replaces the existing link instead of appending, so re-running Stage 6 after a
 force-push does not leave five near-identical comments.
 
 ```bash
@@ -397,7 +397,7 @@ curl -sS -u "$AUTH" --connect-timeout 5 --max-time 15 \
 - **Code, diffs, logs, environment values, or anything pasted out of a build.**
   A Jira project usually has a wider audience than the repo, and a log line is
   the cheapest way to move a secret into it.
-- **Back into the spec:** ticket text never goes into `.claude/sdlc/spec.md`
+- **Back into the spec:** ticket text never goes into `.claude/productizer/spec.md`
   without passing through intake. The ticket is an input to classification, not
   a source of requirement wording.
 
@@ -453,7 +453,7 @@ halts because a tracker is down has made the tracker authoritative by accident.
 |---|---|---|---|
 | not configured | `"jira": null`, or `JIRA_SITE` / `JIRA_API_TOKEN` unset | say once per session that tracking is repo-only, then stop mentioning it | runs; join key falls back to the commit SHA |
 | unreachable | curl exit 6 (DNS), 7 (connect), 28 (timeout), or a 5xx | one retry, then report the endpoint, the exit code and the status | runs; the writeback is skipped and named as skipped |
-| wrong project key | 404 on create, or 400 naming `project` | report the key you used and where it came from (`.claude/sdlc.json` or `JIRA_PROJECT`) | runs; **do not create in another project** |
+| wrong project key | 404 on create, or 400 naming `project` | report the key you used and where it came from (`.claude/productizer/config.json` or `JIRA_PROJECT`) | runs; **do not create in another project** |
 | transition missing from the workflow | the name is absent from `GET .../transitions` | list the names the workflow does offer | runs; ticket stays where it is, no closest match |
 | no permission | 403 on transition, comment or label | report which operation and which account | runs |
 | token missing in a headless run | `JIRA_API_TOKEN` unset, `interactive` false | hard error naming the variable, no prompt | the *binding* stops; never prompt into a pipeline |
@@ -511,17 +511,17 @@ picks one, and it changes what each stage does.
 
 An intent is an **input**, not an artifact. It arrives as a file, as text the
 user typed, or as a tracker item, and it is analysed and merged into the repo's
-one living spec at `.claude/sdlc/spec.md`. Nothing durable is left behind that
+one living spec at `.claude/productizer/spec.md`. Nothing durable is left behind that
 says "an intent happened here". So the model is not choosing where the intent
 file lives — there is no intent file. It is choosing **where an intent is
 recorded so it can be found again**, and what the join key is:
 
-| Model | Where an intent is recorded | Where the spec lives | Stage 5 writes | Join key |
+| Model | Where an intent is recorded | Where the spec lives | Stage 6 writes | Join key |
 |---|---|---|---|---|
-| `repo` | nowhere durable — consumed into the spec | `.claude/sdlc/spec.md`, committed | PR; Jira gets a link comment | commit SHA |
+| `repo` | nowhere durable — consumed into the spec | `.claude/productizer/spec.md`, committed | PR; Jira gets a link comment | commit SHA |
 | `issues` | a labelled GitHub Issue on the repo it concerns | the same repo | PR titled `#123: <title>` | issue number |
 | `jira` | the ticket, authoritative | markdown is a working copy | PR referencing the key | issue key |
-| `linkage` | ticket and repo, created together | `.claude/sdlc/spec.md`, committed | PR title carries the key | key ↔ SHA |
+| `linkage` | ticket and repo, created together | `.claude/productizer/spec.md`, committed | PR title carries the key | key ↔ SHA |
 
 `linkage` is the default because it is the only one that survives a team that
 has not yet agreed. Put the issue key in the branch name and PR title so the
@@ -604,7 +604,7 @@ Observed behaviour of `gh search issues`, and its limits:
 | Stage | GitHub | Jira |
 |---|---|---|
 | 1 Plan | `issues`: open the labelled issue. Otherwise nothing — the intent is an input | create the ticket from a `text` or `file` intent, or read the existing one; label `jira.labels.intent` |
-| 2 Design | commit the delta to `.claude/sdlc/spec.md`; the key goes in the change-log Issue column | after the commit: transition `design`, comment the classification, the ids added / refined / superseded, and the spec SHA. On a contradiction: label `jira.labels.contradiction` and comment the conflict — **no transition** |
+| 2 Design | commit the delta to `.claude/productizer/spec.md`; the key goes in the change-log Issue column | after the commit: transition `design`, comment the classification, the ids added / refined / superseded, and the spec SHA. On a contradiction: label `jira.labels.contradiction` and comment the conflict — **no transition** |
 | 3 Build | branch `feature/KEY-slug` or `feature/123-slug`; commit `plan.md` | transition `build` |
 | 4 Test | CI status on the branch | nothing — `test` is in `transitions` but out of `transition_on`, because a ticket that bounces on every red build trains everyone to ignore its status |
 | 5 Deploy | draft PR titled `KEY: ...` or `#123: ...`; `Closes #123` in the body; review findings as comments | remote link to the PR on open; transition `deploy` on **merge**, never on opening the PR |

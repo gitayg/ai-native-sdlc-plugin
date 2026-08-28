@@ -2,7 +2,7 @@
 
 One living spec per product says what the system does. A constitution says what
 it may never do, whatever it is doing. It sits at
-`.claude/sdlc/constitution.md`, beside the spec, in the spec home repo, and it
+`.claude/productizer/constitution.md`, beside the spec, in the spec home repo, and it
 holds a handful of principles numbered `P1`, `P2`, … — a separate id space from
 requirements, so a citation of `P2` can never resolve to a requirement.
 
@@ -73,7 +73,7 @@ does it fit". The constitution check asks a prior and different question —
 nothing, and still be refused. Running it first means the refusal costs one read
 instead of a merged delta and a reverted commit.
 
-1. **Read `.claude/sdlc/constitution.md` in full**, then the spec. If the
+1. **Read `.claude/productizer/constitution.md` in full**, then the spec. If the
    constitution is unreachable — spec home offline, repo not cloned — say so and
    stop, exactly as with the spec. Never classify against a constitution you
    could not read, and never fall back to a remembered copy.

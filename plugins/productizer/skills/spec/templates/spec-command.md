@@ -4,7 +4,7 @@ description: Take an intent through intake and merge the delta into the living s
 Take this intent — an issue, a ticket, text, or a file — through intake and
 merge the result into the living spec.
 
-1. **Read the whole current spec** at `.claude/sdlc/spec.md` before writing
+1. **Read the whole current spec** at `.claude/productizer/spec.md` before writing
    anything. You cannot classify an intent against a spec you have not read.
 
 2. **Classify it** (`templates/intake.md`):

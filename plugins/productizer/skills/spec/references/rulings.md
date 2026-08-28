@@ -16,7 +16,7 @@ So the stop writes a file, and it writes it **before** it asks the question.
 ## Where rulings live
 
 ```
-.claude/sdlc/rulings/D<n>-<slug>.md
+.claude/productizer/rulings/D<n>-<slug>.md
 ```
 
 One file per contradiction, committed to the repo beside the spec. Shape:
@@ -118,10 +118,10 @@ without parsing the spec: one glob, one fixed-string match, no network.
 
 ```bash
 # how many are waiting
-grep -lxF 'Status: pending' .claude/sdlc/rulings/D*.md 2>/dev/null | wc -l
+grep -lxF 'Status: pending' .claude/productizer/rulings/D*.md 2>/dev/null | wc -l
 
 # which ones, ids only
-grep -lxF 'Status: pending' .claude/sdlc/rulings/D*.md 2>/dev/null \
+grep -lxF 'Status: pending' .claude/productizer/rulings/D*.md 2>/dev/null \
   | sed -n 's#^.*/\(D[0-9][0-9]*\)[-.].*#\1#p' | head -5 | paste -sd, -
 ```
 

@@ -5,7 +5,7 @@ somebody first wanted the thing, and in between it lives in a head, a Slack
 thread or a ticket nobody has read since. The backlog is where that waiting
 happens on purpose.
 
-Template: `templates/backlog.md`. Lives at `.claude/sdlc/backlog.md`.
+Template: `templates/backlog.md`. Lives at `.claude/productizer/backlog.md`.
 
 ## It is not the spec, and the distinction is the whole point
 
@@ -59,7 +59,7 @@ An item may carry a Jira key, and when it does, **Jira owns its status**.
 
 - The local vocabulary stops applying. The row shows what Jira last said.
 - The mapping between Jira's workflow states and these five is declared once in
-  `.claude/sdlc.json` under `jira.status_map`, not guessed per item.
+  `.claude/productizer/config.json` under `jira.status_map`, not guessed per item.
 - **Nothing is written back.** This file does not move tickets. A markdown table
   arguing with a Jira workflow, a board filter and three automation rules loses,
   and it loses silently — the write appears to succeed and a rule reverts it an
@@ -68,7 +68,7 @@ An item may carry a Jira key, and when it does, **Jira owns its status**.
   not. This is the same rule the spec follows for requirement ids and for the
   same reason.
 - **In a published view the key is a link**, built from `jira.site` in
-  `.claude/sdlc.json` as `<site>/browse/<KEY>`. A key rendered as plain text
+  `.claude/productizer/config.json` as `<site>/browse/<KEY>`. A key rendered as plain text
   makes the reader copy it into a search box, and half of them will not bother —
   at which point the status on the row is the only thing anyone ever reads, and
   it is the one thing this file does not own.

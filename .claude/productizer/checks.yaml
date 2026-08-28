@@ -4,7 +4,11 @@ version: 1
 
 policy:
   empty_run: refuse
-  output: .claude/sdlc/checks-result.json
+  # This repo's own checks live in this repo, and this repo is the one being
+  # checked. Saying so explicitly is the point: a cloned repo that has NOT been
+  # trusted cannot run its own tooling.
+  allow_repo_local_tools: true
+  output: .claude/productizer/checks-result.json
 
 defaults:
   timeout_seconds: 180

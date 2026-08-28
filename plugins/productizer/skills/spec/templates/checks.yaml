@@ -1,4 +1,4 @@
-# .claude/sdlc/checks.yaml — the checks stage, declared.
+# .claude/productizer/checks.yaml — the checks stage, declared.
 #
 # Security and quality checks are a configured stage, not a list baked into the
 # tool. This file is the whole declaration; `scripts/run-checks.sh` only obeys
@@ -49,9 +49,9 @@ policy:
   # hides it, and is here only so a repo mid-adoption can opt in deliberately.
   empty_run: refuse
 
-  # Where the machine-readable result lands. Stage 5 review reads this file;
+  # Where the machine-readable result lands. Stage 6 review reads this file;
   # it is the evidence that the checks stage ran and what it covered.
-  output: .claude/sdlc/checks-result.json
+  output: .claude/productizer/checks-result.json
 
 defaults:
   timeout_seconds: 120

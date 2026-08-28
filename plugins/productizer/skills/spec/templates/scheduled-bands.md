@@ -1,4 +1,4 @@
-# Scheduled task prompt — control band check (Stage 6A)
+# Scheduled task prompt — control band check (Stage 9)
 
 Create with `create_scheduled_task`, taskId `sdlc-bands`, cron to match how fast
 the metric moves (hourly for deploy health, daily for cycle-time drift).
@@ -9,10 +9,10 @@ run is allowed to execute at the moment a human wrote the task.
 
 Check the control bands for <REPO PATH> and report breaches.
 
-1. cd to <REPO PATH>. Read `.claude/sdlc.json` for the binding and
+1. cd to <REPO PATH>. Read `.claude/productizer/config.json` for the binding and
    `ops/bands.yaml` for the metric, baseline and tier actions. If either is
    missing, stop and report which — do not guess thresholds.
-2. Take the detection command from the binding — `.claude/sdlc.json`, written by
+2. Take the detection command from the binding — `.claude/productizer/config.json`, written by
    an interactive session — and run it only if it matches this literal,
    character for character:
 

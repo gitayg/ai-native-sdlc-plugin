@@ -14,7 +14,7 @@ only one of the four that can prevent an escape rather than report one.
 
 Stages 1, 2, 3, 4A, 5A, 5B and on-demand 6A all run here. This is where
 `AskUserQuestion` is legitimate, where Stage 0 binding happens, and where
-`.claude/sdlc.json` gets written.
+`.claude/productizer/config.json` gets written.
 
 **5C triage runs here too.** Rather than the article's `if: failure()` pipeline
 step, bring the failure in: `gh run view <id> --log-failed`, then make the same
@@ -68,7 +68,7 @@ unring it — the secret has to be rotated. This is the one failure mode CI cann
 fix, and no amount of branch protection changes that; it is structurally too late.
 
 So a secret check belongs in a **pre-push hook**, the only surface that still runs
-before the escape, and it is a hook for the same reason Stage 5's production gate
+before the escape, and it is a hook for the same reason Stage 6's production gate
 is. CI enforces the rest, for everybody, where nobody can quietly skip it. The two
 are not alternatives — choosing CI alone leaves exactly the failure that cannot be
 undone.
@@ -83,6 +83,6 @@ To place a new check, ask what a failure costs at the moment CI would catch it:
 
 ## What never moves
 
-Stage 5's production gate is a hook (`templates/production-gate.sh`), not a
+Stage 6's production gate is a hook (`templates/production-gate.sh`), not a
 schedule and not a session. It runs wherever the deploy is attempted, and it
 blocks until a named human authorises. Surfaces change; gates do not.

@@ -1,6 +1,6 @@
 ---
 name: spec
-description: "Run the AI-native software lifecycle. An intent arrives as a GitHub Issue, a Jira ticket, typed text or a file; it is classified against the repo's living spec at .claude/sdlc/spec.md (extend, refine, duplicate, or contradict), merged as a spec delta, then planned and built. Use whenever the user starts a new feature, idea, bug or change and wants it done properly end-to-end; asks to capture an intent, update the spec, write an implementation plan, CLAUDE.md, review policy, approval gate, eval suite or control bands; asks whether something is already specified or contradicts existing requirements; asks how to adopt Claude across an SDLC or make agentic development governable and auditable; or asks what stage a piece of work is in and what comes next; or asks to SEE the pipeline, the spec, the fleet across repos, or a control band, which is published as a read-only view. Also use when wiring the lifecycle to GitHub Issues or Jira \u2014 picking a source of truth, binding a repo or project key, or moving tickets and opening PRs as stages complete. Triggers on AI-native SDLC, intent, living spec, spec delta, EARS requirements, plan.md, REVIEW.md, bands.yaml, agent governance, plan mode first."
+description: "Run the AI-native software lifecycle. An intent arrives as a GitHub Issue, a Jira ticket, typed text or a file; it is classified against the repo's living spec at .claude/productizer/spec.md (extend, refine, duplicate, or contradict), merged as a spec delta, then planned and built. Use whenever the user starts a new feature, idea, bug or change and wants it done properly end-to-end; asks to capture an intent, update the spec, write an implementation plan, CLAUDE.md, review policy, approval gate, eval suite or control bands; asks whether something is already specified or contradicts existing requirements; asks how to adopt Claude across an SDLC or make agentic development governable and auditable; or asks what stage a piece of work is in and what comes next; or asks to SEE the pipeline, the spec, the fleet across repos, or a control band, which is published as a read-only view. Also use when wiring the lifecycle to GitHub Issues or Jira \u2014 picking a source of truth, binding a repo or project key, or moving tickets and opening PRs as stages complete. Triggers on AI-native SDLC, intent, living spec, spec delta, EARS requirements, plan.md, REVIEW.md, bands.yaml, agent governance, plan mode first."
 ---
 
 # AI-Native SDLC
@@ -14,7 +14,7 @@ intent (issue | text | file)
 ```
 
 An intent is an **input**, not an artifact. It merges into one **living spec per
-product** at `.claude/sdlc/spec.md`; the per-change record is the spec diff,
+product** at `.claude/productizer/spec.md`; the per-change record is the spec diff,
 joined to its issue by the branch name.
 
 Files are the only edit surface. Answer a short question in the session; publish
@@ -35,8 +35,8 @@ presence is not the state machine** — the issue and branch are.
 | issue open, spec unchanged for it | **2 · Design** — intake, then merge the delta |
 | spec delta merged, no branch | **3 · Build** — plan mode, `plan.md`, implement |
 | code changed, unverified | **4 · Test** — close the loop before a human looks |
-| change verified | **5 · Deploy** — review passes, gates, PR |
-| running in production | **6 · Maintain** — bands, diagnosis, new intent |
+| change verified | **6 · Deploy** — review passes, gates, PR |
+| running in production | **9 · Maintain** — bands, diagnosis, new intent |
 
 Never skip forward, and never plan from an intent that has not been through
 intake: without it you cannot know whether the work extends the spec or
@@ -52,11 +52,11 @@ below, never reimplementing their checks.
 
 Before the first stage touching Jira or GitHub, run
 `~/.claude/skills/spec/scripts/detect-context.sh` and resolve every setting
-first hit wins: **detected → `.claude/sdlc.json` → ask → environment → fail
+first hit wins: **detected → `.claude/productizer/config.json` → ask → environment → fail
 loudly.** Read `references/integrations.md` before the first external write.
 
 - **One spec per product, not per repo.** A product is one or more repos
-  (`.claude/sdlc.json` → `product`); exactly one is the **spec home** and the
+  (`.claude/productizer/config.json` → `product`); exactly one is the **spec home** and the
   rest point at it, so there is one id space and one allocator. Two allocators
   both hand out `R42`, and contradiction detection needs the whole agreed set —
   split it and a front end and its API can agree opposite behaviour unnoticed.
@@ -64,12 +64,12 @@ loudly.** Read `references/integrations.md` before the first external write.
 - **Ask once per repo**, in one `AskUserQuestion` call, on the first stage
   touching an external system. Detection prefills but never replaces the
   question, and every question needs an escape hatch: a half-answered config is
-  still finished. Answers go to `.claude/sdlc.json`
-  (`templates/sdlc-config.json`); name the path.
+  still finished. Answers go to `.claude/productizer/config.json`
+  (`templates/config.json`); name the path.
 - **Never ask where nobody is present.** Gate on the detected `interactive`
-  flag, not the stage number: nightly evals (4B) and the band check (6A) run as
+  flag, not the stage number: nightly evals (4B) and the band check (9) run as
   scheduled tasks with no memory of any conversation, so they read
-  `.claude/sdlc.json` and, if it is missing, report what they need and stop
+  `.claude/productizer/config.json` and, if it is missing, report what they need and stop
   rather than prompting.
 - **A `rejected` check runner is a finding, not a shrug** — say what it rejected
   and why. A repo setting `SDLC_CHECK_RUNNER` is choosing what runs on the
@@ -80,7 +80,7 @@ loudly.** Read `references/integrations.md` before the first external write.
 
 ### Scaffold
 Once, right after binding, and **never overwrite a file that exists**. Repo
-templates in `.claude/sdlc/templates/` win over this skill's; **say when an
+templates in `.claude/productizer/templates/` win over this skill's; **say when an
 override is in play**, or a spec not matching the documented shape reads as a
 bug.
 
@@ -93,8 +93,8 @@ to overwrite, and refuses a gitignored destination.
 
 | File | Written as |
 |---|---|
-| `.claude/sdlc/spec.md` | `scripts/scaffold.sh templates/spec.md …` — empty, system named, next id `R1` |
-| `.claude/sdlc/constitution.md` | same, and left with **no principles**: the first ones are ratified, never scaffolded |
+| `.claude/productizer/spec.md` | `scripts/scaffold.sh templates/spec.md …` — empty, system named, next id `R1` |
+| `.claude/productizer/constitution.md` | same, and left with **no principles**: the first ones are ratified, never scaffolded |
 | `REVIEW.md` | `templates/REVIEW.md` as-is, at the repo root |
 | `CLAUDE.md` | only if absent, cut to what is true of this repo |
 
@@ -103,7 +103,7 @@ Nothing else: bands, evals and hooks wait for something real to watch or gate.
 nobody agreed to, and gets cited before anyone notices.
 
 **Check the spec path is committable before writing it** — `.claude/` is
-routinely gitignored, so `git check-ignore -v .claude/sdlc/spec.md` must exit
+routinely gitignored, so `git check-ignore -v .claude/productizer/spec.md` must exit
 non-zero. A scaffold reporting success while the spec stays untracked leaves an
 audit trail that looks present and is not. Report what you wrote, what you
 skipped and any gitignore edit.
@@ -119,7 +119,7 @@ lifecycle starts defending whatever the code happened to do on import day, bugs
 included (`references/import.md`).
 
 ### Schedule
-Install once per repo, after `.claude/sdlc.json` exists
+Install once per repo, after `.claude/productizer/config.json` exists
 (`references/running-it.md`): `sdlc-evals-<slug>` from
 `templates/scheduled-evals.md` once `evals/` holds an eval, and
 `sdlc-bands-<slug>` from `templates/scheduled-bands.md` once `ops/bands.yaml`
@@ -154,7 +154,7 @@ commands safely: `references/integrations.md`.
 
 ## The six stages
 
-Each stage names a model and an effort in `.claude/sdlc.json` under `models`,
+Each stage names a model and an effort in `.claude/productizer/config.json` under `models`,
 shipped with recommended defaults you can change (`references/models.md`). The
 block has two halves and they are not interchangeable: a stage beginning a
 **fresh context** carries the setting in subagent frontmatter and it is
@@ -164,12 +164,12 @@ entering and let you choose. **Do not claim a stage runs on a model it does
 not** — a preference nothing enforces is documentation, and documentation that
 reads like a control gets budgeted against and trusted.
 
-Stage 4C takes **no model at all**. It runs declared scripts and compares
+Stage 5 takes **no model at all**. It runs declared scripts and compares
 coverage arithmetically; a model asked *did this check pass* believes the green
 summary line, which is the failure the stage exists to prevent.
 
 ### 1 · Plan — capture the intent
-Wanted-but-not-yet-agreed waits in `.claude/sdlc/backlog.md`
+Wanted-but-not-yet-agreed waits in `.claude/productizer/backlog.md`
 (`templates/backlog.md`, `references/backlog.md`). It is the queue **in front
 of** the lifecycle: `B`-numbered, ordered by priority with no priority field —
 the order *is* the ranking — and nothing in it is binding, so an item can be
@@ -183,8 +183,8 @@ issue if it did not arrive as one: **that is the durable record**, and a file
 nobody queries is not one.
 
 ### 2 · Design — intake, then merge the delta
-Read the intent, then `.claude/sdlc/spec.md` in full. **Check it against the
-constitution first** (`.claude/sdlc/constitution.md`, `templates/constitution.md`):
+Read the intent, then `.claude/productizer/spec.md` in full. **Check it against the
+constitution first** (`.claude/productizer/constitution.md`, `templates/constitution.md`):
 `P`-numbered principles bind every requirement, including the ones nobody has
 written yet, and asking *is this permitted at all* is a prior question to the
 four below. A requirement crossing a principle is **automatically critical** —
@@ -256,7 +256,7 @@ the **delta** goes to build.
 - Keep refusal and crash distinguishable in the exit code, or a gate saying no
   reads like one that fell over and the wrong thing gets fixed.
 
-**4C · The checks are declared, not built in** (`templates/checks.yaml`,
+**5 · The checks are declared, not built in** (`templates/checks.yaml`,
 `references/checks.md`). Each names an id, an **argv** command — never a shell
 string, since the file is committed and a string would let anyone landing a
 commit choose what runs on the puller's machine — a `when` trigger of `always`,
@@ -270,7 +270,7 @@ the point. A scanner reporting *Grade A (100/100)* after opening one file of
 forty-eight is not a pass, and without a coverage assertion it is indent-for-
 indent identical to one.
 
-### 5 · Deploy — review both ways, gate hard
+### 6 · Deploy — review both ways, gate hard
 - Review policy is written down (`templates/REVIEW.md`) and **dispatched to a
   subagent with a clean context** (`templates/agent-reviewer.md`): the session
   that wrote the code never reviews it, because asked to it re-derives its own
@@ -286,7 +286,7 @@ indent identical to one.
   push, by which time the secret is on the remote and must be rotated: blocking
   a merge is the whole remedy for a bad base, and none at all for a secret.
 
-### 5B · Document — regenerate the guide, per release
+### 7 · Document — regenerate the guide, per release
 The user guide is generated **once per release**, not per intent
 (`templates/user-guide.md`, `references/release.md`). Per-intent docs produce a
 changelog with headings: every entry accurate, the document as a whole
@@ -298,7 +298,7 @@ omission and full coverage look identical unless the gap is stated.
 the filename.** A screenshot from the previous release is a lie with a picture
 attached, and it is the one thing in a document that gets published unreviewed.
 
-### 5C · Announce — agent-driven, human-gated
+### 8 · Announce — agent-driven, human-gated
 The release post and the release email are drafted from the spec deltas and the
 merged PRs (`templates/release-blog.md`, `templates/release-email.md`). Different
 audiences: the post is for people who do not use the product, the email is for
@@ -320,11 +320,11 @@ becomes a rubber stamp. `templates/publish-gate.sh` blocks the commands that rea
 audience — `gh release create`, `npm publish`, a tag push, a mail API, a site
 deploy — and lets everything the agent needs for its own work through.
 
-Same shape as Stage 5, and for the same reason: every other artefact in this
+Same shape as Stage 6, and for the same reason: every other artefact in this
 lifecycle is a commit somebody can revert. A post is indexed and forwarded
 within minutes, and mail cannot be recalled.
 
-### 6 · Maintain — close the loop
+### 9 · Maintain — close the loop
 Detection is deterministic — no model in that path — tiers in version-controlled
 config (`templates/bands.yaml`): 1σ log, 2σ diagnose read-only, 3σ act via PR or
 pre-approved runbook. A finding is **opened as an issue**, the same door Stage 1
@@ -383,26 +383,28 @@ contract before wiring one into a gate.
 | Script | Does | Exit |
 |---|---|---|
 | `scripts/detect-context.sh` | probes the repo, emits JSON | 0 |
+| `scripts/stage-status.sh` | every stage and where it stands | 0 |
+| `scripts/build-view.sh` | regenerates the published view from the files | 0 |
 | `scripts/scaffold.sh` | copies a template, strips its examples | 0 · 1 refused · 2 usage |
 | `scripts/import-survey.sh` | read-only survey for Stage 0c | 0 |
 | `scripts/run-checks.sh` | runs the declared checks | 0 pass · 3 refused · 2 usage · 1 crash |
 | `scripts/contradiction-check.py` | second opinion on one pair | 0 no halt · 1 contradiction · 2 usage |
 
 Templates, written into a repo at scaffold, installed as config, or pasted into
-a PR. Repo copies in `.claude/sdlc/templates/` win over these.
+a PR. Repo copies in `.claude/productizer/templates/` win over these.
 
 | Stage | Templates |
 |---|---|
-| 0 · bind, scaffold | `sdlc-config.json` `spec.md` `constitution.md` `CLAUDE.md` `REVIEW.md` |
+| 0 · bind, scaffold | `config.json` `spec.md` `constitution.md` `CLAUDE.md` `REVIEW.md` |
 | 0 · schedule, hooks | `session-start.sh` `hooks-settings.json` `managed-settings.json` `scheduled-evals.md` `scheduled-bands.md` |
 | 0c · import | `import.md` |
 | 1 · intent | `backlog.md` `intent.md` `jira-intent.md` |
 | 2 · design | `intake.md` `spec-delta.md` `spec-command.md` `ruling.md` |
 | 3 · build | `plan.md` |
 | 4 · test | `verification-section.md` `agent-verifier.md` `agent-evals.yml` `threshold.sh` |
-| 4C · checks | `checks.yaml` |
-| 5 · deploy | `agent-reviewer.md` `production-gate.sh` `triage-step.yml` `SKILL-secure-api-review.md` |
-| 5B · document | `user-guide.md` |
-| 5C · announce | `release-blog.md` `release-email.md` `publish-gate.sh` |
-| 6 · maintain | `bands.yaml` `converge.md` |
+| 5 · checks | `checks.yaml` |
+| 6 · deploy | `agent-reviewer.md` `production-gate.sh` `triage-step.yml` `SKILL-secure-api-review.md` |
+| 7 · document | `user-guide.md` |
+| 8 · announce | `release-blog.md` `release-email.md` `publish-gate.sh` |
+| 9 · maintain | `bands.yaml` `converge.md` |
 | any | `view.html` |

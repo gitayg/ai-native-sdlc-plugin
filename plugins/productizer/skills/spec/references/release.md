@@ -4,8 +4,8 @@ Two stages that run **once per release**, not once per intent. Stages 1–5 move
 one change; a release is the batch a user actually receives, and it is the first
 moment anyone outside the team is affected by any of it.
 
-- **5B · Document** — the user guide, regenerated from the spec and the release.
-- **5C · Announce** — the release post and the release email, drafted from the
+- **7 · Document** — the user guide, regenerated from the spec and the release.
+- **8 · Announce** — the release post and the release email, drafted from the
   delta and the merged PRs.
 
 Templates: `templates/user-guide.md`, `templates/release-blog.md`,
@@ -63,7 +63,7 @@ agent is asked to remember is a rule it eventually reasons past.
 The gate denies the commands that reach an audience — `gh release create`,
 `npm publish`, a tag push, a mail API, a site deploy — and allows everything
 the agent needs to do its own work, including committing drafts and rendering
-images. Same shape as the production gate at Stage 5, for the same reason:
+images. Same shape as the production gate at Stage 6, for the same reason:
 every other artefact here is a commit someone can revert; a post is indexed and
 forwarded within minutes, and mail cannot be recalled.
 

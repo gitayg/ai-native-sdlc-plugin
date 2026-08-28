@@ -1,9 +1,9 @@
 # The checks stage
 
 Security and quality checks are a stage a team configures, not a list baked
-into the tool. The declaration is `.claude/sdlc/checks.yaml`
+into the tool. The declaration is `.claude/productizer/checks.yaml`
 (`templates/checks.yaml`); the runner is `scripts/run-checks.sh`; the output is
-`.claude/sdlc/checks-result.json`, which the review stage reads.
+`.claude/productizer/checks-result.json`, which the review stage reads.
 
 The runner decides nothing. Which checks exist, what triggers each one, whether
 it blocks, and what it must have covered all come out of the config. A change
@@ -67,7 +67,7 @@ Three rules make that ownership real:
 - **The agent does not edit it.** If the agent can rewrite the checks stage
   when a check blocks it, the stage is advisory. Deny it in managed settings
   alongside the hooks directory:
-  `"deny": ["Edit(.claude/sdlc/checks.yaml)"]`.
+  `"deny": ["Edit(.claude/productizer/checks.yaml)"]`.
 
 ## Per-item scoping
 

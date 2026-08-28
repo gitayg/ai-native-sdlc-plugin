@@ -1,7 +1,7 @@
 # Spec stores — the living spec in its own repository
 
 The default is a **spec home**: one repo in the product holds
-`.claude/sdlc/spec.md` and also holds code. Every other repo points at it. That
+`.claude/productizer/spec.md` and also holds code. Every other repo points at it. That
 works, and for most products it is the right shape.
 
 A **spec store** is the alternative: the living spec lives in a repository of
@@ -30,7 +30,7 @@ inherits write access to the spec by being a committer on the busiest service.
 ## Config
 
 Declare the store where the home would have been declared. Both forms are the
-`product` block in `.claude/sdlc.json`:
+`product` block in `.claude/productizer/config.json`:
 
 ```json
 "product": {
@@ -38,7 +38,7 @@ Declare the store where the home would have been declared. Both forms are the
   "spec_repo": "acme/orders-spec",
   "spec_kind": "store",
   "spec_ref": "main",
-  "spec_path": ".claude/sdlc/spec.md",
+  "spec_path": ".claude/productizer/spec.md",
   "repos": ["acme/orders-api", "acme/orders-web", "acme/orders-jobs"]
 }
 ```
@@ -202,10 +202,10 @@ parts is not a consolation prize here.
 
 ## Migrating
 
-**Home to store.** Create the store repo. Move `.claude/sdlc/spec.md` with its
+**Home to store.** Create the store repo. Move `.claude/productizer/spec.md` with its
 history if the tooling allows — the audit trail is `git log -p` on that file, and
 a move that drops it destroys the only per-change record. Update `product` in
-every repo's `.claude/sdlc.json` in one pass. Then **delete the file from the old
+every repo's `.claude/productizer/config.json` in one pass. Then **delete the file from the old
 home in the same change** and leave the config pointing at the store. Two
 editable copies is two allocators; leaving the old one behind "for reference" is
 how that happens. The file moves whole — superseded and withdrawn requirements

@@ -4,7 +4,7 @@ System
 : `<system-name>` — the exact noun every requirement below uses. Never vary it.
 
 Spec location
-: `.claude/sdlc/spec.md`. Inside `.claude/` deliberately: build tooling, static
+: `.claude/productizer/spec.md`. Inside `.claude/` deliberately: build tooling, static
 site generators, doc builds and packaging all skip that directory, so the spec
 is never rendered as a page or shipped in a release.
 
@@ -18,7 +18,7 @@ Requirements
 : `<n>` active, `<n>` superseded, `<n>` withdrawn.
 
 Audit trail
-: `git log -p .claude/sdlc/spec.md`. Each commit is one change, joined to the
+: `git log -p .claude/productizer/spec.md`. Each commit is one change, joined to the
 issue that drove it by the branch name and the PR title. There is no
 per-change copy of this spec.
 

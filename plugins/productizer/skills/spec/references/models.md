@@ -1,6 +1,6 @@
 # Which model runs a stage
 
-Every stage names a model and an effort in `.claude/sdlc.json` under `models`.
+Every stage names a model and an effort in `.claude/productizer/config.json` under `models`.
 The defaults are recommendations that ship with the skill; change any of them.
 But the block divides into two halves, and confusing them is the whole reason
 this file exists.
@@ -40,16 +40,16 @@ adversarially at high effort when it inherited whatever was already loaded.
 `inherit` means take the session's. `cheap` means the smallest model that can do
 the job — name the actual model id if you want to pin one.
 
-## Stage 4C takes no model, deliberately
+## Stage 5 takes no model, deliberately
 
-`checks: {model: none}` is not an omission. Stage 4C runs the scripts you
+`checks: {model: none}` is not an omission. Stage 5 runs the scripts you
 declared and compares what they examined against what they promised. That
 comparison is arithmetic. A model asked *did this check pass* will find the
 green summary line convincing, which is precisely the failure the stage exists
 to prevent — a scanner reporting `Grade A (100/100)` after opening one file of
 forty-eight produces a summary a model has every reason to believe.
 
-The same holds for control-band detection at Stage 6: tiers are compared
+The same holds for control-band detection at Stage 9: tiers are compared
 numerically, and the model enters only afterwards, to explain.
 
 ## Raising effort where it pays
@@ -69,7 +69,7 @@ suite expensive enough to switch off, which costs the regression net.
 
 ## Changing it
 
-Edit `models` in `.claude/sdlc.json`. Nothing regenerates it and no update
+Edit `models` in `.claude/productizer/config.json`. Nothing regenerates it and no update
 overwrites it — it is your file.
 
 For an **enforced** stage the value reaches the subagent's frontmatter, so the

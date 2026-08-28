@@ -36,7 +36,7 @@ for a in sys.argv[1:]: print(json.dumps(a))' "$@"
 }
 
 CONFIG=""
-for p in .claude/sdlc.json .sdlc.json; do
+for p in .claude/productizer/config.json .sdlc.json; do
   [ -f "$p" ] && CONFIG="$p" && break
 done
 
@@ -186,8 +186,8 @@ have() {
 # counted, so a name carrying newlines or quotes cannot reach the output at all.
 OV_NAMES=()
 OV_SKIPPED=0
-if [ -d .claude/sdlc/templates ]; then
-  for f in .claude/sdlc/templates/*; do
+if [ -d .claude/productizer/templates ]; then
+  for f in .claude/productizer/templates/*; do
     [ -f "$f" ] || continue
     b=$(basename "$f")
     case "$b" in

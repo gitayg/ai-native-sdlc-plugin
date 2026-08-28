@@ -89,7 +89,7 @@ item's status and its Jira state where it has a key
 only because reordering it changes nothing that was agreed: no requirement, no
 ruling, no principle, and no claim about the product. Even then it does not
 write the file — a published page has no filesystem. Dragging composes the
-reordered table and hands it back to paste, so `.claude/sdlc/backlog.md` stays
+reordered table and hands it back to paste, so `.claude/productizer/backlog.md` stays
 the source of truth and the only edit surface. Each row carries its own
 `start work`, naming that item rather than the list — and every action in a view
 has to be **wired to the copy mechanism the rest of the page uses**, not styled
@@ -117,7 +117,7 @@ from one of:
 
 ```bash
 scripts/detect-context.sh                       # binding, stage, runner, overrides
-cat .claude/sdlc/spec.md                        # requirements and statuses
+cat .claude/productizer/spec.md                        # requirements and statuses
 python3 ops/ci-failure-rate.py                  # band state, centreline, limits
 tail -n 30 evals/history.jsonl                  # eval trend
 gh issue list --label sdlc:intent --state open  # this repo's intents
@@ -145,3 +145,62 @@ views stay recognisably one family rather than four different dashboards.
   sideways.
 - Republish the same file path to keep one URL per view per product rather than
   accumulating a new artifact every time someone looks.
+
+## Generating the pipeline view
+
+The overview does not get hand-written. `scripts/build-view.sh` reads the repo
+and emits the whole page, so the sentence at the top of this file — a view is
+regenerated from the files every time — is implemented rather than asserted. A
+hand-maintained dashboard cannot be wrong, which is the same as saying it cannot
+be right.
+
+```bash
+scripts/build-view.sh                                  # cwd, to .claude/productizer/pipeline.html
+scripts/build-view.sh ../orders-api --out /tmp/v.html  # another repo, another path
+```
+
+Bash and python3 only; no network, no dependencies. It reads and writes exactly
+one file, and running it twice on an unchanged repo produces a byte-identical
+one — the only date on the page is HEAD's, never today's, so nothing moves
+because a clock did.
+
+Every panel is read at generation time: `.claude/productizer/config.json` for the product name
+and the Jira site links are built from, `spec.md` for requirement counts,
+contradictions and acceptance rows, `backlog.md` for the queue with its columns
+mapped from that table's own header, `constitution.md` for ratified principles,
+`checks-result.json` for Stage 5, and `git log` for releases — a release being a
+commit whose subject carries a version, with that commit's own message body as
+its bullets.
+
+**Stage state is not derived here.** `scripts/stage-status.sh` already reads
+every stage off the tree and already keeps `not run`, `unknown` and `n/a` apart;
+it is run as a subprocess and its rows are parsed. A second copy of that
+reasoning would disagree with the first the day someone edited one of them.
+
+Three things the generator will not do, because each is how a dashboard starts
+lying:
+
+- **It never renders an unreadable value as a measured zero.** A tile shows a
+  number when a file was read, an em dash when the file does not exist, and a
+  `?` when it exists and would not parse — three renderings, each with the
+  reason beside it and what its absence costs. `checks-result.json` missing is
+  "nothing has been checked"; the same file present and malformed is "unknown",
+  never `PASS`.
+- **It ships no sample data.** An absent backlog renders as an absent backlog
+  and says what that costs; a present but empty one renders as an empty table.
+  The only text on the page that is not this repo's own state is the
+  traditional-versus-AI-native pair on the Stages panel, which describes the
+  lifecycle rather than the repo — and says so, on the page, underneath itself.
+- **It colours only what needs you.** Banner level follows `stage-status.sh`'s
+  own ranking: `blocked` is red, `waiting`/`unknown`/`not run` are amber, and
+  everything else has no colour at all. The heading count and the banner list
+  name the same set of things, so a red banner can never sit above a heading
+  that says nothing is waiting.
+
+`templates/view.html` stays the shared shell — tokens, primitives and the
+interaction code — with three substitution points: `@@TITLE@@`, `@@BODY@@` and
+`@@DATA@@`. Editing the template changes every generated view; editing the
+generator changes what is put into it. Both tables on the page lay their header
+and their rows out from one grid template used twice, and where a narrow
+viewport collapses the row, the header is hidden rather than left sitting a
+column off its data.

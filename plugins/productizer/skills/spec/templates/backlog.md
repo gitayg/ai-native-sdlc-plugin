@@ -6,7 +6,7 @@ requirement. An item leaves this file by becoming an intent at Stage 1, and what
 happens to it after that is decided by intake, not by whoever wrote it down.
 
 Location
-: `.claude/sdlc/backlog.md`, beside the living spec, in the spec home repo.
+: `.claude/productizer/backlog.md`, beside the living spec, in the spec home repo.
 
 Order is priority
 : Top is next. The file's order **is** the ranking — there is no priority field,
@@ -63,7 +63,7 @@ An item may name a Jira key. When it does:
   the local status vocabulary above does not apply. Two systems tracking one
   item's state disagree within a week, and the one people update is the one
   people look at.
-- **The mapping is declared once**, in `.claude/sdlc.json` under
+- **The mapping is declared once**, in `.claude/productizer/config.json` under
   `jira.status_map`, so "In Progress" and "In Dev" resolve to the same thing
   without anyone guessing per item.
 - **Nothing is written back to Jira from here.** Reading is safe; writing puts

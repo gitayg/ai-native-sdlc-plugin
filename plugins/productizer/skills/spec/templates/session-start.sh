@@ -43,8 +43,8 @@ cd "$ROOT" || emit_nothing
 
 # Most repos are not bound and must pay nothing. This test is the gate: nothing below it runs — no
 # spec read, no awk, no lookup for gh — until the repo has declared itself bound.
-BINDING=".claude/sdlc.json"
-SPEC=".claude/sdlc/spec.md"
+BINDING=".claude/productizer/config.json"
+SPEC=".claude/productizer/spec.md"
 [ -f "$BINDING" ] || emit_nothing
 
 # Everything read below is attacker-authorable: a binding, a spec and issue titles all arrive with a
@@ -112,7 +112,7 @@ esac
 #     unauthenticated gh costs every session in the repo the full 1.5s watchdog wait, for ever;
 #   - reported as unknown, never as zero, when it cannot be read. A zero here would read as "nothing
 #     in flight" and is the one wrong answer that looks like a healthy one.
-CACHE=".claude/sdlc/.session-start-intents"
+CACHE=".claude/productizer/.session-start-intents"
 INTENTS=""
 TRY_NETWORK=1
 if [ -f "$CACHE" ]; then

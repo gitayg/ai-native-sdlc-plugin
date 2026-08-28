@@ -129,7 +129,7 @@ five reasons:
    a serialisation of the code, with the added cost of looking like an
    agreement. Nobody needs a second, lossier copy of `main`.
 3. **It destroys the audit trail.** The record is `git log -p
-   .claude/sdlc/spec.md`, where each commit joins to an issue and a decision. A
+   .claude/productizer/spec.md`, where each commit joins to an issue and a decision. A
    commit that joins only to a refactor answers "what did we agree" with "what
    did we happen to ship".
 4. **It converts a stop into a silent merge.** A `contradicts` finding is the

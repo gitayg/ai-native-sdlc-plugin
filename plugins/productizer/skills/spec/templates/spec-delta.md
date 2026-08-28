@@ -6,7 +6,7 @@ classifications produced it. A reviewer reads this instead of reconstructing
 prose from a diff, which is the only way a spec change reviews like code.
 
 **This goes in the PR body, not into the repo.** The spec is the artifact and
-`git log -p .claude/sdlc/spec.md` is the audit trail; a committed delta file
+`git log -p .claude/productizer/spec.md` is the audit trail; a committed delta file
 per change is the per-change copy of the spec that the spec header rules out,
 and it starts drifting from the spec the first time someone edits one and not
 the other. Paste this into the PR that carries the spec commit.
@@ -48,7 +48,7 @@ of rows. Ids are never reused and never renumbered.
 ## Constitution check
 
 Run before any requirement was written, against every active principle in
-`.claude/sdlc/constitution.md`. Record the result even when it passes — a check
+`.claude/productizer/constitution.md`. Record the result even when it passes — a check
 with no record is indistinguishable from a check nobody ran.
 
 | Principle | Bearing on this change | Result |
@@ -177,7 +177,7 @@ nothing downstream of an unruled contradiction is safe to build.
 
 Every active requirement holds a row in the spec's criteria table. Show the
 rows this change adds and removes, so "do the tests assert the criteria" is
-answered here rather than deferred to Stage 4A.
+answered here rather than deferred to Stage 4.
 
 | Requirement | Row | Verified by |
 |---|---|---|

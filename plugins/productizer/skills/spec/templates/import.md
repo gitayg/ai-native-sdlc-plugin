@@ -1,7 +1,7 @@
 # Import — turning an existing codebase into a first spec
 
 Stage 0c. Runs once per product, after Stage 0a has scaffolded an empty
-`.claude/sdlc/spec.md`. It exists because the lifecycle otherwise assumes a repo
+`.claude/productizer/spec.md`. It exists because the lifecycle otherwise assumes a repo
 starts empty and accretes one intent at a time, which describes almost no repo
 anyone actually has.
 

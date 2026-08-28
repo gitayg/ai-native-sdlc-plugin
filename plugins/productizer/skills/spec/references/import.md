@@ -26,7 +26,7 @@ Write those sentences into the spec as though they were agreed and three things
 break at once, none of them visibly:
 
 - **The audit trail becomes fiction.** The spec's whole claim is that
-  `git log -p .claude/sdlc/spec.md` is a history of decisions. An import that
+  `git log -p .claude/productizer/spec.md` is a history of decisions. An import that
   writes two hundred requirements in one commit makes the first and largest entry
   in that history a record of nothing having been decided.
 - **The contradiction halt starts defending accidents.** Stage 2 stops the work

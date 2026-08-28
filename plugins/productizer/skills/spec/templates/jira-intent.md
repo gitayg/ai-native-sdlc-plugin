@@ -7,7 +7,7 @@ degrades — are in `references/integrations.md`.
 
 **The ticket is a pointer, not a copy.** It says enough for someone in Jira to
 know what this is and where the real record lives. The requirements live in
-`.claude/sdlc/spec.md`, committed, and nothing below reproduces them.
+`.claude/productizer/spec.md`, committed, and nothing below reproduces them.
 
 ## 1. Summary
 
@@ -38,7 +38,7 @@ Constraints: <regulatory, technical, budget, timeline>
 Open questions: <what is not known yet>
 
 Record: requirements and acceptance criteria live in <owner/repo>
-at .claude/sdlc/spec.md. This ticket tracks the work; the spec is the
+at .claude/productizer/spec.md. This ticket tracks the work; the spec is the
 agreed behaviour, and the two are joined by this issue key in the branch
 name, the PR title and the spec change-log row.
 ```
@@ -86,7 +86,7 @@ curl -sS -u "$AUTH" --connect-timeout 5 --max-time 15 \
 
 `--rawfile` is absent from very old jq builds; if the description arrives
 empty, check `jq --version` before blaming ADF. `$JIRA_INTENT_LABEL` is
-`jira.labels.intent` from `.claude/sdlc.json` — a literal, never a word read off
+`jira.labels.intent` from `.claude/productizer/config.json` — a literal, never a word read off
 a ticket.
 
 **With an epic.** `jira.epic_field` is the field id and `jira.epic` is the
@@ -121,7 +121,7 @@ the requirement text:
 ```bash
 cat > delta.txt <<'TXT'
 Intake: EXTEND. Added R41-R43. Refined R12. Superseded R7 -> R41.
-Spec delta committed as <sha> in <owner/repo> at .claude/sdlc/spec.md.
+Spec delta committed as <sha> in <owner/repo> at .claude/productizer/spec.md.
 TXT
 jq -n --rawfile t delta.txt \
   '{body:{type:"doc",version:1,content:[{type:"paragraph",content:[{type:"text",text:$t}]}]}}' \
@@ -131,7 +131,7 @@ curl -sS -u "$AUTH" --connect-timeout 5 --max-time 15 \
   -H 'Content-Type: application/json' -d @comment.json -w '%{http_code}\n'
 ```
 
-**Stage 5 — the PR**, as a remote link rather than a comment, because the same
+**Stage 6 — the PR**, as a remote link rather than a comment, because the same
 `globalId` replaces the existing link instead of appending one per re-run:
 
 ```bash

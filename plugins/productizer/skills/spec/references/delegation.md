@@ -1,6 +1,6 @@
-# Delegating stages 3-5 to an external check runner
+# Delegating stages 3-6 to an external check runner
 
-This skill's stages 3-5 are prose. Prose is advisory: it can be reasoned around,
+This skill's stages 3-6 are prose. Prose is advisory: it can be reasoned around,
 and it cannot exit non-zero. Where a repo has a real check runner available —
 something that computes plan-vs-diff, tests-vs-criteria, a review brief and a
 pre-push gate — delegate to it. Enforced beats advisory, and running both over
@@ -90,7 +90,7 @@ skill's own `templates/threshold.sh` follows the same convention.
 
 ## When there is no runner
 
-Run stages 3-5 from `SKILL.md` and say that is what you are doing. The prose
+Run stages 3-6 from `SKILL.md` and say that is what you are doing. The prose
 covers the same ground: plan mode before implementation, verification before
 done, a written review policy, and a production gate as a hook. What it does not
 do is enforce, so the human review gate carries more weight when the runner is

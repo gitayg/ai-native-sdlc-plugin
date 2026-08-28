@@ -1,4 +1,4 @@
-# Scheduled task prompt — nightly eval regression (Stage 4B)
+# Scheduled task prompt — nightly eval regression (Stage 4)
 
 Create with `create_scheduled_task`, taskId `sdlc-evals`, cron `0 2 * * *`
 (local time). The prompt below must stay self-contained: each run starts fresh
@@ -8,7 +8,7 @@ with no memory of the conversation that created it.
 
 Run the agent eval suite for <REPO PATH> and report drift.
 
-1. cd to <REPO PATH>. Read `.claude/sdlc.json` for the repo binding. If it is
+1. cd to <REPO PATH>. Read `.claude/productizer/config.json` for the repo binding. If it is
    missing, stop and report that Stage 0 has not been run — do not guess and do
    not prompt.
 2. Read `evals/` — each subdirectory holds `prompt.md` and the checks that

@@ -19,7 +19,7 @@ Open in Areas of concern: C1. Nothing merges into the spec until it is ruled on.
 
 | Field | Read from | Rule |
 |---|---|---|
-| product | `product.name` in `.claude/sdlc.json` | stripped to letters, digits, `. _ -` and space, truncated to 40 characters |
+| product | `product.name` in `.claude/productizer/config.json` | stripped to letters, digits, `. _ -` and space, truncated to 40 characters |
 | open intents | `gh issue list --label sdlc:intent --state open`, cached | rendered `open intents unknown` when it cannot be read, never `0` |
 | contradictions | rows of the *Areas of concern* table in the spec | a status naming `resolved` is not open; the count is uppercased because it is the only line here that needs a human |
 | spec range | the `- **R<n>**` requirement bullets | lowest and highest id, not a count of rows |
@@ -41,7 +41,7 @@ Measured on macOS, median of 100 runs each:
 
 | Case | Per run |
 |---|---|
-| repo with no `.claude/sdlc.json` | 3.9 ms |
+| repo with no `.claude/productizer/config.json` | 3.9 ms |
 | bound repo, 60-line spec, intent count cached | 16.9 ms |
 | bound repo, 4,576-line spec (4,000 requirements) | 26.2 ms |
 | bound repo, intent count stale, `gh` reachable | one `gh issue list`, hard-capped at 1.5 s, once per 15 minutes |
@@ -65,7 +65,7 @@ line still renders.
 mkdir -p .claude/hooks
 cp ~/.claude/skills/spec/templates/session-start.sh .claude/hooks/session-start.sh
 chmod +x .claude/hooks/session-start.sh
-echo '.claude/sdlc/.session-start-intents' >> .gitignore
+echo '.claude/productizer/.session-start-intents' >> .gitignore
 ```
 
 Then merge `templates/hooks-settings.json` into `.claude/settings.json`. Commit
@@ -107,7 +107,7 @@ flight" and be believed.
 - **It does not name the stage.** Stage is determined by the issue and the
   branch, not by file presence, and reconstructing that costs more than a
   session-start hook may spend. The line reports state, not a next action.
-- **A spec at a path other than `.claude/sdlc/spec.md` is not read.** The hook
+- **A spec at a path other than `.claude/productizer/spec.md` is not read.** The hook
   does not honour `spec.path` from the binding; a repo that moves its spec gets
   silence rather than a wrong number.
 - **It never blocks and never errors.** Missing binding, unreadable spec,

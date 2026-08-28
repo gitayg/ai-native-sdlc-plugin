@@ -9,7 +9,7 @@
     ]
   },
   "spec": {
-    "path": ".claude/sdlc/spec.md",
+    "path": ".claude/productizer/spec.md",
     "requirement_id_prefix": "R",
     "ids_are_permanent": true,
     "on_supersede": "mark_with_pointer",
@@ -53,7 +53,7 @@
       "effort": "none",
       "model": "none",
       "enforced": true,
-      "why": "NO MODEL IN THIS PATH. Stage 4C runs declared scripts and compares coverage; a model deciding whether a check passed is the failure the stage exists to prevent"
+      "why": "NO MODEL IN THIS PATH. Stage 5 runs declared scripts and compares coverage; a model deciding whether a check passed is the failure the stage exists to prevent"
     },
     "review": {
       "effort": "high",

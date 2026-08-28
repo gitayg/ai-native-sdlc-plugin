@@ -1,13 +1,13 @@
 # <Product> — constitution
 
 Product
-: `<product-name>` — the same name `.claude/sdlc.json` declares. One
+: `<product-name>` — the same name `.claude/productizer/config.json` declares. One
 constitution per product, held in the spec home repo beside the living spec.
 Two constitutions in one product means two answers to "is this allowed", and
 the intent gets merged against whichever one the reader opened.
 
 Constitution location
-: `.claude/sdlc/constitution.md`. Beside `.claude/sdlc/spec.md`, inside
+: `.claude/productizer/constitution.md`. Beside `.claude/productizer/spec.md`, inside
 `.claude/` for the same reason: build tooling, static site generators, doc
 builds and packaging all skip that directory, so the constitution is never
 rendered as a page or shipped in a release.
@@ -32,7 +32,7 @@ effect of merging a feature. A principle relaxed inside the change that needed
 it relaxed never constrained anything.
 
 Audit trail
-: `git log -p .claude/sdlc/constitution.md`. Amendments are also listed below,
+: `git log -p .claude/productizer/constitution.md`. Amendments are also listed below,
 because the reason for a change is not recoverable from its diff.
 
 ## How to read this file

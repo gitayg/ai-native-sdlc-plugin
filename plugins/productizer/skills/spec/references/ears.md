@@ -2,7 +2,7 @@
 
 Easy Approach to Requirements Syntax. Five sentence patterns, one requirement
 per sentence. The point is not tidiness: prose requirements read fine and cannot
-be tested, so Stage 4A's question — *do the tests actually assert the criteria* —
+be tested, so Stage 4's question — *do the tests actually assert the criteria* —
 stays a matter of opinion. EARS makes it checkable, because every requirement
 already names its trigger, its precondition and an observable response.
 
@@ -47,7 +47,7 @@ distinction is what separates a designed path from a defended one.
 ## Requirement identity and lifecycle
 
 The spec is not a per-feature document that gets thrown away. One living spec per
-repo at `.claude/sdlc/spec.md` accumulates every intent that has been merged into
+repo at `.claude/productizer/spec.md` accumulates every intent that has been merged into
 it, so a requirement outlives the change that introduced it. The id is the only
 stable handle the rest of the lifecycle has on a requirement, which makes id
 discipline the load-bearing part of the spec rather than its housekeeping.
@@ -180,11 +180,11 @@ contradiction, not a second defence.
 - **Stage 3** — `plan.md` names which requirement ids each file change serves. A
   requirement no file claims is a gap; a file serving no requirement is scope
   creep, and the plan-vs-diff check will say so.
-- **Stage 4A** — each requirement maps to at least one test. The trigger becomes
+- **Stage 4** — each requirement maps to at least one test. The trigger becomes
   the arrange-and-act, the response becomes the assert. A requirement with no
   test is the answer to "do the tests assert the criteria", stated as a fact
   rather than argued.
-- **Stage 5A** — the compliance pass reads the diff against these ids instead of
+- **Stage 6** — the compliance pass reads the diff against these ids instead of
   against a paragraph of prose.
 
 Point a criteria checker at the requirements section directly — that is what the

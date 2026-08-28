@@ -25,7 +25,7 @@ missing rather than guessing and specifying the guess.
 
 ## 2. Classify it against the living spec
 
-Read `.claude/sdlc/spec.md` in full. Every intent is exactly one of four things,
+Read `.claude/productizer/spec.md` in full. Every intent is exactly one of four things,
 and the fourth is a stop:
 
 **EXTEND** — behaviour the spec does not cover yet.
@@ -61,7 +61,7 @@ that is confidently wrong rather than obviously incomplete.
 
 ## 3. Merge it
 
-Apply the classification to `.claude/sdlc/spec.md`:
+Apply the classification to `.claude/productizer/spec.md`:
 
 - New requirements take the next ids. Ids are never reused, never renumbered.
 - Replaced requirements are marked superseded with a pointer, never deleted.

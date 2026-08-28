@@ -2,17 +2,17 @@
 # scripts/run-checks.sh — run the declared checks stage against one change.
 #
 # The checks stage sits between build and deploy. It reads
-# `.claude/sdlc/checks.yaml` (see `templates/checks.yaml`), works out which
+# `.claude/productizer/checks.yaml` (see `templates/checks.yaml`), works out which
 # declared checks this particular change attracts, runs them, and writes a
 # machine-readable result the review stage consumes. It decides nothing itself:
 # every check, every trigger and every threshold comes out of the config.
 #
-#   run-checks.sh --config .claude/sdlc/checks.yaml \
+#   run-checks.sh --config .claude/productizer/checks.yaml \
 #                 --changed changed-files.txt \
 #                 --tags auth,pii \
-#                 --out .claude/sdlc/checks-result.json
+#                 --out .claude/productizer/checks-result.json
 #
-#   --config PATH    the declaration. Default .claude/sdlc/checks.yaml
+#   --config PATH    the declaration. Default .claude/productizer/checks.yaml
 #   --changed PATH   file of changed paths, one per line ("-" reads stdin)
 #   --base REF       derive the changed paths from git diff against REF
 #   --tags LIST      comma-separated requirement tags carried by this change
@@ -108,7 +108,7 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 
-CONFIG="${CONFIG:-.claude/sdlc/checks.yaml}"
+CONFIG="${CONFIG:-.claude/productizer/checks.yaml}"
 [ -f "$CONFIG" ] || die_usage "no config at $CONFIG. The checks stage is declared in a file; there is no built-in list to fall back on."
 
 command -v python3 >/dev/null 2>&1 ||
@@ -193,6 +193,31 @@ defaults = doc.get("defaults") or {}
 if not isinstance(defaults, dict):
     bad("`defaults` must be a mapping")
 
+# policy.output was checked by nothing: not type, not absoluteness, not whether
+# it lands inside the repo. A committed YAML value truncated a file outside the
+# work tree and the run still exited 0/PASS.
+# Off by default: a check tool living inside the repo under test is only safe
+# when someone has decided that repo is trusted, and that decision belongs in
+# the file where a reviewer will see it.
+ALLOW_REPO_LOCAL = policy.get("allow_repo_local_tools", False)
+if not isinstance(ALLOW_REPO_LOCAL, bool):
+    bad("policy.allow_repo_local_tools must be true or false, not %r" % (ALLOW_REPO_LOCAL,))
+
+OUTPUT = policy.get("output")
+if OUTPUT is not None:
+    if not isinstance(OUTPUT, str) or not OUTPUT.strip():
+        bad("policy.output must be a non-empty string, not %r" % (OUTPUT,))
+    if os.path.isabs(OUTPUT):
+        bad("policy.output %r is absolute. It is written relative to the repository "
+            "being checked; an absolute path lets a committed file choose what gets "
+            "overwritten on the machine that cloned it." % OUTPUT)
+    _res = os.path.realpath(os.path.join(ROOT, OUTPUT))
+    _root = os.path.realpath(ROOT)
+    if _res != _root and not _res.startswith(_root + os.sep):
+        bad("policy.output %r resolves to %s, outside the repository at %s. This "
+            "stage writes one result file, inside the repo it is checking."
+            % (OUTPUT, _res, _root))
+
 checks = doc.get("checks")
 if not isinstance(checks, list) or not checks:
     bad("`checks` must be a non-empty list. A config declaring no checks is not a passing stage; delete the file or fill it in.")
@@ -237,6 +262,15 @@ tags = [t.strip() for t in TAGS.split(",") if t.strip()]
 
 # --- validate and select --------------------------------------------------
 
+# Programs that take a command string as an argument. Naming one of these in an
+# argv list IS the shell invocation the argv-only rule exists to forbid -
+# ["/bin/sh","-c","..."] is a valid list and also arbitrary code.
+SHELLS = {"sh","bash","zsh","dash","ksh","csh","tcsh","fish","busybox","env",
+          "xargs","nohup","time","timeout","stdbuf","nice","ionice","setsid",
+          "script","ssh","sudo","doas","su","eval"}
+INTERPRETERS = {"python","python2","python3","perl","ruby","node","deno","bun",
+                "php","lua","Rscript","osascript","awk","gawk"}
+
 def argv_of(where, value):
     if isinstance(value, str):
         bad("%s is a string. Commands are argv lists, never strings: a string is handed to a shell, "
@@ -244,6 +278,27 @@ def argv_of(where, value):
             "on the machine of whoever pulls it." % where)
     if not isinstance(value, list) or not value or not all(isinstance(x, str) and x for x in value):
         bad("%s must be a non-empty list of non-empty strings" % where)
+
+    prog = os.path.basename(value[0])
+    if prog in SHELLS:
+        bad("%s runs %r, which takes a command string as an argument. That is the "
+            "shell invocation argv-only exists to prevent; the list form does not "
+            "make it safe. Name the tool you actually want to run." % (where, value[0]))
+    if prog in INTERPRETERS and any(a in ("-c","-e","-E") for a in value[1:]):
+        bad("%s runs %r with an inline program. Put the program in a file the repo "
+            "can review, and name that file here." % (where, value[0]))
+    if not os.path.isabs(value[0]) and ("/" in value[0] or value[0].startswith(".")):
+        # A repo-local check script is both the attack and a legitimate pattern -
+        # a cloned repo choosing what runs on your machine, and your own repo
+        # declaring its own linter, are the same bytes in the same place. The
+        # filesystem cannot tell them apart, so the config must: default deny,
+        # and an explicit opt-in that a reviewer can see in the diff.
+        if not ALLOW_REPO_LOCAL:
+            bad("%s runs %r, a path inside the repository being checked. A cloned "
+                "repo would be choosing what executes on the machine that cloned it. "
+                "If this is your own repo's script, set `policy.allow_repo_local_tools: "
+                "true` - it is off by default so that trusting the repo is a decision "
+                "someone made, not one nobody noticed." % (where, value[0]))
     return list(value)
 
 def int_list(where, value):
@@ -408,7 +463,7 @@ for idx, chk in enumerate(checks):
 os.makedirs(os.path.join(WORK, "run"), exist_ok=True)
 with open(os.path.join(WORK, "plan.json"), "w") as fh:
     json.dump({"config": CONFIG, "root": ROOT, "policy": {"empty_run": empty_run,
-               "output": policy.get("output")}, "files": files, "tags": tags,
+               "output": OUTPUT}, "files": files, "tags": tags,
                "checks": plan}, fh, indent=2)
 
 for c in plan:

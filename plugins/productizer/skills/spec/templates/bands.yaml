@@ -1,7 +1,7 @@
 # Data only — never a command. This file is committed, so anyone who lands a
 # commit can change it. The scheduled band check reads the metric, the baseline
 # and the thresholds from here, and takes the detection command it executes from
-# the binding at `.claude/sdlc.json` instead.
+# the binding at `.claude/productizer/config.json` instead.
 metric: ci_test_failure_rate
 baseline: rolling_30d
 rules: western_electric

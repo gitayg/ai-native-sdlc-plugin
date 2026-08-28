@@ -33,7 +33,7 @@ inconsistently today. Not for component-level knowledge, not for a one-off promp
 | 4A Feedback loop | verification before done enforced; test edits blocked during a fix | first-pass CI success rate for agent-written changes | review time per PR; change failure rate |
 | 4B Evals in CI | pass-rate threshold as a merge check; runs logged; config owner approves | eval pass rate over time; time from incident to permanent eval | regressions caught in CI vs in production |
 
-## 5 · Deploy
+## 6 · Deploy
 | Play | Governance | Leading | Lagging |
 |---|---|---|---|
 | 5A PR review | agent cannot approve its own code; policy applies to every PR; human approval via branch protection | time to first review (minutes) | defects caught before merge vs escaping |
@@ -44,7 +44,7 @@ Autonomy ladder: read-only judgement → write steps behind existing gates →
 environment-tiered deploys (dev free, staging middle, production prepared by the
 agent and authorised by a release manager). Rollback is the most rehearsed path.
 
-## 6 · Maintain
+## 9 · Maintain
 - **Governance:** tier boundaries from version-controlled config; managed settings deny production access; invocations, findings and triage decisions timestamped; changes go through the normal PR gate; runbooks approved in advance.
 - **Leading:** time from band breach to an issue in the triage queue.
 - **Lagging:** share of findings becoming merged fixes; repeat incidents of the same class.
