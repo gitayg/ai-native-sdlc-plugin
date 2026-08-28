@@ -213,6 +213,19 @@ J_REPO=${ENC_OUT[2]}
 J_BRANCH=${ENC_OUT[3]}
 J_DEFAULT=${ENC_OUT[4]}
 J_GH_ACCOUNT=${ENC_OUT[5]}
+# Which account gh is signed in as, against who owns the repo. Someone with two
+# GitHub identities can be authenticated as one and working in the other's repo,
+# and every issue, comment and PR this lifecycle opens would land under the wrong
+# name. Reported as a fact, not resolved here: only the user can say which is
+# intended.
+GH_OWNER_MATCH=unknown
+if [ -n "$GH_ACCOUNT" ] && [ -n "$REPO" ]; then
+  case "$REPO" in
+    "$GH_ACCOUNT"/*) GH_OWNER_MATCH=true ;;
+    */*)             GH_OWNER_MATCH=false ;;
+  esac
+fi
+GH_OWNER_MATCH="\"$GH_OWNER_MATCH\""
 J_JIRA_SITE=${ENC_OUT[6]}
 J_JIRA_PROJECT=${ENC_OUT[7]}
 J_RUNNER_PATH=${ENC_OUT[8]}
@@ -236,7 +249,7 @@ cat <<JSON
     "branch": $J_BRANCH,
     "default_branch": $J_DEFAULT
   },
-  "github_cli": { "state": "$GH_STATE", "account": $J_GH_ACCOUNT },
+  "github_cli": { "state": "$GH_STATE", "account": $J_GH_ACCOUNT, "owner_match": $GH_OWNER_MATCH },
   "jira": { "state": "$JIRA_STATE", "site": $J_JIRA_SITE, "project": $J_JIRA_PROJECT },
   "check_runner": { "state": "$RUNNER_STATE", "path": $J_RUNNER_PATH, "reason": $J_RUNNER_REASON },
   "template_overrides": [$OVERRIDES],

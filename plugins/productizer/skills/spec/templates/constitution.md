@@ -85,6 +85,9 @@ Values are not principles. "We care about quality" forbids nothing and so
 refuses nothing.
 
 ## Principles
+<!-- EXAMPLE:BEGIN — worked examples, not agreed content.
+     Scaffolding DELETES this block. A seeded requirement or principle is one
+     nobody agreed to, and it gets cited before anyone notices it was a sample. -->
 
 ### P1 — Customer data never leaves the tenant boundary
 Active. Ratified 2026-02-11 by the platform and security owners.
@@ -173,6 +176,8 @@ is one jurisdiction to reason about and one failure domain to test.
 The statement stays; only the check and the enforcing requirements retire with
 it. A withdrawn principle with its text removed is a heading nobody can
 evaluate, and the next person to propose the same bound has nothing to read.
+
+<!-- EXAMPLE:END -->
 
 ## Amendment record
 

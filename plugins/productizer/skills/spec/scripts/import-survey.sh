@@ -69,6 +69,8 @@ for l in C.UTF-8 en_US.UTF-8 en_GB.UTF-8; do
     CUT_LOCALE=$l; break
   fi
 done
+# shellcheck disable=SC2209  # TRIM holds a command that is invoked unquoted below;
+# `cat` is the identity passthrough when iconv is unavailable, not a string value.
 TRIM=cat
 printf 'x' | iconv -c -f UTF-8 -t UTF-8 >/dev/null 2>&1 && TRIM='iconv -c -f UTF-8 -t UTF-8'
 
@@ -127,7 +129,12 @@ after_attr() {
 # $1 filename ERE, $2 max. Lists matching paths rather than matching lines.
 files_named() { LC_ALL=C grep -E -- "$1" "$LIST" 2>/dev/null | head -n "$2"; }
 
-section() { printf '\n## %s\n' "$1"; }
+# The Verdict section counts evidence, but only from the sections that describe
+# BEHAVIOUR. A first attempt tallied every section and reported 190 lines on a
+# repo where every behaviour probe came back empty - the count was dominated by
+# file listings and doc headings, which say nothing about what the thing does.
+BEHAVIOUR_SECTIONS="Entry points — declared|HTTP routes and RPC handlers|File-based routes|Config and feature flags — names only|Test names — the closest thing to written-down intent|Error paths and refusals"
+section() { printf '%s' "$1" > "$TMP/sec"; printf '\n## %s\n' "$1"; }
 # Prints its stdin, or "(none found)" when the probe came back empty. An absent signal is a
 # fact about the repo; reporting it as blank invites the reader to assume the probe never ran.
 body() {
@@ -136,6 +143,14 @@ body() {
   n=$(wc -l < "$TMP/b" | tr -d ' ')
   if [ "$n" -eq 0 ]; then printf '  (none found)\n'; else emit < "$TMP/b"; fi
   printf '%s' "$n" > "$TMP/n"
+  # Running tally, so the Verdict section can say whether this survey found
+  # enough to draft from. body() runs in a pipeline subshell, so the tally has
+  # to live in a file; a variable would not survive back to the caller.
+  case "$(cat "$TMP/sec" 2>/dev/null)" in
+    *) if printf '%s' "$(cat "$TMP/sec" 2>/dev/null)" | grep -Eq "^($BEHAVIOUR_SECTIONS)$"; then
+         printf '%s' "$(( $(cat "$TMP/total" 2>/dev/null || echo 0) + n ))" > "$TMP/total"
+       fi ;;
+  esac
 }
 note_trunc() { [ "$(cat "$TMP/n" 2>/dev/null || echo 0)" -ge "$1" ] && printf '  (truncated at %s)\n' "$1"; return 0; }
 
@@ -271,6 +286,26 @@ else
   # the churn signal and nothing else, so say so and carry on rather than aborting the survey.
   { printf 'git unavailable: %s\n' "$GIT_ERR"
     printf 'churn and authorship signals are missing from this survey.\n'; } | body
+fi
+
+# An end-to-end run against a documentation-and-scripts repo returned "(none
+# found)" in every behaviour section, and nothing in the report distinguished
+# that from a survey that simply had not looked. A spec drafted from an empty
+# survey is invention. State the verdict, so the drafting step has something to
+# refuse on.
+EVIDENCE=$(cat "$TMP/total" 2>/dev/null || echo 0)
+section "Verdict"
+if [ "${EVIDENCE:-0}" -lt 8 ]; then
+  { printf 'NOT ENOUGH EVIDENCE TO DRAFT A SPEC.\n'
+    printf 'The behaviour probes found almost nothing in this repo. That is a real\n'
+    printf 'answer, not a quiet one: either the probes do not cover this language or\n'
+    printf 'shape of project, or the product is not expressed as routes, tests and\n'
+    printf 'error paths at all.\n'
+    printf 'Do NOT draft requirements from this survey. Say what was searched, say it\n'
+    printf 'came back empty, and ask for the entry points by hand.\n'; } | body
+else
+  { printf 'Enough to draft from: %s evidence lines across the behaviour sections.\n' "$EVIDENCE"
+    printf 'Every requirement drawn from them is inferred until a human confirms it.\n'; } | body
 fi
 
 section "What this survey cannot tell you"

@@ -83,9 +83,17 @@ templates in `.claude/sdlc/templates/` win over this skill's; **say when an
 override is in play**, or a spec not matching the documented shape reads as a
 bug.
 
+**Scaffold with `scripts/scaffold.sh <template> <destination>`, not `cp`.** The
+templates carry worked examples — `R1`…`R6` in the spec, `P1`…`P5` in the
+constitution — so a human can see the shape. Copying them verbatim seeds a repo
+with requirements and principles nobody agreed to, which is the one thing this
+lifecycle cannot tolerate. The script strips the fenced example block, refuses
+to overwrite, and refuses a gitignored destination.
+
 | File | Written as |
 |---|---|
-| `.claude/sdlc/spec.md` | `templates/spec.md`, empty: system named, next id `R1` |
+| `.claude/sdlc/spec.md` | `scripts/scaffold.sh templates/spec.md …` — empty, system named, next id `R1` |
+| `.claude/sdlc/constitution.md` | same, and left with **no principles**: the first ones are ratified, never scaffolded |
 | `REVIEW.md` | `templates/REVIEW.md` as-is, at the repo root |
 | `CLAUDE.md` | only if absent, cut to what is true of this repo |
 
@@ -363,6 +371,7 @@ contract before wiring one into a gate.
 | Script | Does | Exit |
 |---|---|---|
 | `scripts/detect-context.sh` | probes the repo, emits JSON | 0 |
+| `scripts/scaffold.sh` | copies a template, strips its examples | 0 · 1 refused · 2 usage |
 | `scripts/import-survey.sh` | read-only survey for Stage 0c | 0 |
 | `scripts/run-checks.sh` | runs the declared checks | 0 pass · 3 refused · 2 usage · 1 crash |
 | `scripts/contradiction-check.py` | second opinion on one pair | 0 no halt · 1 contradiction · 2 usage |

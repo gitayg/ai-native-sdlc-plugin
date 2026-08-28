@@ -41,6 +41,17 @@ and it never asks at all in a scheduled run, where nobody is there to answer.
 
 "Skip Jira — GitHub only" is a real answer, not a half-configuration.
 
+Scaffolding writes an **empty** spec and an **empty** constitution. The templates
+carry worked examples so you can see the shape — `R1`…`R6`, `P1`…`P5` — and
+`scripts/scaffold.sh` strips them on the way in. A seeded requirement is one
+nobody agreed to, and it gets cited before anyone notices it was a sample. The
+script also refuses to overwrite, and refuses a destination `.gitignore` would
+swallow, because a spec that cannot be committed is not an audit trail.
+
+If the repo already has history, Stage 0c surveys it first. When the survey
+finds too little to work from it says so and stops, rather than handing the
+drafting step an empty page to invent on.
+
 ## The stages
 
 | | You do | You get |

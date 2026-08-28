@@ -183,6 +183,10 @@ organisation without each person toggling it:
 ## Publisher: shipping a change
 
 1. Edit the skill under `plugins/productizer/skills/spec/`.
+   Shell scripts must pass `npx shellcheck --severity=warning`; the plugin
+   ships a check that enforces exactly that, and its own scripts are held to
+   it. `scripts/contradiction-check.py --selftest` must stay at precision 1.00
+   with no false positives.
 2. Bump `version` in `plugins/productizer/.claude-plugin/plugin.json`.
    Nothing ships without this.
 3. Run `claude plugin validate ./plugins/productizer --strict` and

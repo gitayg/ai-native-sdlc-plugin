@@ -237,6 +237,13 @@ EXCLUSIVE_PAIRS = [
     ("start", "stop"), ("open", "close"), ("lock", "unlock"),
     ("continue", "abort"), ("include", "exclude"), ("commit", "roll"),
     ("show", "hide"), ("end", "extend"), ("charge", "refund"),
+    # Refusing a message and deferring it are exclusive dispositions of the same
+    # message: it cannot be both turned away and held for another attempt. Added
+    # after an end-to-end run found the skill's own worked example (R7 against
+    # R41) coming back CONSISTENT.
+    ("reject", "queue"), ("reject", "retry"), ("reject", "defer"),
+    ("deny", "queue"), ("discard", "queue"), ("discard", "retry"),
+    ("drop", "queue"), ("drop", "retry"),
 ]
 
 # Verb forms are matched on stems so "deletes"/"deleted"/"deleting" all hit.
@@ -451,6 +458,11 @@ CASES = [
      "R11: When an operator requests an export, the service shall include archived records.",
      "R12: When an operator requests an export, the service shall not include archived records.",
      "explicit negation"),
+
+    ("C7", CONTRADICTION,
+     "R7: When a provider posts a settlement callback the billing service cannot verify, the billing service shall reject it with 400.",
+     "R41: When a provider posts a settlement callback the billing service cannot verify, the billing service shall queue it for retry.",
+     "deferring and refusing the same message are exclusive - the skill's own worked example"),
 
     ("N1", REFINEMENT,
      "R13: When a client requests the report, the API shall respond in under 500 ms.",

@@ -74,6 +74,9 @@ file stays skimmable at two hundred. One row per requirement, in id order.
 | R3 | <area> | state | withdrawn | — |
 
 ## Requirements
+<!-- EXAMPLE:BEGIN — worked examples, not agreed content.
+     Scaffolding DELETES this block. A seeded requirement or principle is one
+     nobody agreed to, and it gets cited before anyone notices it was a sample. -->
 
 Within each pattern, add `####` area sub-headings once that pattern passes
 roughly twenty requirements. Ids stay monotonic across every section and every
@@ -112,6 +115,8 @@ that gap.
 Superseded and withdrawn requirements stay in the pattern section they were
 written in. There is no archive section, because moving them would break the
 one thing keeping their ids findable.
+
+<!-- EXAMPLE:END -->
 
 ## Design
 
