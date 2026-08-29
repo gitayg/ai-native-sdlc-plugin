@@ -61,8 +61,15 @@ checks:
   # --- the solver's own corpus --------------------------------------------
   - id: solver-corpus
     why: precision must stay at 1.00 - a contradiction checker that halts on a non-conflict gets switched off, and then nothing is checked
+    # Was `paths: ["**/contradiction-check.py"]`, so it only ran when the
+    # solver's own source changed and reported `not_triggered` on every other
+    # commit. A check with no evidence is not a passing check, and this is the
+    # one whose `why` says precision must stay at 1.00 - the property most
+    # worth knowing on every run, not only when someone edits the file that
+    # provides it. It is a 0.3s stdlib self-test with no external dependency,
+    # so `always` costs nothing and buys evidence on every commit.
     when:
-      paths: ["**/contradiction-check.py"]
+      always: true
     severity: block
     requires: [python3]
     version_command: [python3, --version]

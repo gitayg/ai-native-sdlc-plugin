@@ -653,11 +653,27 @@ elif check_state == 'unreadable':
     stats.append(tile_unknown('Checks, last run',
                               '%s exists and would not parse' % RESULT_PATH))
 else:
-    ok = verdict == 'pass' and not bad_checks
-    detail = '%d of %d not passing' % (len(bad_checks), len(checks)) if bad_checks \
-        else '%d check(s), all passing' % len(checks)
-    stats.append(tile_num('Checks, last run', str(verdict or 'unstated').upper(),
-                          esc(detail), '' if ok else 'att'))
+    # A check that was never triggered and a check that failed are different
+    # facts, and collapsing them printed a red tile with the word PASS on it -
+    # the colour saying stop and the headline saying fine. Untriggered is amber:
+    # nothing was wrong, and nothing was checked either. Only a real failure is
+    # red, and only an all-clear says PASS.
+    unrun = [c for c in bad_checks if c['status'] in ('not_triggered', 'disabled')]
+    failed = [c for c in bad_checks if c not in unrun]
+    if failed:
+        head, lvl = 'FAIL', 'att'
+        detail = '%d of %d failed' % (len(failed), len(checks))
+        if unrun:
+            detail += ' \u00b7 %d never ran' % len(unrun)
+    elif unrun:
+        head, lvl = 'PARTIAL', 'warn'
+        detail = ('%d of %d ran and passed \u00b7 %d never triggered, so %s not checked'
+                  % (len(checks) - len(unrun), len(checks), len(unrun),
+                     'it was' if len(unrun) == 1 else 'they were'))
+    else:
+        head, lvl = str(verdict or 'unstated').upper(), ''
+        detail = '%d check(s), all passing' % len(checks)
+    stats.append(tile_num('Checks, last run', head, esc(detail), lvl))
 
 if spec is None:
     stats.append(tile_absent('Requirements with no test',
@@ -1690,9 +1706,24 @@ if STALE_AFTER > 0:
         'tick();setInterval(tick,15000);}());</script>'
         % (esc(REGEN_CMD), cp(REGEN_CMD, 'copy command'), GEN_EPOCH, STALE_AFTER))
 
+# The refresh button copies a prompt, not a click-to-reload. This page is a
+# snapshot: reloading it re-serves the same bytes, and only build-view.sh moves
+# the numbers. So the button hands over the exact command - rebuilt from the
+# argv this run was actually given, so a non-default --out is preserved - plus
+# the one sentence a reader needs to not misread what they get back.
+REFRESH_PROMPT = (
+    'Regenerate the %s dashboard from the current files and show it to me. Run:\n\n'
+    '    %s\n\n'
+    'The page is a snapshot, not a live view - the numbers only move when that '
+    'script runs, so anything I am looking at now was true at generation time and '
+    'not since. After it regenerates, tell me what changed from the previous '
+    'generation and what still needs a person.'
+    % (PRODUCT, REGEN_CMD))
+refresh_btn = cp(REFRESH_PROMPT, 'refresh')
+
 BODY = (
     '<div class="bar"><span class="crumb"><b>%s</b> · SDLC pipeline</span>'
-    '<span style="flex:1"></span>%s%s<span class="crumb mono">read-only · %s</span></div>'
+    '<span style="flex:1"></span>%s%s%s<span class="crumb mono">read-only · %s</span></div>'
     '<div class="banners" id="banners" tabindex="-1">%s%s</div>'
     '<div class="dashnote"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#3fb950" '
     'stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4"/>'
@@ -1711,7 +1742,7 @@ BODY = (
     '<section class="panel" id="p-rel">%s</section>'
     '<section class="panel" id="p-cmds">%s</section>'
     '</div>'
-    % (crumb, verchip, data_stamp, stamp, setup_bar, ''.join(banners), tabs,
+    % (crumb, verchip, data_stamp, refresh_btn, stamp, setup_bar, ''.join(banners), tabs,
        p_dash, p_board, p_stages, p_files, p_backlog, p_rel, p_cmds))
 
 # Appended rather than threaded through the format above: that string is

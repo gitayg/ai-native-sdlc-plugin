@@ -6,29 +6,25 @@
   "root_source": "the git work tree holding the config",
   "change": {
     "files": [
-      ".claude/productizer/backlog.md",
       ".claude/productizer/checks-result.json",
-      ".gitignore",
+      ".claude/productizer/checks.yaml",
       "README.md",
       "plugins/productizer/.claude-plugin/plugin.json",
-      "plugins/productizer/skills/spec/references/views.md",
-      "plugins/productizer/skills/spec/scripts/build-view.sh",
-      "plugins/productizer/skills/spec/templates/view.html",
-      "scripts/check-hygiene.sh"
+      "plugins/productizer/skills/spec/scripts/build-view.sh"
     ],
-    "file_count": 9,
+    "file_count": 5,
     "tags": []
   },
   "verdict": "pass",
   "exit_code": 0,
   "counts": {
     "declared": 3,
-    "triggered": 2,
-    "passed": 2,
+    "triggered": 3,
+    "passed": 3,
     "blocking_failures": 0,
     "advisory_failures": 0,
     "disabled": 0,
-    "not_triggered": 1,
+    "not_triggered": 0,
     "spec_units_unsatisfied": null
   },
   "spec_coverage": {
@@ -58,7 +54,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 9,
+      "files_in_scope": 5,
       "enabled": true,
       "tool": {
         "command": [
@@ -78,27 +74,23 @@
           "min_rules": 0
         },
         "observed": {
-          "covered": 9,
+          "covered": 5,
           "covered_items": [
-            ".claude/productizer/backlog.md",
             ".claude/productizer/checks-result.json",
-            ".gitignore",
+            ".claude/productizer/checks.yaml",
             "README.md",
             "plugins/productizer/.claude-plugin/plugin.json",
-            "plugins/productizer/skills/spec/references/views.md",
-            "plugins/productizer/skills/spec/scripts/build-view.sh",
-            "plugins/productizer/skills/spec/templates/view.html",
-            "scripts/check-hygiene.sh"
+            "plugins/productizer/skills/spec/scripts/build-view.sh"
           ],
           "rules_loaded": null,
-          "files_in_scope": 9,
+          "files_in_scope": 5,
           "not_examined": []
         },
         "satisfied": true,
         "reasons": []
       },
       "timed_out": false,
-      "output_tail": ".claude/productizer/backlog.md\n.claude/productizer/checks-result.json\n.gitignore\nREADME.md\nplugins/productizer/.claude-plugin/plugin.json\nplugins/productizer/skills/spec/references/views.md\nplugins/productizer/skills/spec/scripts/build-view.sh\nplugins/productizer/skills/spec/templates/view.html\nscripts/check-hygiene.sh\n",
+      "output_tail": ".claude/productizer/checks-result.json\n.claude/productizer/checks.yaml\nREADME.md\nplugins/productizer/.claude-plugin/plugin.json\nplugins/productizer/skills/spec/scripts/build-view.sh\n",
       "status": "pass"
     },
     {
@@ -119,7 +111,7 @@
       "triggered_by": [
         "path:**/*.sh"
       ],
-      "files_in_scope": 2,
+      "files_in_scope": 1,
       "enabled": true,
       "tool": {
         "command": [
@@ -132,7 +124,7 @@
         "exit_code": 0
       },
       "exit_code": 0,
-      "duration_seconds": 2,
+      "duration_seconds": 1,
       "coverage": {
         "from": "per_file_exit",
         "required": {
@@ -141,20 +133,19 @@
           "min_rules": 0
         },
         "observed": {
-          "covered": 2,
+          "covered": 1,
           "covered_items": [
-            "plugins/productizer/skills/spec/scripts/build-view.sh",
-            "scripts/check-hygiene.sh"
+            "plugins/productizer/skills/spec/scripts/build-view.sh"
           ],
           "rules_loaded": null,
-          "files_in_scope": 2,
+          "files_in_scope": 1,
           "not_examined": []
         },
         "satisfied": true,
         "reasons": []
       },
       "timed_out": false,
-      "output_tail": "\n===== plugins/productizer/skills/spec/scripts/build-view.sh\n\n===== scripts/check-hygiene.sh\n",
+      "output_tail": "\n===== plugins/productizer/skills/spec/scripts/build-view.sh\n",
       "status": "pass"
     },
     {
@@ -168,11 +159,42 @@
         "plugins/productizer/skills/spec/scripts/contradiction-check.py",
         "--selftest"
       ],
-      "triggered": false,
-      "triggered_by": [],
-      "files_in_scope": 0,
+      "triggered": true,
+      "triggered_by": [
+        "always"
+      ],
+      "files_in_scope": 5,
       "enabled": true,
-      "status": "not_triggered"
+      "tool": {
+        "command": [
+          "python3",
+          "--version"
+        ],
+        "version": "Python 3.14.6",
+        "exit_code": 0
+      },
+      "exit_code": 0,
+      "duration_seconds": 1,
+      "coverage": {
+        "from": "stdout_count",
+        "required": {
+          "min_covered": 1,
+          "must_cover": "none",
+          "min_rules": 0
+        },
+        "observed": {
+          "covered": 7,
+          "covered_items": [],
+          "rules_loaded": null,
+          "files_in_scope": 5,
+          "not_examined": []
+        },
+        "satisfied": true,
+        "reasons": []
+      },
+      "timed_out": false,
+      "output_tail": "ed requirements                                                                  different subjects: 'CI service' and 'storage service'\n N7   CONSISTENT     CONSISTENT     one bounded, one not \u2014 no shared quantity                                               no incompatibility inside the decidable fragment\n*S1   CONTRADICTION  CONSISTENT     semantic: conflicts only if the audit log holds personal data                           no incompatibility inside the decidable fragment\n*S2   CONTRADICTION  CONSISTENT     semantic: same event, disjoint vocabulary                                               guards cannot both apply \u2014 guards share 0% of their terms\n*S3   CONTRADICTION  CONSISTENT     semantic: unquantified adjective against a bound                                        no incompatibility inside the decidable fragment\n N8   CONSISTENT     CONSISTENT     opposite triggers, opposite-sounding responses                                          no incompatibility inside the decidable fragment\n N9   CONSISTENT     CONSISTENT     complementary guards the parser cannot prove disjoint                                   no incompatibility inside the decidable fragment\n N10  CONSISTENT     CONSISTENT     overlapping numeric guards, compatible responses                                        no incompatibility inside the decidable fragment\n U1   UNDECIDED      UNDECIDED      lexicon fires but the guards are not resolvable \u2014 must escalate, not halt               mutually exclusive responses: 'allow' against 'deny', but guards share 33% of their terms, neither clearly the same nor clearly apart\n\nConfusion matrix \u2014 the binary question: halt, or do not halt\n  true positives   (caught a real contradiction) : 7\n  false negatives  (missed one, silently)        : 3\n  false positives  (halted on a non-conflict)    : 0\n  true negatives   (correctly stayed quiet)      : 10\n  undecided        (handed back for judgement)   : 1\n  precision : 1.00\n  recall    : 0.70\n  decided   : 20/21\n",
+      "status": "pass"
     }
   ]
 }
