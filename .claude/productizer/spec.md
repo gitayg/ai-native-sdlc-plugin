@@ -159,6 +159,7 @@ until a human rules on it.
 
 | Requirement | Verified by |
 |---|---|
+| R1 | **Nothing.** Searched 2026-08-29: no declared check, no script that refuses on an ambiguous or unreachable spec home, none of `validate-spec.py`'s 53 codes. `product.spec_home` is declared in `config.json` and never read back. Tracked as B14 |
 | R2 | `references/ears.md` id-lifecycle rules; reviewed at intake |
 | R5 | `scripts/run-checks.sh` coverage assertion; `hollow` path |
 | R11 | `scripts/build-view.sh` — byte-identical across runs and timezones |
