@@ -7,25 +7,21 @@
   "change": {
     "files": [
       ".claude/productizer/backlog.md",
-      ".claude/productizer/checks-result.json",
-      "README.md",
-      "plugins/productizer/.claude-plugin/plugin.json",
-      "plugins/productizer/skills/spec/scripts/build-view.sh",
-      "plugins/productizer/skills/spec/scripts/run-checks.sh"
+      ".claude/productizer/spec.md"
     ],
-    "file_count": 6,
+    "file_count": 2,
     "tags": []
   },
   "verdict": "pass",
   "exit_code": 0,
   "counts": {
     "declared": 3,
-    "triggered": 3,
-    "passed": 3,
+    "triggered": 2,
+    "passed": 2,
     "blocking_failures": 0,
     "advisory_failures": 0,
     "disabled": 0,
-    "not_triggered": 0,
+    "not_triggered": 1,
     "spec_units_unsatisfied": null
   },
   "spec_coverage": {
@@ -56,7 +52,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 6,
+      "files_in_scope": 2,
       "enabled": true,
       "tool": {
         "command": [
@@ -76,24 +72,20 @@
           "min_rules": 0
         },
         "observed": {
-          "covered": 6,
+          "covered": 2,
           "covered_items": [
             ".claude/productizer/backlog.md",
-            ".claude/productizer/checks-result.json",
-            "README.md",
-            "plugins/productizer/.claude-plugin/plugin.json",
-            "plugins/productizer/skills/spec/scripts/build-view.sh",
-            "plugins/productizer/skills/spec/scripts/run-checks.sh"
+            ".claude/productizer/spec.md"
           ],
           "rules_loaded": null,
-          "files_in_scope": 6,
+          "files_in_scope": 2,
           "not_examined": []
         },
         "satisfied": true,
         "reasons": []
       },
       "timed_out": false,
-      "output_tail": ".claude/productizer/backlog.md\n.claude/productizer/checks-result.json\nREADME.md\nplugins/productizer/.claude-plugin/plugin.json\nplugins/productizer/skills/spec/scripts/build-view.sh\nplugins/productizer/skills/spec/scripts/run-checks.sh\n",
+      "output_tail": ".claude/productizer/backlog.md\n.claude/productizer/spec.md\n",
       "status": "pass"
     },
     {
@@ -111,47 +103,11 @@
         "{file}"
       ],
       "trigger_scope": "scoped",
-      "triggered": true,
-      "triggered_by": [
-        "path:**/*.sh"
-      ],
-      "files_in_scope": 2,
+      "triggered": false,
+      "triggered_by": [],
+      "files_in_scope": 0,
       "enabled": true,
-      "tool": {
-        "command": [
-          "npx",
-          "--yes",
-          "shellcheck",
-          "--version"
-        ],
-        "version": "ShellCheck - shell script analysis tool version: 0.11.0 license: GNU General Public License, version 3 website: https://www.shellcheck.net",
-        "exit_code": 0
-      },
-      "exit_code": 0,
-      "duration_seconds": 2,
-      "coverage": {
-        "from": "per_file_exit",
-        "required": {
-          "min_covered": 1,
-          "must_cover": "all_triggering",
-          "min_rules": 0
-        },
-        "observed": {
-          "covered": 2,
-          "covered_items": [
-            "plugins/productizer/skills/spec/scripts/build-view.sh",
-            "plugins/productizer/skills/spec/scripts/run-checks.sh"
-          ],
-          "rules_loaded": null,
-          "files_in_scope": 2,
-          "not_examined": []
-        },
-        "satisfied": true,
-        "reasons": []
-      },
-      "timed_out": false,
-      "output_tail": "\n===== plugins/productizer/skills/spec/scripts/build-view.sh\n\n===== plugins/productizer/skills/spec/scripts/run-checks.sh\n",
-      "status": "pass"
+      "status": "not_triggered"
     },
     {
       "id": "solver-corpus",
@@ -169,7 +125,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 6,
+      "files_in_scope": 2,
       "enabled": true,
       "tool": {
         "command": [
@@ -192,7 +148,7 @@
           "covered": 7,
           "covered_items": [],
           "rules_loaded": null,
-          "files_in_scope": 6,
+          "files_in_scope": 2,
           "not_examined": []
         },
         "satisfied": true,
