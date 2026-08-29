@@ -6,13 +6,14 @@
   "root_source": "the git work tree holding the config",
   "change": {
     "files": [
+      ".claude/productizer/backlog.md",
+      ".claude/productizer/checks-result.json",
       "README.md",
       "plugins/productizer/.claude-plugin/plugin.json",
-      "plugins/productizer/skills/spec/references/views.md",
       "plugins/productizer/skills/spec/scripts/build-view.sh",
-      "plugins/productizer/skills/spec/templates/view.html"
+      "plugins/productizer/skills/spec/scripts/run-checks.sh"
     ],
-    "file_count": 5,
+    "file_count": 6,
     "tags": []
   },
   "verdict": "pass",
@@ -50,11 +51,12 @@
         "./scripts/check-hygiene.sh",
         "{files}"
       ],
+      "trigger_scope": "always",
       "triggered": true,
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 5,
+      "files_in_scope": 6,
       "enabled": true,
       "tool": {
         "command": [
@@ -74,23 +76,24 @@
           "min_rules": 0
         },
         "observed": {
-          "covered": 5,
+          "covered": 6,
           "covered_items": [
+            ".claude/productizer/backlog.md",
+            ".claude/productizer/checks-result.json",
             "README.md",
             "plugins/productizer/.claude-plugin/plugin.json",
-            "plugins/productizer/skills/spec/references/views.md",
             "plugins/productizer/skills/spec/scripts/build-view.sh",
-            "plugins/productizer/skills/spec/templates/view.html"
+            "plugins/productizer/skills/spec/scripts/run-checks.sh"
           ],
           "rules_loaded": null,
-          "files_in_scope": 5,
+          "files_in_scope": 6,
           "not_examined": []
         },
         "satisfied": true,
         "reasons": []
       },
       "timed_out": false,
-      "output_tail": "README.md\nplugins/productizer/.claude-plugin/plugin.json\nplugins/productizer/skills/spec/references/views.md\nplugins/productizer/skills/spec/scripts/build-view.sh\nplugins/productizer/skills/spec/templates/view.html\n",
+      "output_tail": ".claude/productizer/backlog.md\n.claude/productizer/checks-result.json\nREADME.md\nplugins/productizer/.claude-plugin/plugin.json\nplugins/productizer/skills/spec/scripts/build-view.sh\nplugins/productizer/skills/spec/scripts/run-checks.sh\n",
       "status": "pass"
     },
     {
@@ -107,11 +110,12 @@
         "--format=gcc",
         "{file}"
       ],
+      "trigger_scope": "scoped",
       "triggered": true,
       "triggered_by": [
         "path:**/*.sh"
       ],
-      "files_in_scope": 1,
+      "files_in_scope": 2,
       "enabled": true,
       "tool": {
         "command": [
@@ -124,7 +128,7 @@
         "exit_code": 0
       },
       "exit_code": 0,
-      "duration_seconds": 1,
+      "duration_seconds": 2,
       "coverage": {
         "from": "per_file_exit",
         "required": {
@@ -133,19 +137,20 @@
           "min_rules": 0
         },
         "observed": {
-          "covered": 1,
+          "covered": 2,
           "covered_items": [
-            "plugins/productizer/skills/spec/scripts/build-view.sh"
+            "plugins/productizer/skills/spec/scripts/build-view.sh",
+            "plugins/productizer/skills/spec/scripts/run-checks.sh"
           ],
           "rules_loaded": null,
-          "files_in_scope": 1,
+          "files_in_scope": 2,
           "not_examined": []
         },
         "satisfied": true,
         "reasons": []
       },
       "timed_out": false,
-      "output_tail": "\n===== plugins/productizer/skills/spec/scripts/build-view.sh\n",
+      "output_tail": "\n===== plugins/productizer/skills/spec/scripts/build-view.sh\n\n===== plugins/productizer/skills/spec/scripts/run-checks.sh\n",
       "status": "pass"
     },
     {
@@ -159,11 +164,12 @@
         "plugins/productizer/skills/spec/scripts/contradiction-check.py",
         "--selftest"
       ],
+      "trigger_scope": "always",
       "triggered": true,
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 5,
+      "files_in_scope": 6,
       "enabled": true,
       "tool": {
         "command": [
@@ -186,7 +192,7 @@
           "covered": 7,
           "covered_items": [],
           "rules_loaded": null,
-          "files_in_scope": 5,
+          "files_in_scope": 6,
           "not_examined": []
         },
         "satisfied": true,

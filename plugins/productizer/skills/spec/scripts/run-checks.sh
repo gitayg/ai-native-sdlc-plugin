@@ -820,6 +820,12 @@ for idx, chk in enumerate(checks):
                      "min_rules": min_rules, "rules_command": rules_cmd,
                      "rules_pattern": rules_pat},
         "enabled": enabled,
+        # A check scoped `always` that did not run is broken. A check scoped by
+        # paths or tags that did not match is simply not applicable to this
+        # change. Collapsing the two makes every commit that touches no shell
+        # script look like a gap, which is how an amber signal stops meaning
+        # anything. The reader of the result cannot tell them apart without this.
+        "trigger_scope": "always" if when.get("always") is True else "scoped",
         "triggered": enabled and bool(reasons), "triggered_by": reasons, "files": file_set,
     })
 
@@ -1067,7 +1073,8 @@ def record_failure(row):
 for c in plan["checks"]:
     row = {"id": c["id"], "why": c["why"], "severity": c["severity"],
            "blocking": c["severity"] == "block", "mode": c["mode"],
-           "command": c["command"], "triggered": c["triggered"],
+           "command": c["command"], "trigger_scope": c.get("trigger_scope", "scoped"),
+           "triggered": c["triggered"],
            "triggered_by": c["triggered_by"], "files_in_scope": len(c["files"]),
            "enabled": c["enabled"]}
     if not c["enabled"]:

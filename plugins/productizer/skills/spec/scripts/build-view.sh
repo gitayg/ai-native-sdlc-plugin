@@ -473,7 +473,12 @@ if result_raw is not None:
                            'scope': dig(c, 'coverage', 'observed', 'files_in_scope'),
                            'from': dig(c, 'coverage', 'from'),
                            'satisfied': dig(c, 'coverage', 'satisfied'),
-                           'why': c.get('why', '')})
+                           'why': c.get('why', ''),
+                           # Carried through so the tile can tell an `always`
+                           # check that did not run (a gap) from a scoped one
+                           # that did not match (not applicable). Dropping it
+                           # here made every check read as scoped.
+                           'trigger_scope': c.get('trigger_scope', 'scoped')})
         check_state = 'ok'
     except ValueError:
         check_state = 'unreadable'
@@ -880,8 +885,17 @@ else:
     # the colour saying stop and the headline saying fine. Untriggered is amber:
     # nothing was wrong, and nothing was checked either. Only a real failure is
     # red, and only an all-clear says PASS.
-    unrun = [c for c in bad_checks if c['status'] in ('not_triggered', 'disabled')]
-    failed = [c for c in bad_checks if c not in unrun]
+    # Only an `always` check that did not run is a gap. A path- or tag-scoped
+    # check that did not match is not applicable to this change, and counting
+    # it turned the tile amber on every commit that touched no shell script -
+    # which is how an amber signal stops meaning anything.
+    unrun = [c for c in bad_checks
+             if c['status'] in ('not_triggered', 'disabled')
+             and c.get('trigger_scope', 'scoped') == 'always']
+    na = [c for c in bad_checks
+          if c['status'] == 'not_triggered'
+          and c.get('trigger_scope', 'scoped') != 'always']
+    failed = [c for c in bad_checks if c not in unrun and c not in na]
     if failed:
         head, lvl = 'FAIL', 'att'
         detail = '%d of %d failed' % (len(failed), len(checks))
@@ -889,12 +903,25 @@ else:
             detail += ' \u00b7 %d never ran' % len(unrun)
     elif unrun:
         head, lvl = 'PARTIAL', 'warn'
+        # Neither the gaps nor the not-applicable ones ran, so neither counts
+        # among the passing. The denominator drops the not-applicable too:
+        # a check that does not apply to this change was never in the running.
+        ran = len(checks) - len(unrun) - len(na)
         detail = ('%d of %d ran and passed \u00b7 %d never triggered, so %s not checked'
-                  % (len(checks) - len(unrun), len(checks), len(unrun),
+                  % (ran, ran + len(unrun), len(unrun),
                      'it was' if len(unrun) == 1 else 'they were'))
+        if na:
+            detail += ' \u00b7 %d not applicable to this change' % len(na)
     else:
         head, lvl = str(verdict or 'unstated').upper(), ''
-        detail = '%d check(s), all passing' % len(checks)
+        # Do not count the not-applicable ones among the passing ones. Saying
+        # "3 all passing \u00b7 1 not applicable" of three checks is two claims
+        # that cannot both be true.
+        ran = len(checks) - len(na)
+        detail = '%d check(s), all passing' % ran
+        if na:
+            detail += (' \u00b7 %d not applicable to this change'
+                       % len(na))
     # Not the banner: the banner names which checks, and the question this
     # tile raises is what each one examined. That is the per-check table, and
     # it lives on another tab, so the link opens the tab as well as jumping.
