@@ -97,3 +97,150 @@ omission and full coverage look identical unless the gap is stated, which is the
 same reason a check declares what it must have examined (`references/checks.md`).
 
 Undocumented is a legitimate state. Silently undocumented is not.
+
+## The website checklist
+
+A release that changes what the product *is* changes what the site must *say*.
+Stage 8 is not done when the post is published; it is done when the site no
+longer describes the previous release.
+
+The distinction that matters here is **generated versus hand-maintained**,
+because it is the only thing predicting which item goes stale. A generated file
+cannot be forgotten — it can only be wrong, and it is wrong loudly. A
+hand-maintained file goes stale **silently**: nothing fails, nothing warns, and
+the omission is discovered by a reader months later. Every item below is
+labelled, and the hand-maintained ones are the checklist's entire reason for
+existing.
+
+Run from the site repo root, after a build. `SLUG` is the new product or page
+stem (`productizer`, `productizer-vs-*`).
+
+**Sitemap — GENERATED. Verify, do not edit.**
+
+```bash
+npx @11ty/eleventy --quiet
+grep -o '<loc>[^<]*</loc>' _site/sitemap.xml | grep "$SLUG"
+```
+
+Expect one `<loc>` per new page. Zero means the page is not in the build, not
+that the sitemap is wrong — fix the page, never the sitemap. Editing generated
+output produces a file that is correct until the next build.
+
+**`llms.txt` and `llms-full.txt` — HAND-MAINTAINED. These are the ones that rot.**
+
+```bash
+grep -ci "$SLUG" llms.txt llms-full.txt
+```
+
+Zero on a shipped product is the failure this checklist was written for. Nothing
+generates these files, nothing validates them, and no build breaks when they are
+a release behind — so they are wrong for as long as nobody looks. A new product
+needs its own section in **both**: `llms.txt` gets the positioning line, the
+blockquote and the link list; `llms-full.txt` gets the long-form entry and a
+`## Site structure` line per page. Adding pages to an existing product is the
+same check with a smaller diff, and is missed more often than adding a product.
+
+Also update, in the same pass, the cross-product lines that name the portfolio —
+the count and product list in the `llms.txt` header, and the "technical
+reference for X and Y" pointer. They are prose, so no count catches them.
+
+**`robots.txt` — HAND-MAINTAINED, rarely changes.**
+
+```bash
+cat _site/robots.txt
+```
+
+Confirm no `Disallow` matches the new paths. A blanket `Allow: /` covers new
+pages automatically; a per-path allowlist does not, and that is the trap.
+
+**Per-page `<head>` — GENERATED FROM A TEMPLATE, so a template defect hits every
+page using it at once.**
+
+```bash
+for f in _site/${SLUG}*.html; do
+  h=$(sed -n '1,/<\/head>/p' "$f")
+  printf "%-40s can=%s og=%s tw=%s ld=%s ent=%s\n" "$f" \
+    "$(printf '%s' "$h" | grep -c 'rel="canonical"')" \
+    "$(printf '%s' "$h" | grep -c 'property="og:')" \
+    "$(printf '%s' "$h" | grep -c 'name="twitter:')" \
+    "$(printf '%s' "$h" | grep -c 'application/ld+json')" \
+    "$(printf '%s' "$h" | grep -c '&[a-z]\{2,\};')"
+done
+```
+
+`ent` counts entity sequences in the **source**, which makes a non-zero value a
+lead and never a finding. **Verify it by parsing before you report it.** The
+four `productizer-vs-*` pages score `ent=3` — `<title>`, `og:title` and
+`twitter:title` each written with `&mdash;` and `&middot;` where the other pages
+use the literal characters — and this renders **correctly**. `<title>` is
+RCDATA and `content` is an attribute value; both decode character references.
+Measured on the live page, `document.title` is `Productizer vs Entire — a
+declared spec vs captured agent sessions · glick.run`, and
+`/&(mdash|middot);/.test(document.title)` is `false`.
+
+A raw-source grep therefore reports a browser-tab defect that no browser shows.
+This exact false positive has already been escalated once as a live bug. Decide
+it with a parser:
+
+```bash
+python3 - "$f" <<'PY'
+import sys
+from html.parser import HTMLParser
+class T(HTMLParser):
+    def __init__(s):
+        super().__init__(convert_charrefs=True); s.t=None; s.i=False
+    def handle_starttag(s,tag,a):
+        s.i = (tag=='title')
+    def handle_endtag(s,tag):
+        if tag=='title': s.i=False
+    def handle_data(s,d):
+        if s.i and s.t is None: s.t=d
+p=T(); p.feed(open(sys.argv[1],encoding='utf-8').read())
+print(repr(p.t))
+PY
+```
+
+A real title defect is one that survives decoding — the parsed string still
+containing `&mdash;`, or an empty or duplicated title. Source-level entity style
+is a consistency preference, worth normalising in the template but not a release
+blocker, and not a bug to file.
+
+**Structured data — HAND-MAINTAINED per page type.** Present where the page
+warrants it, and parsing:
+
+```bash
+python3 - "$f" <<'PY'
+import sys,re,json
+h=open(sys.argv[1],encoding='utf-8').read()
+for b in re.findall(r'<script[^>]*ld\+json[^>]*>(.*?)</script>',h,re.S):
+    try: print(json.loads(b).get('@type','?'))
+    except Exception as e: print('INVALID',e)
+PY
+```
+
+Valid JSON is the low bar; the `@type` must also match what the page is. A
+comparison page is not a `SoftwareApplication`. Absence is a legitimate state —
+the four `productizer-vs-*` pages currently carry none, while `productizer.html`
+(`SoftwareApplication`), `productizer-features.html` (`ItemList`) and
+`productizer-comparison.html` (`BreadcrumbList` + `ItemList`) do — but it should
+be a decision rather than an accident. This is the one real gap on those four
+pages, and unlike the entity style above it is not a false positive.
+
+**An empty grep is not a confirmed absence.** Every check above returns zero both
+when the thing is missing and when the pattern, the path or the glob is wrong.
+Positive-control each one against a product already on the site before believing
+a zero:
+
+```bash
+grep -ci <product> llms.txt llms-full.txt   # must be non-zero; if it is not, the command is broken
+```
+
+The same trap applies to the HTTP check. glick.run serves a **soft 404** — an
+unknown path returns `200` with the homepage body — so a status code proves
+nothing on its own. Assert the page's own title:
+
+```bash
+curl -s "https://glick.run/${SLUG}.html" | sed -n 's:.*<title>\(.*\)</title>.*:\1:p'
+```
+
+A page that returns `200` while serving the homepage title does not exist.
