@@ -101,6 +101,88 @@ takes years.
 level caveat is read once and then never again, while ids are cited forever. The
 status has to travel with the requirement.
 
+## Two strengths inside `inferred`
+
+`inferred` answers *has anybody agreed to this?* It does not answer *how good is
+the evidence?*, and those are different questions with different consequences.
+
+A requirement read from a route plus a test that exercises it, and a requirement
+read from a bullet in a README, are both unagreed. They are not both equally
+likely to be **true**. Once they are written in the same form, the person doing
+the ratification cannot tell them apart, and ratifying the second is a much
+larger act than ratifying the first — they are being asked to vouch for a
+sentence nothing has ever checked.
+
+So `inferred` carries a strength, written into the marker line:
+
+```
+- **R7** — When an authenticated platform administrator requests
+  `GET /api/version-check`, the `crane` server shall return the available
+  release version.
+  Inferred from `server/index.js:462`. Unconfirmed.
+
+- **R9** — When an order is placed after 16:00, the `northwind` dispatcher shall
+  ship it the following day.
+  Inferred (weak evidence) from `notes/dispatch.md` heading "Cut-off".
+  Unconfirmed. No code, test or config in this repo asserts this.
+```
+
+Strength is a property of the evidence, not a confidence someone chose. The
+survey measures it and the Verdict names it:
+
+- **strong** — behaviour the code states to a machine: a declared entry point, a
+  route or RPC handler, a CLI subcommand or flag, an exported symbol, a config
+  key the code reads or declares, a test name, an error path.
+- **weak** — what the repo says about itself: README and doc headings, CI job and
+  step names, the inventory of skills and scripts, change history.
+
+Why the marker and not a separate section, a separate file, or a header caveat:
+all three were already rejected above for the `inferred` status itself, for
+reasons that apply unchanged here. A caveat is read once; ids are cited forever.
+
+### Why the refusal became a fork
+
+The survey used to tally strong evidence only, and stop below the threshold. The
+refusal was correct about the evidence and wrong about what to do with it: it
+threw away every weak source it had already collected.
+
+Measured, on this product's own repository, before the change:
+
+```
+behaviour sections     routes 2, test names 0, error paths 0, entry points 0
+collected and discarded  Existing docs 60, Doc headings 18, Change history 20,
+                         CI and gates 2
+verdict                NOT ENOUGH EVIDENCE TO DRAFT A SPEC.
+```
+
+A hundred lines of real evidence, discarded, on the repository of the tool doing
+the discarding. Two things were wrong and only one of them was the threshold —
+the probes also recognised nothing but HTTP services, so a product made of
+scripts and skills had no surface the survey could see. Both are fixed: the
+probes widened (below), and the threshold became a fork.
+
+The fork has three outcomes and the Verdict prints exactly one of them, above a
+per-section tally showing the numbers that produced it:
+
+| Verdict | Condition | Meaning |
+|---|---|---|
+| `DRAFT TIER: STRONG` | strong ≥ 8 | Draft as normal, up to 30, code citations. |
+| `DRAFT TIER: WEAK` | strong < 8 and weak ≥ 6 | Draft up to 10, every one marked `(weak evidence)`, and report the strong-tier gap as the headline finding. |
+| `NOT ENOUGH EVIDENCE` | both under floor | Refuse. Ask for the entry points by hand. |
+
+**The bottom is still reachable and still means what it said.** A directory with
+no README worth reading, no CI, no doc headings and no history is not a project
+that describes itself, and the survey refuses there exactly as it did before.
+Adding a second tier below the first would have quietly removed the refusal, and
+a survey that always finds something to draft from is a survey that has stopped
+being evidence.
+
+**The weak tier does not soften the strong one.** The two tallies are separate
+counters; no weak line can push a strong total over its floor, and the Verdict
+prints both numbers with both floors whichever way it went. The failure this
+guards against is not drafting from weak evidence — that is the point of the tier
+— it is drafting from weak evidence and describing it as strong.
+
 ## The procedure
 
 1. **Bind and scaffold first** (Stages 0 and 0a). Import writes into an existing
@@ -126,16 +208,86 @@ by whatever pace a human can genuinely review at.
 
 `scripts/import-survey.sh [repo-path]` gathers the evidence and nothing else. It
 emits a plain-text report: languages, manifests, declared and inferred entry
-points, HTTP routes and RPC handlers, file-based routes, config and feature flag
-reads, config files, test files, test names, error paths, docs and doc headings,
-CI and gate files, and change history.
+points, **CLI surface**, **public API**, HTTP routes and RPC handlers, file-based
+routes, config and feature flag reads, **declared config schema keys**, config
+files, test files, test names, error paths, docs and doc headings, CI and gate
+files, **CI job and step names**, the **skill and script inventory**, and change
+history. Each section declares which tier it feeds, and the Verdict prints the
+per-section tally it decided on.
+
+### The probes that are not about HTTP
+
+Four of the five sections in bold above were added because the survey could
+describe a web service and almost nothing else. A product whose entire surface is
+a command-line tool, a library, a set of skills or a pile of scripts produced an
+empty behaviour tally and a refusal, and the refusal read as *this repo has no
+behaviour* when it meant *this survey only knows how to look for routes*.
+
+- **CLI surface** (strong). `argparse` / `click` / `typer`; `commander`, `yargs`,
+  `process.argv`; `cobra` and the Go `flag` package; `clap`; and, for shell, a
+  `usage()` function, a `Usage:` banner and the `case` branches that dispatch
+  subcommands and flags. A subcommand is the same kind of claim as a route: a
+  caller depends on the name.
+- **Public API** (strong). Exported symbols — `export` and `module.exports`,
+  module-level `def` and `class`, exported Go funcs and types, `pub` items, public
+  Java and Kotlin declarations, Ruby modules and `def self.` — plus `bin`,
+  `exports`, `main` in `package.json` and `console_scripts` / `[project.scripts]`
+  in Python packaging. Lines already reported under *Entry points — declared* are
+  filtered out before this section is counted, because a `bin` map is one
+  committed decision and counting it twice is how a survey talks itself into
+  confidence it did not earn.
+- **Config schema keys** (strong). The declared setting *names* in `config.json`,
+  `settings.yaml`, a `*.config.toml` and the like. Names only, and enforced
+  twice: every line is rewritten to drop everything right of the key, and any line
+  that did not survive that rewrite is dropped rather than printed. A config file
+  that is not a `.env` can still hold a token, and this report gets pasted into
+  chats.
+- **CI job and step names** (weak). Workflow job ids, `name:`, `needs:`,
+  `runs-on:`, `uses:`, and GitLab stages. A job name is a statement of what must
+  hold before a change ships. It is weak because it is a string somebody typed:
+  a job called `test` proves a job called `test` exists and nothing about what it
+  asserts. The pattern deliberately does not match generic `key: value`, because a
+  workflow `env:` block holds literal values.
+- **Skill and script inventory** (weak). `SKILL.md` files and their `name` /
+  `description` frontmatter, plugin manifests, and the scripts under `scripts/`,
+  `bin/` and `hooks/`. For a repo whose product *is* its documents and scripts,
+  this is the closest thing it has to a surface. The scripts' own `usage()` text
+  is not repeated here — it is reported at strong tier under *CLI surface*, and
+  repeating it would inflate the weak tally with lines already counted.
+
+One exclusion had to be narrowed for the two code-surface probes. The shared
+test-path filter treats any directory called `spec` or `specs` as a test tree,
+which is right for RSpec and wrong for a Claude plugin, whose skill lives in
+`skills/spec/`. On this product's own repository that one pattern hid every
+script's command-line surface from the survey written to find it. The two new
+probes therefore use a variant that anchors bare `spec/` to the repo root, so the
+RSpec layout is still excluded and a nested skill directory is not; every
+pre-existing section keeps the exact filter it was tuned with, and their output
+is unchanged.
 
 Design constraints it holds to:
 
 - **It never writes to the surveyed repo.** Temp files live under `TMPDIR` and
   are removed on exit. Verified by comparing modification times across a run.
+- **Its help text describes itself, and is printed by itself.** `--help` and `-h`
+  print the usage and exit 0; an unknown option or a second path is refused by
+  name and exits 2; an unenterable path exits 1. This is not housekeeping. Before
+  it, `--help` had no handler at all: the flag fell through to the repo-path
+  variable and into `cd`, which recognised it as its own builtin option and
+  printed bash's `cd` help — a complete and correct description of an entirely
+  different program, advertising `-L`, `-P` and `-@` as options of this survey,
+  at exit 0. Help text that lies is worse than absent help text, because the
+  reader stops looking. The usage lives in a `usage()` function inside the script
+  rather than in a comment, so the thing that drifts and the thing that prints
+  are the same thing.
 - **It never executes anything from the repo.** A `package.json` script and a
   `Makefile` target are quoted as text, never run.
+- **A value that could not be measured is never rendered as zero.** A probe that
+  ran and found nothing prints `(none found)` and tallies 0. A probe that could
+  not run at all — the git history on an unreadable checkout — is marked
+  `unavailable` and its line count prints as `--` in the Verdict tally, never as
+  a number. The two are different facts about the repo and the report has to keep
+  them apart, because 0 invites the reader to conclude the thing is absent.
 - **It degrades silently.** Every probe prints `(none found)` rather than
   failing. A repo with no tests, no routes and no readable git is a normal input.
   Git being unreadable — a sandboxed path, an export, a bare checkout — removes
@@ -176,6 +328,26 @@ Concretely, not as a disclaimer.
   `server/routes/config.js` is listed under config files because it matches on
   name; `process.env[m[1]]` yields a config hit with no name in it. Read the
   citation, not the count.
+- **The widened probes are wider, not complete.** Observed firing, each on a real
+  repository or on a fixture built for it: the shell, Python, JavaScript, Go
+  (cobra and stdlib `flag`) and Rust (clap) CLI probes; the JavaScript, Python,
+  Go, Rust, Java and Ruby export probes and the `package.json` / `pyproject.toml`
+  declarations; the JSON and TOML config-key probes; the GitHub Actions job
+  probe; and the skill and script inventory. **Not observed firing, and therefore
+  unverified:** the YAML and INI config-key probes, and the GitLab, Azure,
+  Jenkins and CircleCI job probes. An unverified probe returning nothing is not
+  evidence of absence, and the Verdict tally is the place to check which probes
+  contributed anything at all.
+- **A CLI probe reports the parser, not the interface.** Subcommands assembled in
+  a loop, dispatched through a lookup table, or generated from a manifest do not
+  appear. A repo can plainly have twenty subcommands and show three.
+- **An exported symbol is not a public API.** Python has no access control, so
+  every module-level `def` is reported; a Go exported func in an internal package
+  is exported and private at once. The section over-reports on purpose, and the
+  per-file quota is what stops one large module spending the whole cap.
+- **Config schema keys are names in a file, not settings the code reads.** A key
+  in a template nobody loads looks identical to one the product depends on, and
+  the survey cannot tell a schema from an example.
 - **Framework coverage is a list, not a rule.** Express-shaped JavaScript,
   Flask/FastAPI/Django, Go router methods, Spring annotations, Rails routes,
   Tauri commands and the MCP SDK's `server.tool` / `addTool` shapes are
@@ -214,6 +386,17 @@ Concretely, not as a disclaimer.
 - **Thirty requirements will not describe a large system.** The cap is chosen so
   a person can read the draft, not so the draft is complete. An import that feels
   complete has almost certainly stopped being read.
+- **A weak-tier draft is a set of questions wearing the grammar of assertions.**
+  EARS has no mood for *somebody wrote this down once*, so a weak requirement
+  reads with the same authority as a strong one and is held apart only by its
+  marker line. That marker is the entire safeguard, which is why dropping it as
+  tidying is the specific failure to watch for.
+- **A weak tier can be reached for the wrong reason.** Under-eight behaviour
+  lines means the probes found little, not that little exists. A codebase in a
+  language none of the probes cover produces the same verdict as a documentation
+  repo, and the two want completely different next steps. The draft has to say
+  which it thinks it is, from the language counts, and be wrong out loud rather
+  than quietly.
 
 ## Limits worth stating to the user before starting
 

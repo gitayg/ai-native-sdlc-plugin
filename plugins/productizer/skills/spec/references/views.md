@@ -51,6 +51,51 @@ contradictions, active requirements with no test, the last check run if it
 refused, drift findings. A dashboard where the good numbers are large and the
 bad ones are a footnote is a dashboard people learn to feel reassured by.
 
+**A half-finished import has to look half-finished.** Stage 0c drafts
+requirements out of code that already runs. Every one lands `inferred` and
+unconfirmed, carries the file or test it was read from, and cannot trigger the
+Stage 2 contradiction halt until a person promotes it — which is a commit, not a
+click. Counted nowhere, a spec holding thirty unpromoted sentences and a spec
+holding none draw identically, and an import that has barely started reads as
+finished. So the overview carries **`N inferred, awaiting promotion`** against
+the size of the spec, with the promotions and import rejections recorded so far
+beside it, and the queue itself underneath: one row per requirement with the
+citation it was drafted from, so the list can be worked from the page instead of
+grepped out of the spec. Where the marker says `Inferred (weak evidence)` the
+row says so too: a sentence cited from a doc or a CI job name is a weaker claim
+than one cited from a route and the test that exercises it, and a queue that
+flattened the two would be handing back the distinction the marker exists to
+carry.
+
+That tile is amber, never red. An unpromoted requirement blocks nothing — which
+is the whole point of the status, and also why nobody notices it — so it belongs
+with *soon*, beside requirements with no test, rather than with *stop* beside an
+open contradiction.
+
+**The queue has four empty states and they are not interchangeable**, because
+each one leads somewhere different. No spec at all is *cannot determine*, drawn
+as an em dash: a page that could not read a file does not know how long the
+queue is. A spec that is there and could not be opened is *unknown*, a `?` —
+same ignorance, different cause, and the cause is the actionable part. A spec
+carrying no import markers at all is *not applicable*: nothing was ever inferred
+here, so there is no queue to be part-way through. And a spec whose markers have
+all gone, with promotions recorded against ids the import drafted, is a
+**measured zero** — somebody read those sentences and said so. Only the last of
+the four is a zero, and drawing any of the other three as one is exactly the
+failure the inferred status exists to prevent, committed on the tile that
+reports it.
+
+**What the number does not tell you goes under it.** Nothing in the queue has
+been judged true: a citation says where a sentence was read from, not that the
+sentence is right, and a citation that no longer resolves still counts as one.
+Promotion deletes the marker line outright, so the promoted figure is only what
+the decision record records — a row naming an id the spec has, reading as a
+confirmation, and saying the id came from the import. A promotion written down
+any other way is invisible to the page and is not counted, and the page says so
+rather than inventing a denominator to make the fraction look finished. The
+queued ids also appear under *requirements with no test*, because the acceptance
+table is for agreed requirements and an inferred one is given no row on purpose.
+
 The second half is a **kanban of what is actually moving**, one card per item,
 each sitting in the column of the stage that is *holding* it — not the stage it
 will reach next. Columns follow the lifecycle: backlog, intake, build, check,
@@ -170,7 +215,13 @@ contradictions and acceptance rows, `backlog.md` for the queue with its columns
 mapped from that table's own header, `constitution.md` for ratified principles,
 `checks-result.json` for Stage 5, and `git log` for releases — a release being a
 commit whose subject carries a version, with that commit's own message body as
-its bullets.
+its bullets. The import promotion queue is read from `spec.md` too — from the
+literal markers `templates/import.md` mandates, `Inferred from … Unconfirmed.`
+with its `Inferred (weak evidence) from …` tier and `Withdrawn. Rejected at
+import:`, and from the decision record, which is the only place the promotion
+procedure writes a ratification down. Whether a file exists is asked of the
+filesystem separately from whether it could be read, so "there is no spec" is
+never printed over a spec that is sitting right there.
 
 **Stage state is not derived here.** `scripts/stage-status.sh` already reads
 every stage off the tree and already keeps `not run`, `unknown` and `n/a` apart;
@@ -181,11 +232,14 @@ Three things the generator will not do, because each is how a dashboard starts
 lying:
 
 - **It never renders an unreadable value as a measured zero.** A tile shows a
-  number when a file was read, an em dash when the file does not exist, and a
-  `?` when it exists and would not parse — three renderings, each with the
-  reason beside it and what its absence costs. `checks-result.json` missing is
-  "nothing has been checked"; the same file present and malformed is "unknown",
-  never `PASS`.
+  number when a file was read, an em dash when the file does not exist, a `?`
+  when it exists and could not be read or parsed, and `n/a` when it was read and
+  the question does not apply here — four renderings, each with the reason
+  beside it and what its absence costs. `checks-result.json` missing is "nothing
+  has been checked"; the same file present and malformed is "unknown", never
+  `PASS`. A spec with no requirement awaiting promotion is `n/a` when the import
+  never ran and a measured `0` when every drafted sentence has been ratified,
+  because those are two different things to do next.
 - **It ships no sample data.** An absent backlog renders as an absent backlog
   and says what that costs; a present but empty one renders as an empty table.
   The only text on the page that is not this repo's own state is the

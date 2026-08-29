@@ -13,10 +13,10 @@ intent (issue | text box | file)
   → intake → living spec → plan.md → diff + tests → PR → incident → new intent
 ```
 
-The spec lives at `.claude/sdlc/spec.md` — one per repo, always current, and
-inside `.claude/` so no build, packaging step or doc generator ever picks it up.
-The record of any single change is the spec diff, joined to its issue by the
-branch name and PR title.
+The spec lives at `.claude/productizer/spec.md` — one per product, always
+current, and inside `.claude/` so no build, packaging step or doc generator
+ever picks it up. The record of any single change is the spec diff, joined to
+its issue by the branch name and PR title.
 
 ## Install
 
@@ -36,8 +36,9 @@ Just describe what you want. The skill works out which stage you are in from
 the issue and the branch, so it knows whether you are starting or resuming.
 
 The first time it needs GitHub or Jira, it asks once — repo, source of truth,
-project key — and writes `.claude/sdlc.json`. It never asks again in that repo,
-and it never asks at all in a scheduled run, where nobody is there to answer.
+project key — and writes `.claude/productizer/config.json`. It never asks again
+in that repo, and it never asks at all in a scheduled run, where nobody is
+there to answer.
 
 "Skip Jira — GitHub only" is a real answer, not a half-configuration.
 
@@ -60,16 +61,11 @@ drafting step an empty page to invent on.
 | **2 Design** | rule on anything that contradicts the spec | a spec delta, in EARS |
 | **3 Build** | interrogate the plan before any code | `plan.md`, then the implementation |
 | **4 Test** | nothing — it verifies before you look | passing checks, pasted |
-| **4C Check** | declare which checks matter, once | a result that says what was examined |
-| **5 Deploy** | judge intent and risk, not mechanics | draft PR, review findings |
-| **5B Document** | nothing — it reads the spec | the user guide, regenerated per release |
-| **5C Announce** | publish it yourself | a drafted post and release email |
-| **6 Maintain** | triage what production surfaced | a new issue, back to stage 1 |
-
-The lettered stages do not renumber the ones after them. `Stage 5` means the
-same thing it did before 4C existed, so every plan, test and review finding that
-cites a stage keeps pointing where it pointed — the same rule the requirement
-ids follow.
+| **5 Check** | declare which checks matter, once | a result that says what was examined |
+| **6 Deploy** | judge intent and risk, not mechanics | draft PR, review findings |
+| **7 Document** | nothing — it reads the spec | the user guide, regenerated per release |
+| **8 Announce** | publish it yourself | a drafted post and release email |
+| **9 Maintain** | triage what production surfaced | a new issue, back to stage 1 |
 
 Stages never skip forward, and nothing plans from an intent that has not been
 through intake — until then you cannot know whether the work extends the spec or
@@ -79,8 +75,8 @@ contradicts it, and the second one is a stop, not a task.
 
 Stage 1 assumes an intent exists. In practice somebody wanted the thing weeks
 earlier, and in between it lived in a head or a Slack thread. The backlog is
-where that waiting happens on purpose — `.claude/sdlc/backlog.md`, `B`-numbered,
-ordered by priority.
+where that waiting happens on purpose — `.claude/productizer/backlog.md`,
+`B`-numbered, ordered by priority.
 
 **There is no priority field.** The order of the file is the ranking. Two
 representations of one ordering disagree the first time someone edits one and
@@ -95,9 +91,9 @@ Five statuses: `todo`, `long-term`, `in-progress`, `blocked`, `done` — where
 spec and the release history.
 
 **An item can name a Jira key, and then Jira owns its status.** The mapping is
-declared once in `.claude/sdlc.json`, and nothing is ever written back: a
-markdown table arguing with a Jira workflow, a board filter and three automation
-rules loses, and loses silently. Move the ticket in Jira.
+declared once in `.claude/productizer/config.json`, and nothing is ever written
+back: a markdown table arguing with a Jira workflow, a board filter and three
+automation rules loses, and loses silently. Move the ticket in Jira.
 
 The published backlog view is the one view you may rearrange, because reordering
 changes nothing that was agreed. Even then it does not write the file — it hands
@@ -165,7 +161,7 @@ not considered failure, and the tests will inherit that gap.
 ## Products can span repos
 
 A product is one or more repos. Exactly one of them is the **spec home** and
-holds `.claude/sdlc/spec.md`; the others point at it:
+holds `.claude/productizer/spec.md`; the others point at it:
 
 ```json
 "product": {
@@ -199,13 +195,13 @@ stop being the audit trail.
 ## Make it yours, per repo
 
 Everything the lifecycle produces already lives in the repo: the binding
-(`.claude/sdlc.json`), the artifacts (`docs/sdlc/`), the review policy
-(`REVIEW.md`), the bands (`ops/bands.yaml`). The templates that shape them
-can be too:
+(`.claude/productizer/config.json`), the artifacts (`docs/sdlc/`), the review
+policy (`REVIEW.md`), the bands (`ops/bands.yaml`). The templates that shape
+them can be too:
 
 ```
-.claude/sdlc/templates/spec.md     this repo's spec shape
-.claude/sdlc/templates/REVIEW.md   this repo's review passes
+.claude/productizer/templates/spec.md     this repo's spec shape
+.claude/productizer/templates/REVIEW.md   this repo's review passes
 ```
 
 Repo-first, plugin as fallback. Commit only what differs — one file overrides
@@ -229,11 +225,11 @@ and warns that scheduled tasks only run while the app is open.
 
 ## The checks are yours to declare
 
-Stage 4C runs whatever you put in `.claude/sdlc/checks.yaml` — a secret scan on
-every change, a linter on the paths that have one, a heavier ruleset on anything
-touching auth. Triggers are `always`, path globs, or **requirement tags**, which
-is what makes the scrutiny per-item: an auth requirement earns the auth ruleset,
-a copy edit does not.
+Stage 5 runs whatever you put in `.claude/productizer/checks.yaml` — a secret
+scan on every change, a linter on the paths that have one, a heavier ruleset on
+anything touching auth. Triggers are `always`, path globs, or **requirement
+tags**, which is what makes the scrutiny per-item: an auth requirement earns
+the auth ruleset, a copy edit does not.
 
 Every check states what it must have examined, and that is the part that
 matters. A scanner reporting *Grade A (100/100)* after opening one file of
@@ -249,7 +245,7 @@ pulls it.
 
 Two stages run once per **release**, not once per intent.
 
-**5B Document** regenerates the user guide from the active spec. Per intent you
+**7 Document** regenerates the user guide from the active spec. Per intent you
 would get a changelog with headings — every entry accurate, the document as a
 whole describing no product. Per release is also the only cadence at which
 removals are visible: within one change a superseded requirement looks like an
@@ -258,33 +254,33 @@ of things that used to work and no longer do. Screenshots are captured from the
 released build with the version in the filename, because prose gets reviewed and
 images do not.
 
-**5C Announce** drafts the release post and the release email from the spec
+**8 Announce** drafts the release post and the release email from the spec
 deltas and the merged PRs. Every claim traces to one of them, every number was
 measured, and the post names the adjacent thing the release does *not* do.
 
-**Agent-driven, human-gated.** 5C runs as an agent stage like the others — it
-writes both artefacts, captures the screenshots, checks the release is actually
-installable, and reports what it could not verify. The publish itself is a hook
-(`publish-gate.sh`), not a convention: it blocks `gh release create`, `npm
-publish`, a tag push, a mail API and a site deploy, and allows everything the
-agent needs for its own work. A rule the agent is only asked to remember is a
-rule it eventually reasons past.
+**Agent-driven, human-gated.** Stage 8 runs as an agent stage like the others —
+it writes both artefacts, captures the screenshots, checks the release is
+actually installable, and reports what it could not verify. The publish itself
+is a hook (`publish-gate.sh`), not a convention: it blocks `gh release create`,
+`npm publish`, a tag push, a mail API and a site deploy, and allows everything
+the agent needs for its own work. A rule the agent is only asked to remember is
+a rule it eventually reasons past.
 
 ## Choosing the model per stage
 
-Each stage names a model and an effort in `.claude/sdlc.json`, shipped with
-recommended defaults. Two halves, and they are not interchangeable: a stage that
-starts a **subagent** carries the setting in frontmatter and it is enforced; a
-stage that runs **in your session** inherits your session model whatever the
-file says, so the skill tells you which stage it is entering instead of
-pretending to have applied something.
+Each stage names a model and an effort in `.claude/productizer/config.json`,
+shipped with recommended defaults. Two halves, and they are not
+interchangeable: a stage that starts a **subagent** carries the setting in
+frontmatter and it is enforced; a stage that runs **in your session** inherits
+your session model whatever the file says, so the skill tells you which stage
+it is entering instead of pretending to have applied something.
 
 Effort buys most at **intake** and **review** — low volume, expensive to get
 wrong. It buys least on nightly evals and 2σ diagnosis, which run constantly and
 have right answers. Running everything at high effort is the same care with a
 larger bill, and it makes the nightly suite expensive enough to switch off.
 
-Stage 4C takes **no model at all**. It compares coverage arithmetically; a model
+Stage 5 takes **no model at all**. It compares coverage arithmetically; a model
 asked *did this check pass* believes the green summary line, which is the
 failure the stage exists to prevent.
 

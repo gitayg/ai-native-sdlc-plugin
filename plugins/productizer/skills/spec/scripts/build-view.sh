@@ -275,6 +275,115 @@ if spec is not None:
 untested = [i for i in spec_ids if i not in ac_ids]
 
 # --------------------------------------------------------------------------
+# the import promotion queue, read out of spec.md
+# --------------------------------------------------------------------------
+# Stage 0c drafts requirements from code that already exists. Every one lands
+# inferred and unconfirmed, carries the file or test it was read from, and
+# cannot trigger the Stage 2 contradiction halt until a person promotes it -
+# which is a commit, not a click. Left unmeasured, a spec holding thirty
+# unpromoted sentences and a spec holding none render identically here, and a
+# barely-started import reads as a finished one. That is the confidently-wrong
+# failure this whole page exists to refuse, so it is counted.
+#
+# Only the literal markers templates/import.md mandates are read. Nothing is
+# inferred about the inference:
+#
+#   Inferred from ... Unconfirmed.                  awaiting a person
+#   Inferred (weak evidence) from ... Unconfirmed.  the same, cited from a doc
+#   Withdrawn. Rejected at import: ...              refused, the id spent
+#
+# The parenthetical is matched rather than assumed away. A weak-tier requirement
+# this queue did not see would be drawn as an agreed one, which is worse than
+# never drafting it - it would now look measured.
+#
+# Promotion deletes the marker line outright, so a promoted requirement leaves
+# nothing behind in its own entry. The one place the promotion procedure says
+# the ratification is written is the decision record, and a row there is counted
+# as a promotion only when it names an id this spec actually has, reads as a
+# confirmation, and says the id came from the import. A promotion recorded some
+# other way is invisible to this page, and the panel says so underneath itself
+# rather than quietly counting it - an unread promotion is not a missing one.
+RE_INFER   = re.compile(r'^Inferred(\s*\(([^)]*)\))?\s+from\b')
+RE_REJIMP  = re.compile(r'^Withdrawn\.\s*Rejected at import\b', re.I)
+RE_RID     = re.compile(r'\bR[0-9]+\b')
+RE_RATIFY  = re.compile(r'confirm|promot|ratif', re.I)
+RE_FROMIMP = re.compile(r'import|inferred', re.I)
+
+# spec.md missing and spec.md unreadable are two different answers, and slurp
+# returns None for both. Asking the filesystem separates them, so "there is no
+# spec" is never printed over a spec that is sitting right there.
+SPEC_EXISTS = os.path.exists(rel(SPEC_PATH))
+inf_await, inf_rejected, inf_promoted, spec_all_ids = [], [], [], []
+
+if spec is not None:
+    slines = spec.split('\n')
+    for i, line in enumerate(slines):
+        mm = RE_ACTIVE.match(line)
+        if not mm:
+            continue
+        rid = mm.group(1)
+        spec_all_ids.append(rid)
+        # The entry runs to the first blank line or the next requirement rather
+        # than a fixed three-line window, so a marker sitting under a sentence
+        # that wrapped over four lines is still found. A marker this page fails
+        # to see is a requirement it reports as agreed.
+        entry = []
+        for follow in slines[i + 1:]:
+            if not follow.strip() or RE_ACTIVE.match(follow):
+                break
+            entry.append(follow.strip())
+        if any(RE_REJIMP.match(e) for e in entry):
+            inf_rejected.append(rid)
+            continue
+        k, mo = None, None
+        for j, e in enumerate(entry):
+            mo = RE_INFER.match(e)
+            if mo:
+                k = j
+                break
+        if k is None:
+            continue
+        # The marker wraps too. It runs to the line carrying "Unconfirmed." when
+        # it was written correctly, and to the end of the entry when it was not -
+        # which is reported as an incomplete marker, never silently as a
+        # promotion. The weak tier is allowed to say more after "Unconfirmed.",
+        # so the word is looked for in the line rather than at the end of it.
+        marker = []
+        for e in entry[k:]:
+            marker.append(e)
+            if 'Unconfirmed.' in e:
+                break
+        mtext = ' '.join(marker)
+        cite = mtext[mo.end():].split('Unconfirmed.')[0]
+        cite = cite.strip().rstrip('.').replace('`', '').strip()
+        what = ' '.join([line[mm.end():].strip()] + entry[:k]).strip()
+        what = what.lstrip('\u2014-').strip()
+        inf_await.append({'id': rid, 'what': what, 'cite': cite,
+                          'sealed': 'Unconfirmed.' in mtext,
+                          'weak': bool(mo.group(2) and 'weak' in mo.group(2).lower())})
+
+    known = set(spec_all_ids)
+    seen = set(x['id'] for x in inf_await) | set(inf_rejected)
+    dsec = re.split(r'^##\s+Decision record\s*$', spec, flags=re.M)
+    if len(dsec) > 1:
+        dbody = re.split(r'^##\s', dsec[1], flags=re.M)[0]
+        for drow in dbody.split('\n'):
+            if not drow.startswith('|'):
+                continue
+            if not (RE_RATIFY.search(drow) and RE_FROMIMP.search(drow)):
+                continue
+            for rid in RE_RID.findall(drow):
+                if rid in known and rid not in seen:
+                    seen.add(rid)
+                    inf_promoted.append(rid)
+
+inf_promoted.sort(key=lambda r: int(r[1:]))
+inf_rejected.sort(key=lambda r: int(r[1:]))
+
+# What this file records about the import, which is a floor and not a census.
+INF_RECORDED = len(inf_await) + len(inf_promoted) + len(inf_rejected)
+
+# --------------------------------------------------------------------------
 # backlog.md  - columns are read from the table's own header, not assumed
 # --------------------------------------------------------------------------
 ST_RANK = {'blocked': 0, 'in-progress': 1, 'in progress': 1, 'todo': 2,
@@ -452,26 +561,42 @@ def cp(text, label='copy prompt'):
     return '<button class="cp" data-copy="%s">%s</button>' % (esc(text), esc(label))
 
 # --- stat tiles -----------------------------------------------------------
-# Three renderings, kept apart on purpose.
-def tile_num(label, n, detail, level=''):
-    """A measured value. The number is real; level is 'att', 'warn' or ''."""
-    return ('<div class="stat %s"><span class="stat-l">%s</span>'
-            '<span class="stat-n">%s</span><span class="stat-d">%s</span></div>'
-            % (level, esc(label), esc(n), detail))
+# Four renderings, kept apart on purpose: a measured number, a file that was
+# never written, a file that could not be read, and a question that does not
+# apply to this repo. Collapsing any of the last three into a zero is how a
+# dashboard starts lying, so each one has its own glyph and its own reason.
+# `style` is an attribute string, not a value, and every existing caller omits
+# it - a tile that passes nothing renders exactly the bytes it rendered before.
+WIDE = ' style="grid-column:1/-1"'
 
-def tile_absent(label, why):
+def tile_num(label, n, detail, level='', style=''):
+    """A measured value. The number is real; level is 'att', 'warn' or ''."""
+    return ('<div class="stat %s"%s><span class="stat-l">%s</span>'
+            '<span class="stat-n">%s</span><span class="stat-d">%s</span></div>'
+            % (level, style, esc(label), esc(n), detail))
+
+def tile_absent(label, why, style=''):
     """Never run. An em dash, and what it costs that it was never run."""
-    return ('<div class="stat"><span class="stat-l">%s</span>'
+    return ('<div class="stat"%s><span class="stat-l">%s</span>'
             '<span class="stat-n n-absent" title="%s">—</span>'
             '<span class="stat-d">not run · %s</span></div>'
-            % (esc(label), esc(why), esc(why)))
+            % (style, esc(label), esc(why), esc(why)))
 
-def tile_unknown(label, why):
+def tile_unknown(label, why, style=''):
     """Read and not understood, or not derivable. Never a zero."""
-    return ('<div class="stat unk"><span class="stat-l">%s</span>'
+    return ('<div class="stat unk"%s><span class="stat-l">%s</span>'
             '<span class="stat-n n-unknown" title="%s">?</span>'
             '<span class="stat-d">unknown · %s</span></div>'
-            % (esc(label), esc(why), esc(why)))
+            % (style, esc(label), esc(why), esc(why)))
+
+def tile_na(label, why, style=''):
+    """The fourth answer: read, and the question does not apply. Not a failure
+    and not a zero - and the one a dashboard usually spends as a zero, because
+    n/a and 0 look the same until someone acts on the difference."""
+    return ('<div class="stat"%s><span class="stat-l">%s</span>'
+            '<span class="stat-n n-absent" title="%s">n/a</span>'
+            '<span class="stat-d">not applicable · %s</span></div>'
+            % (style, esc(label), esc(why), esc(why)))
 
 stats = []
 
@@ -549,6 +674,42 @@ elif not SPEC_DATE:
     stats.append(tile_unknown('Spec last changed', 'on disk but never committed'))
 else:
     stats.append(tile_num('Spec last changed', SPEC_DATE, 'last commit touching the spec'))
+
+# Onboarding progress, spanning the row because it is about the whole spec
+# rather than one number in it. Amber, not red: an unpromoted requirement is not
+# blocking anything - it cannot halt Stage 2, which is exactly why nobody
+# notices it - so it belongs with "soon", beside requirements with no test.
+INF_LABEL = 'Inferred, awaiting promotion'
+if not SPEC_EXISTS:
+    stats.append(tile_absent(INF_LABEL,
+                             'no %s; an import cannot be part-way through a spec that does not exist'
+                             % SPEC_PATH, style=WIDE))
+elif spec is None:
+    stats.append(tile_unknown(INF_LABEL,
+                              '%s exists and could not be read; a queue that could not be counted is '
+                              'not an empty one' % SPEC_PATH, style=WIDE))
+elif INF_RECORDED == 0:
+    stats.append(tile_na(INF_LABEL,
+                         'no requirement in this spec was ever drafted by import, so there is no queue '
+                         'to be part-way through', style=WIDE))
+elif inf_await:
+    _weak = len([x for x in inf_await if x['weak']])
+    stats.append(tile_num(INF_LABEL, str(len(inf_await)),
+                          esc('of %d requirement(s) in the spec · %d promoted, %d rejected at import '
+                              'recorded so far · %s · promotion is a human commit, and until it '
+                              'happens none of these can halt Stage 2'
+                              % (len(spec_all_ids), len(inf_promoted), len(inf_rejected),
+                                 ', '.join(x['id'] for x in inf_await[:8])
+                                 + ('…' if len(inf_await) > 8 else '')
+                                 + ('' if not _weak else ' · %d at weak evidence' % _weak))),
+                          'warn', style=WIDE))
+else:
+    _rej = ('' if not inf_rejected
+            else ' and %d rejected at import' % len(inf_rejected))
+    stats.append(tile_num(INF_LABEL, '0',
+                          esc('a measured zero — %d promotion(s)%s recorded here and no marker left '
+                              'unconfirmed, so this import was worked through rather than never started'
+                              % (len(inf_promoted), _rej)), '', style=WIDE))
 
 # --- banners --------------------------------------------------------------
 banners = []
@@ -682,18 +843,113 @@ kan_note = ('' if kan_total else
             'holding work anywhere. Inventing motion to fill these columns would be the same lie as a '
             'scanner reporting a grade for files it never opened.</p></div>')
 
+# --------------------------------------------------------------------------
+# the promotion queue, as a list somebody can work from
+# --------------------------------------------------------------------------
+# Four renderings, and the difference between them is the feature. "There is no
+# spec" and "every one has been promoted" are both quiet screens, and a
+# dashboard that draws them the same way tells the reader an unread import is
+# finished work.
+QH = '<div class="h" style="margin-top:26px">Inferred requirements — the promotion queue</div>'
+
+QPROV = (
+    '<p class="provenance">Read from <span class="mono">%s</span>: a requirement is in this queue while '
+    'the lines under it carry <span class="mono">Inferred from … Unconfirmed.</span>, and it leaves '
+    'the queue when a person deletes that line, adds its acceptance row and records the ratification. '
+    '<b>What this number does not tell you:</b> nothing here has been judged true — a citation says '
+    'where a sentence was read from, not that the sentence is right, and a citation that no longer '
+    'resolves still counts. Promotion deletes the marker, so the promoted figure is only what the '
+    'decision record records: a row naming an id this spec has, reading as a confirmation, and saying '
+    'the id came from the import. A promotion written down any other way is invisible here and is not '
+    'counted — unread is not the same as missing. These ids also appear under <b>Requirements with '
+    'no test</b>, because the acceptance table is for agreed requirements and an inferred one is given '
+    'no row on purpose. And none of them can trigger the Stage 2 contradiction halt until somebody '
+    'promotes them, so a large number here is a spec that is not yet defending anything.</p>'
+    % esc(SPEC_PATH))
+
+if not SPEC_EXISTS:
+    p_queue = (QH + '<div class="empty"><b>This cannot be determined.</b>'
+               '<p>There is no <span class="mono">%s</span> to read markers out of, so this page does '
+               'not know whether an import ever ran, how many sentences it drafted, or how many are '
+               'still waiting on a person. That is not a queue of zero. A zero is an answer somebody '
+               'earned; this is the absence of one, and the two are drawn differently here on '
+               'purpose.</p></div>' % esc(SPEC_PATH))
+elif spec is None:
+    p_queue = (QH + '<div class="empty"><b>The spec is there and could not be read.</b>'
+               '<p><span class="mono">%s</span> exists and this run could not open it, so the count '
+               'above is unknown rather than zero. A queue that could not be counted is not an empty '
+               'queue — rendering it as one is the precise failure the inferred status exists to '
+               'prevent, and it would be doing it on the tile that reports that status.</p></div>'
+               % esc(SPEC_PATH))
+elif INF_RECORDED == 0:
+    p_queue = (QH + '<div class="empty"><b>Not applicable — nothing here was drafted by an import.</b>'
+               '<p><span class="mono">%s</span> was read in full: %d requirement(s), not one of them '
+               'carrying an <span class="mono">Inferred from … Unconfirmed.</span> marker, none '
+               'withdrawn as <span class="mono">Rejected at import:</span>, and no decision-record row '
+               'ratifying an imported id. This spec was written an intent at a time, so there is no '
+               'promotion queue to be part-way through — which is a different answer from having '
+               'worked one to the end, and is drawn differently for that reason.</p></div>'
+               % (esc(SPEC_PATH), len(spec_all_ids)))
+elif not inf_await:
+    _done = '%d promotion(s) recorded (%s)' % (len(inf_promoted), ', '.join(inf_promoted) or 'none named')
+    if inf_rejected:
+        _done += ' and %d rejected at import (%s)' % (len(inf_rejected), ', '.join(inf_rejected))
+    p_queue = (QH + ('<div class="empty"><b>Worked to the end — a measured zero.</b>'
+               '<p>An import did run against this spec: %s. No <span class="mono">Unconfirmed.</span> '
+               'marker is left anywhere in <span class="mono">%s</span>, so every sentence the import '
+               'drafted has been read by a person and either ratified or refused. That is the finished '
+               'state of this queue, and it is not the same picture as a repo that never imported '
+               'anything.</p></div>' % (esc(_done), esc(SPEC_PATH))) + QPROV)
+else:
+    qrows = ['<div class="chkrow hd"><span>Requirement</span><span>Marker</span>'
+             '<span>Drafted from</span></div>']
+    for it in inf_await:
+        short = it['what'] if len(it['what']) <= 120 else it['what'][:119] + '…'
+        # A marker with no citation is shown as having none. The evidence rule
+        # says one requirement, one citation, so a blank here is a finding.
+        cite = it['cite'] or 'no citation in the marker'
+        if not it['sealed']:
+            chip, ccls = 'marker incomplete', 'unk'
+            tip = 'the marker carries no "Unconfirmed.", so what this is waiting on is not stated'
+        elif it['weak']:
+            chip, ccls = 'weak evidence', 'unk'
+            tip = ('cited from a doc, a CI job name or an inventory entry rather than from code or a '
+                   'test - the marker says so, and dropping that is how it starts looking measured')
+        else:
+            chip, ccls = 'unconfirmed', ''
+            tip = '"Unconfirmed." is what every later stage keys off'
+        qrows.append('<div class="chkrow r"><span class="ci" title="%s">%s — %s</span>'
+                     '<span class="cs %s" title="%s">%s</span>'
+                     '<span class="cc" title="%s">%s</span></div>'
+                     % (esc(it['what'] or 'no sentence was read for this id'), esc(it['id']),
+                        esc(short or '—'), ccls, esc(tip), esc(chip),
+                        esc(cite), esc(cite)))
+    batch = [x['id'] for x in inf_await[:10]]
+    p_queue = (QH +
+               '<div class="relnote"><b>Nothing in this list is agreed.</b> Each one is a sentence '
+               'drafted from code that already runs, and it stays inert — no contradiction halt, no '
+               'acceptance row — until a person reads it and says so. Promotion is a commit: delete '
+               'the marker line, add the acceptance row, record who ratified it and when.</div>'
+               '<div class="chk">%s</div>'
+               '<div class="bkfoot">%s</div>' % (''.join(qrows), cp(
+                   'Walk me through the inferred requirements in %s one batch at a time, starting with '
+                   '%s. Quote each sentence in full with the citation it carries, and take my answer by '
+                   'id. Promote nothing I did not name, and do not treat silence as a yes.'
+                   % (SPEC_PATH, ', '.join(batch)),
+                   'copy prompt · confirm the first batch')) + QPROV)
+
 p_dash = (
     '<div class="h">How it is going — %s</div>'
     '<div class="stats">%s</div>'
     '<div class="h" style="margin-top:26px">In flight — one card per thing actually moving</div>'
-    '%s%s'
+    '%s%s%s'
     '<p class="provenance">Every number here was read at generation time: '
     '<span class="mono">%s</span> for requirement counts and contradictions, '
     '<span class="mono">%s</span> for the queue, '
     '<span class="mono">%s</span> for the last check run, and the git log for releases. '
     'A tile showing <b>—</b> was never run; a tile showing <b>?</b> was read and could not be '
     'understood. Neither is a zero.</p>'
-    % (sub, ''.join(stats), kanban, kan_note, SPEC_PATH, BACKLOG_PATH, RESULT_PATH))
+    % (sub, ''.join(stats), kanban, kan_note, p_queue, SPEC_PATH, BACKLOG_PATH, RESULT_PATH))
 
 # --------------------------------------------------------------------------
 # panel: setup

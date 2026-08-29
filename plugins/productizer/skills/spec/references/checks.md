@@ -31,6 +31,78 @@ then the secret is on the remote and must be rotated. Blocking the merge is the
 whole remedy for a failing test; for a secret it fixes nothing. Run it as a
 pre-push step, and run it again in CI if you want the merge blocked too.
 
+## Where paths resolve from
+
+Three separate resolutions decide what this stage even looks at, and each one
+sat in front of the next. The runner now prints all of them:
+
+```
+config: /path/to/repo/.claude/productizer/checks.yaml (the default, under the git work tree holding the working directory)
+root:   /path/to/repo (the git work tree holding the config)
+result: /path/to/repo/.claude/productizer/checks-result.json
+```
+
+| What | Resolved against | Fallback |
+|---|---|---|
+| `--config`, when given | the working directory, exactly as typed | none — someone typed it |
+| the **default** config | the git work tree holding the working directory | then the one holding the runner itself; then the working directory |
+| `ROOT`, and so every relative path *inside* the config | `--root`, else the git work tree holding the config | the config's own directory, with git's own explanation quoted |
+| `--changed` | the working directory, which is what typing a path means | then the repository root; a miss names both places searched |
+
+**All three were once relative to the working directory, and each hid the one
+below it.**
+
+The default config path is relative to the *repository*, not to wherever the
+caller is standing. Resolving it against the working directory meant the runner
+could only ever start from the repo root — from anywhere else it said `no
+config at .claude/productizer/checks.yaml` and stopped, in front of everything
+else here.
+
+`ROOT` was taken from `dirname <config>`, which for the default config is
+`.claude/productizer`, two levels down:
+
+```
+  MISSING_TOOL hygiene   block  exit -   version unknown
+     -> declared tool not installed: ./scripts/check-hygiene.sh.
+result: .../.claude/productizer/.claude/productizer/checks-result.json
+```
+
+The tool was present and executable the whole time. That is a **manufactured
+absence** — the same false negative as a scanner reporting nothing because it
+opened nothing — and worse than an ordinary path bug for two reasons: a
+cannot-run status blocks whatever the check's severity says, so it becomes a
+hard refusal in the most ordinary invocation there is; and the doubled
+`policy.output` had the stage silently building a nested shadow of its own
+config directory. Both `policy.output` guards — relative, and contained under
+the root — held throughout. They were simply anchored to the wrong root.
+
+And `--changed README.md` from a subdirectory reported the file as not existing
+while it sat at the repository root.
+
+### Testing this class of bug
+
+Two ways a test can agree with itself while all of the above is live, both
+observed:
+
+- **Supplying an absolute `--config`** skips the default lookup entirely. The
+  test then exercises only the resolutions behind it and passes from every
+  directory. Test the **bare** invocation.
+- **Asserting only that runs agree** proves nothing here, because the wrong
+  root was the *same* wrong root from every working directory. Assert the
+  **value**: that the reported root is the repository, that no declared tool
+  reads as absent, and that no nested `.claude` tree appears.
+
+`scripts/fixtures/root-resolution.sh` pins all of it — bare invocation, four
+working directories including one outside the repository, and assertions on
+values rather than agreement. It has been seen failing against each of the
+three sites broken on its own.
+
+One thing it deliberately does *not* compare: the parenthesis on the `config:`
+line legitimately differs from outside the repository, where the default is
+found under the work tree holding the runner rather than the one holding the
+working directory. Same file, different route, and naming the route is the
+point of the line.
+
 ## What the review stage gets
 
 `checks-result.json` is the handover, and it is evidence rather than a summary.
@@ -68,6 +140,58 @@ Three rules make that ownership real:
   when a check blocks it, the stage is advisory. Deny it in managed settings
   alongside the hooks directory:
   `"deny": ["Edit(.claude/productizer/checks.yaml)"]`.
+
+## Settings that are not locally overridable
+
+A `checks.local.yaml` beside `checks.yaml` is read, and almost all of it is
+ignored on purpose.
+
+The split is one question: **does this setting change what someone else reads?**
+`checks-result.json` is the handover to review, so a setting that decides what
+gets examined, or whether the run blocks, decides what everyone downstream
+sees. That is a team decision, and it is honoured only from the committed file,
+where it sits in a diff somebody approved.
+
+| Setting | Honoured from | Why |
+|---|---|---|
+| `timeout_seconds`, per check and in `defaults` | committed **or** local | how long a slow laptop may take is nobody else's business |
+| every `policy` key — `empty_run`, `output`, `spec`, `spec_coverage`, `allow_repo_local_tools` | committed only | each one decides what the whole run means |
+| `severity` | committed only | whether a finding blocks a merge is not a per-developer choice |
+| `enabled`, `when`, `command`, `requires`, `mode`, `exit_codes`, `coverage`, `version_command` | committed only | all of them change what is examined |
+
+**Ignored, never silently.** A dropped override nobody is told about looks
+exactly like an honoured one to the person who wrote it, so the runner names
+each one on stderr and records them in the result:
+
+```
+run-checks: WARNING: ignoring `policy.empty_run` from checks.local.yaml. It is a team-level setting: it decides
+what gets examined or whether this run blocks, so it is honoured only from the committed checks.yaml where
+everyone who reads this repo's results can see it. Locally overridable: timeout_seconds.
+run-checks: WARNING: ignoring `defaults.severity` from checks.local.yaml. ...
+run-checks: WARNING: ignoring `checks[probe].severity` from checks.local.yaml. ...
+run-checks: WARNING: ignoring `checks[probe].when` from checks.local.yaml. ...
+  FAIL      probe              block  exit 1    probe 1.0  covered 2/2 files
+ignored 4 local override(s) of team-level settings: policy.empty_run, defaults.severity,
+checks[probe].severity, checks[probe].when. Team-level settings are honoured only from the committed config.
+REFUSED: probe (fail)
+EXIT=3
+```
+
+The same loosening, committed instead of local, is simply honoured — `advise`,
+advisory, `EXIT=0`. The rule is about *where the decision lives*, not about
+forbidding the decision.
+
+Two more refusals belong to the same idea:
+
+- **A config where every check is `enabled: false` is exit 2.** A configuration
+  with no active verification refuses to load rather than exit 0 having
+  verified nothing. It is one line of YAML away in every repo that has this
+  file, and it is the largest hollow pass available.
+- **A check that could not run blocks, whatever its severity.** `advise` means
+  "argue with this check's findings". It has never meant "it is acceptable for
+  this check to be absent", so `missing_tool`, `timeout`, `no_version`,
+  `refused` and `unmapped_exit` block even on an advisory check. Only a check
+  that ran and reached a verdict — `fail`, `hollow` — is softened by `advise`.
 
 ## Per-item scoping
 
@@ -142,7 +266,7 @@ what it says.
 This is not one bad tool. It is the default shape of a scanner report, and it
 survives because a green result is what everyone wanted anyway.
 
-### Three properties that separate a real check from a decorative one
+### Four properties that separate a real check from a decorative one
 
 **1 · It reports what it covered, and the runner checks the number.**
 
@@ -218,9 +342,118 @@ Do that for every check before you believe the stage. It is twenty minutes once
 and it is the only thing that distinguishes this config from the one that
 graded an empty directory at 100.
 
+**4 · It is measured against a denominator it did not choose.**
+
+The three properties above share one hole: **the check author declares what the
+check is measured against.** `coverage` says what must have been examined, and
+the person writing the check writes it. A check can shrink its own scope and
+still pass honestly, because the thing it is measured against is the thing it
+picked.
+
+So the unit list comes from somewhere the check cannot edit. `policy.spec`
+names the living spec; the runner enumerates every **active** requirement from
+it — the `- **R7** — ...` bullets, minus anything the following line marks
+superseded or withdrawn — and that set is the denominator. Each check then
+declares `coverage.spec_units`: which requirements it verifies, and how.
+
+| Verdict | Means | Who may write it |
+|---|---|---|
+| `Covered` | this check verifies the requirement | the check |
+| `Partial` | part of it — say which part is missing | the check |
+| `n/a` | vacuous by the spec itself; **`reason` required** | the check |
+| `Missing` | nothing covered it | **the runner only** |
+
+`Missing` is not claimable. It is the one verdict a check must not be able to
+write about itself, because it is the verdict that refuses the run.
+
+Three rules are lifted from the AI Unified Process, which arrived at the same
+design from the other direction:
+
+- **Every unit gets a row, the covered ones included.** A report listing only
+  failures leaves the reader supplying their own denominator, which is the
+  AgentShield failure relocated rather than fixed.
+- **"Hard to test" is not `n/a`.** An `n/a` takes a requirement out of the
+  denominator, so it states why in a line a reviewer can disagree with. An
+  `n/a` with no `reason` is a config error, not a pass.
+- **A disabled, skipped or todo check covers nothing.** A claim is a claim, not
+  coverage. The runner binds each claim to the claiming check's own result: if
+  the check is `enabled: false`, its tool is absent, it timed out, it failed or
+  it came back hollow, the claim is voided and the unit returns to `Missing`.
+
+Observed — one config, then the same config with a single unit deleted from the
+check's own list, and nothing else changed:
+
+```
+### full list -> both units covered
+  PASS      probe              block  exit 0    probe 1.0  covered 2/2 files
+spec coverage: 2 active requirement(s) derived from .claude/productizer/spec.md - 2 Covered, 0 Partial, 0 Missing, 0 n/a
+  COVERED  R1    The fixture shall name every file it read.
+  COVERED  R2    The fixture shall refuse a file it could not open.
+PASS: every blocking check ran, covered what it declared, and found nothing.
+EXIT=0
+
+### one line deleted from the check's own spec_units -> the unit does not leave with it
+  PASS      probe              block  exit 0    probe 1.0  covered 2/2 files
+spec coverage: 2 active requirement(s) derived from .claude/productizer/spec.md - 1 Covered, 0 Partial, 1 Missing, 0 n/a
+  COVERED  R1    The fixture shall name every file it read.
+  MISSING  R2    The fixture shall refuse a file it could not open.
+             -> no check in this config names this requirement
+REFUSED: 1 of 2 requirement(s) in .claude/productizer/spec.md are not covered: R2 (Missing).
+The denominator is derived from the spec, not from what a check declared about itself.
+EXIT=3
+```
+
+The check itself did not change. It ran, it covered both files, it exited 0.
+The only edit was to the list it published about itself, and that list stopped
+being what it is measured against.
+
+A claim voided because the claiming check could not establish anything:
+
+```
+  DISABLED  probe-refusal      block  exit -    version unknown
+             -> `enabled: false`. A disabled check covers nothing.
+  MISSING  R2    The fixture shall refuse a file it could not open.
+             -> probe-refusal claimed Covered but the check is disabled, and a disabled, skipped
+                or todo check covers nothing
+```
+
+**A denominator that could not be computed is never rendered as zero.** An
+unreadable spec, one with no requirements in it, or one that declares an id
+twice comes back `UNMEASURED` and refuses:
+
+```
+spec coverage: UNMEASURED (unreadable). no spec at spec-missing.md, so the coverage denominator
+could not be derived. Unmeasured, not zero.
+REFUSED: ... A stage that cannot say what it was measured against does not get to report a pass.
+EXIT=3
+
+spec coverage: UNMEASURED (no_requirements). spec-empty.md holds no `- **R<n>** - ...` requirement
+lines, so the coverage denominator could not be derived. Unmeasured, not zero.
+
+spec coverage: UNMEASURED (unreadable). spec-dup.md declares R1 twice. Ids are permanent and unique,
+so a duplicate means the denominator cannot be trusted. Unmeasured, not zero.
+```
+
+`units_total` and `counts` stay `null` in `checks-result.json` rather than `0`.
+"0 units, all covered" is the same hollow green as a grade over one file out of
+thirty-three, printed by a different part of the pipeline.
+
+`policy.spec_coverage` decides when this is enforced:
+
+| Value | Behaviour |
+|---|---|
+| `auto` (default) | measure as soon as any check declares `spec_units`; while none does, say `not_declared` out loud and do not refuse |
+| `require` | always measure; a spec that cannot be read refuses the run |
+| `"off"` | committed, visible opt-out. Quote it — YAML reads a bare `off` as the boolean false |
+
+`auto` exists so that adding this file to a repo mid-adoption does not turn
+every run red on day one. What it does not do is report silence as success:
+with nothing declared the line reads *unmeasured, not covered*.
+
 ### How the runner fails closed
 
-Six ways a check can look green without being green, and what happens instead:
+Fifteen ways a check can look green without being green, and what happens
+instead:
 
 | Situation | Naive result | Here |
 |---|---|---|
@@ -230,6 +463,15 @@ Six ways a check can look green without being green, and what happens instead:
 | the tool returns an exit code nobody mapped | treated as success | `unmapped_exit`, the check fails |
 | the tool exits 0 having examined nothing | `PASS` | `hollow`, the check fails |
 | no declared check matches the change | green, no checks ran | refused, unless `policy.empty_run: pass` |
+| a check quietly shrinks what it claims to cover | green, the check chose its own denominator | the unit is `Missing`, the run refuses |
+| the spec cannot be read, or holds no requirements | "0 units, all covered" | `UNMEASURED`, `units_total: null`, refused |
+| a disabled or skipped check claims a requirement | the requirement reads as covered | the claim is voided, the unit is `Missing` |
+| `n/a` asserted with no reason given | a requirement silently leaves the denominator | exit 2, the config does not load |
+| every check is `enabled: false` | exit 0, nothing verified | exit 2, the config refuses to load |
+| a local settings file loosens a team-level setting | honoured, and invisible to everyone else | ignored, with a warning naming the setting |
+| an advisory check could not run at all | advisory, the run stays green | it blocks: `advise` softens findings, not absence |
+| the runner anchors relative paths to the config's own directory | a present tool reads as `missing_tool`; output lands in a nested shadow | the root is the git work tree, printed on every run |
+| the runner is started from a subdirectory | `no config at ...`, or a change list that "does not exist" | the default config and the change list are found under the repository root |
 
 Observed, all in one run:
 
@@ -244,7 +486,7 @@ Observed, all in one run:
              -> exited 0 but examined 0, which is below the declared minimum of 1. A check that examined nothing is a failure, not a pass.
 ```
 
-`policy.empty_run: refuse` is the least obvious of the six and the one that
+`policy.empty_run: refuse` is the least obvious of the fifteen and the one that
 catches the most. A change nothing checks is not a clean change; it is a change
 the config does not describe. The `pass` setting exists so a repo mid-adoption
 can opt out of that deliberately, in a committed line someone approved, rather
@@ -267,17 +509,25 @@ rather than waiting for the next run to surprise someone.
    run*: reporting a crash as a finding sends someone to fix code that was
    never the problem.
 4. Declare its coverage, preferring `per_file_exit`.
-5. Give it a `version_command`. Blocking checks are refused without one.
-6. Break it. Watch it go red. Revert. Note what you broke in the pull request.
-7. Start it at `advise` if you expect argument, and diarise the promotion.
+5. Name the requirements it verifies in `coverage.spec_units`, one entry per id,
+   with `Covered`, `Partial`, or `n/a` **and a reason**. Ids come from the spec;
+   the runner refuses a claim against an id the spec does not list as active.
+6. Give it a `version_command`. Blocking checks are refused without one.
+7. Break it. Watch it go red. Revert. Note what you broke in the pull request.
+8. Start it at `advise` if you expect argument, and diarise the promotion.
+   Note that `advise` softens its findings only — an advisory check whose tool
+   is missing still blocks.
 
 ## What this stage does not do
 
-- **It does not judge whether the declared checks are the right ones.** A config
-  with one weak check passes cleanly. Coverage assertions police each check;
-  only a human polices the list. Review the file the way you would review an
-  access-control list, on a schedule, and ask what is absent rather than
-  whether the present ones passed.
+- **It does not judge whether the declared checks are the right ones.** It
+  polices two things and no more: each check covers what it declared, and every
+  active requirement in the spec has some check claiming it. A config whose
+  checks are individually weak still passes both. `Covered` remains a claim the
+  runner can only bind to the claiming check's own result — it cannot read the
+  check's body and tell you the assertion inside is trivial. Review the file the
+  way you would review an access-control list, on a schedule, and ask what is
+  absent rather than whether the present ones passed.
 - **It does not sandbox the tools it runs.** Everything in `checks.yaml`
   executes with the runner's privileges. That is why the config is argv-only,
   reviewed like code, and denied to the agent.

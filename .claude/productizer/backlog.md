@@ -21,7 +21,7 @@ intent keeps its `B` id in the intent so the trail from "someone wanted this" to
 "the spec now says this" survives.
 
 Next backlog id
-: `B6`
+: `B11`
 
 ## Status
 
@@ -49,9 +49,14 @@ Highest priority first.
 |---|---|---|---|---|---|
 | B1 | Take one intent through all nine stages on this repo, through a PR | `todo` | — | maintainer, 2026-08-28 | Stage 8 has no deltas or PRs to draft from until this happens |
 | B2 | The gates cannot see inside a script | `long-term` | — | security review, 2026-08-28 | `./release.sh` is judged as its own name; no command-text gate can fix this |
-| B3 | The solver misses semantic contradictions | `long-term` | — | maintainer, 2026-08-28 | recall 0.70; the misses are vocabulary drift on the trigger |
+| B3 | The solver misses semantic contradictions | `long-term` | — | maintainer, 2026-08-28 | 0.70 recall on the 21 cases we wrote first, **0.12 on a harder 26-case corpus** — the figure tracked the corpus, not the checker |
 | B4 | `jira.status_map` has never met a real Jira | `todo` | — | maintainer, 2026-08-28 | eleven states mapped, zero tested |
 | B5 | Release assets for offline install | `long-term` | — | maintainer, 2026-08-28 | only worth it if an install path without git is wanted |
+| B6 | Scaffolded specs still carry placeholder rows | `todo` | — | maintainer, 2026-08-29 | `| R1 | <area> |` index rows and `P4`/`P5` amendment rows sit outside the example fences `scaffold.sh` strips. The parsers ignore them, so this is a documentation wart, not a seeded requirement |
+| B7 | Two scripts have no option contract | `todo` | — | usage-audit, 2026-08-29 | `detect-context.sh` accepts any flag and exits 0; `scaffold.sh --help` exits 2. `import-survey.sh` had the same defect and is fixed |
+| B8 | Make suppressed stderr a declared check | `todo` | — | maintainer, 2026-08-29 | `2>/dev/null` hid three real defects in one session. A check over our own scripts would have caught each |
+| B9 | Split the requirements carrying two `shall` clauses | `todo` | — | validate-spec, 2026-08-29 | R14, R16 and R21 each state two obligations under one id, so each will be half-tested. `--strict` fails on the real spec until they are split |
+| B10 | The eval corpus has never been graded | `todo` | — | maintainer, 2026-08-29 | `claude plugin eval` is early-access gated. 26 cases load and both ablation arms configure; no case has been scored by a model, so end-to-end recall stays unmeasured |
 
 ## Items tracked in Jira
 

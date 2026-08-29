@@ -185,6 +185,154 @@ Not every row needs a ruling. `fix the code` changes no agreed behaviour: open
 the issue and let it run the lifecycle. Raise a ruling only where the proposal
 is to change what the spec says.
 
+## The reverse direction — `scripts/drift-reverse.sh`
+
+Everything above reads spec → code: for each requirement, is it still honoured?
+Run only in that direction the check is half a check. It can never produce an
+`implemented-not-specified` row, because it only ever looks where a requirement
+already points, and that gap type is defined by the absence of a requirement to
+point with.
+
+The blind spot is created by this spec's own invariant. *"Nothing is ever
+deleted. A superseded or withdrawn requirement keeps its original sentence, in
+place."* That is the right rule — it is what keeps every plan, test and PR title
+that cites an id resolvable — but it has a consequence. When a requirement stops
+being current, the code it justified does not stop. Nothing throws, no test goes
+red, no id dangles. The behaviour simply keeps running with an agreement behind
+it that has been replaced, and the forward pass will never ask about it, because
+the forward pass starts from the requirement and that requirement is no longer
+in the set it walks.
+
+`scripts/drift-reverse.sh` walks the other way. It reads the code and asks which
+of it has no current requirement behind it.
+
+### What it is
+
+**Evidence for a human or an agent to judge.** Every row it emits is labelled a
+candidate and carries a `file:line`. It concludes nothing, opens nothing, and
+writes nothing to the spec — the dispositions and the ruling machinery above are
+unchanged, and a candidate that survives judgement becomes an ordinary
+`implemented-not-specified` row that goes to intake as an `extend` or to an issue
+for removal.
+
+It is a shell script, and it is worth being blunt about the ceiling that
+implies. **It cannot read code.** It cannot distinguish a second parallel
+implementation from a legitimate second caller, an abandoned validation from a
+defensive one, or a field the spec forgot from a field the spec never wanted.
+What it can do is find the places worth reading, and refuse to call the rest
+clean.
+
+### The four signals
+
+| | Signal | What a row proves | What it does not prove |
+|---|---|---|---|
+| **A** | A requirement id cited in code, comments or tests that the spec marks **superseded or withdrawn** | Someone wrote the id down deliberately, and the agreement behind it has since been replaced | That the code is wrong. A changelog entry or a migration note citing a superseded id is correct and should stay |
+| **B** | A cited id **below** the spec's `Next requirement id` watermark that the spec no longer contains | The id was allocated, and its requirement is not in the file — which this spec forbids, so something was deleted or the citation belongs to another product | That behaviour drifted. A copied snippet or a renamed product carries ids too |
+| **D** | A cited id **at or above** the watermark — never allocated here | Only that the token exists | Almost nothing. Prose that explains the id convention cites ids that were never allocated, and this pass cannot tell that sentence from a citation |
+| **C** | A test whose name is built entirely from words that appear nowhere in the spec | That a test names a flow in vocabulary the spec does not use | That the flow is gone. It matches vocabulary, not meaning |
+
+B and D are split on the watermark for one reason: without the split they are
+one bucket, and on this repo that bucket is 71 rows of documentation examples
+with the two interesting ones — had there been any — buried in them. A report
+nobody finishes reading is a report that found nothing. **Read A, then B. Read D
+only when A and B are empty and you still suspect something.**
+
+Signal C is the weakest of the four and is reported last on purpose. Its
+anchoring is deliberate: the paren-less RSpec form (`it "…" do`) is matched only
+at the start of a line, because unanchored it matched ordinary prose — *"do not
+caption it \"screenshot\""* in a template became a candidate — and a signal that
+fires on sentences trains its reader to skip the section.
+
+### The two kinds of nothing
+
+The script keeps them apart, because they call for opposite actions and
+collapsing them is exactly the failure this repo blocks on elsewhere:
+*"If a value could not be measured, then the lifecycle shall report it as
+unmeasured and shall not record it as zero."*
+
+| Outcome | Exit | Reads as |
+|---|---|---|
+| Files were walked, citations were found, none pointed at a dead requirement | `0`, `no-candidates` | **A measured zero.** The report shows the counts it was measured from — how many files, how many live citations |
+| No file could be walked, **or** the tree carries no id-reference convention at all | `4`, `cannot-determine` | **Not a pass.** The signals print as `not evaluated`, never as `none found`, and the report says the run failed to reach a position from which zero would mean anything |
+| No spec, or a spec with no requirement ids in it | `2` | Nothing to compare against, so nothing was compared |
+| Anything else | `1` | Crashed before reaching a report. Read as undetermined, never as clean |
+
+The convention check is what makes the `4` real. A repo that never writes
+requirement ids into its code produces no A and no B rows for a reason that has
+nothing to do with drift, and reporting that as "0 candidates" is a clean bill
+of health issued by a search that never had anything to find. The report also
+distinguishes a *confirmed* convention (some citation names a live requirement)
+from an *unconfirmed* one (ids appear, none of them current) — in the second
+case an `R2` in a formula and a citation are indistinguishable, and the report
+says so.
+
+Files that could not be read are listed by name and counted separately from
+files scanned. Binary and empty files are counted as skipped. Neither is ever
+folded into the scanned total, because a file that was not searched is not a
+file that came back clean.
+
+### The gitignore blind spot
+
+By default the file list comes from `git ls-files`, so **gitignored and
+untracked trees are not scanned** and the report says so on every run. That is
+usually right and occasionally very wrong: a generated-then-ignored directory
+can hold the only copy of the behaviour in question, and the search silently
+shrinks to fit. `rg` has the same blind spot for the same reason. Pass
+`--include-ignored` to walk the tree with `find` instead, and do it at least
+once before believing a clean result.
+
+The spec store itself (`.claude/productizer/`) is never scanned. It is the
+baseline, not behaviour, and scanning it would report every requirement as a
+citation of itself.
+
+### What this does not catch
+
+Understating this is the house style; overstating it is the failure mode. The
+pass is blind to all of the following, and none of them are rarities:
+
+- **Behaviour that cites no id.** By far the largest gap. Most code in most
+  repos never writes a requirement id down, and this pass sees none of it: an
+  unspecified field, a validation nobody asked for, a message the spec never
+  mentions, a flag whose off-branch is dead code. Signal C reaches a sliver of
+  it through test names and nothing else does.
+- **A second parallel implementation** of something already specified. AI
+  Unified Process's reverse pass names this explicitly, and it is the one signal
+  from theirs this script cannot reproduce — theirs is stack-bound, with one
+  file per use case and a known set of class names to count. There is nothing
+  stack-agnostic to count here. It needs a reader.
+- **Behaviour named in the spec's own vocabulary.** Signal C is a vocabulary
+  test. A test that reuses the spec's nouns for a flow the spec has dropped
+  passes it silently.
+- **Drift with no textual trace at all** — a configuration default, a cron
+  entry, a dependency's behaviour, anything whose evidence is not a line in a
+  file in this tree.
+- **Deleted requirements.** An id removed from the spec entirely reads as a
+  citation of an unknown id at best, and as nothing at all if no code cites it.
+  That is one more reason the spec never deletes.
+
+A clean reverse run therefore means: *no code in the scanned files cites a
+requirement that has stopped being current.* It does not mean the code holds no
+unspecified behaviour, and the report must never be summarised as though it did.
+
+### Running the reverse pass
+
+```
+drift-reverse.sh [repo-root] [--format text|json] [--include-ignored]
+                 [--limit N] [--out FILE]
+```
+
+Same cadence as the forward pass — on a schedule and before a release — and the
+same rule against wiring it into a merge gate. It is emphatically not a gate: it
+produces candidates, a gate needs findings, and a gate that refuses on a
+candidate gets disabled within a week.
+
+`--format json` is the machine-readable form; every candidate carries
+`"verdict": "candidate-requires-judgment"`, and the top-level `status` is
+`candidates`, `no-candidates` or `cannot-determine`. `--limit` caps each signal
+and reports the remainder as a count, per *"cap the report"* above. The output
+is deterministic and any git date is pinned to UTC, so two runs of an unchanged
+tree are byte-identical and a diff between runs means something.
+
 ## Running it
 
 **On a schedule** — monthly for a stable product, weekly for one changing fast —

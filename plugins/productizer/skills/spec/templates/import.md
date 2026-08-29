@@ -9,11 +9,28 @@ The output is a spec in the shape `templates/spec.md` defines, holding
 **inferred** requirements: sentences describing what the code already does,
 each carrying the evidence it came from, none of them agreed by anybody yet.
 
+Inferred requirements come at one of two evidence strengths, and the strength
+travels with the requirement for as long as it exists. The survey names which
+one it could reach; it is not yours to choose.
+
 ## Before you write anything
 
 1. **Run the survey.** `scripts/import-survey.sh <repo-path>`. It is read-only
    and takes about a second. Read the whole output before drafting — drafting
    from the first section produces a spec about routes and nothing else.
+1a. **Read the Verdict section first, and obey the tier it names.** It prints a
+   per-section tally and then exactly one of three lines:
+
+   | Verdict line | What you do |
+   |---|---|
+   | `DRAFT TIER: STRONG` | Draft as this template describes. Up to 30 requirements, every citation a file and line in code. |
+   | `DRAFT TIER: WEAK` | Draft at most **10**, every one marked `Inferred (weak evidence)`, every citation a doc, a CI job name or an inventory entry. See *Drafting at weak tier* below. |
+   | `NOT ENOUGH EVIDENCE TO DRAFT A SPEC` | Draft nothing. Report what was searched and ask for the entry points by hand. |
+
+   The tier is a measurement, not a starting position to argue with. Do not
+   promote a weak verdict to strong because the repo "obviously" does something,
+   and do not refuse on a weak verdict because the evidence feels thin — thin is
+   what weak means, and saying so is the deliverable.
 2. **Refuse to import into a spec that already has requirements.** Import is a
    first-fill, not a merge. A second import allocates ids for behaviour the
    first one already covered, and the duplicates split every downstream citation
@@ -33,19 +50,30 @@ requirement names the file and line, or the test, it was read from. A
 requirement with no citation is a guess about a system you have not run, and it
 is indistinguishable in the finished spec from one somebody agreed.
 
-Evidence that counts, in descending order of what it is worth:
+Evidence that counts at **strong** tier, in descending order of what it is worth:
 
 | Evidence | Why it is worth what it is |
 |---|---|
 | A test name | Prose somebody wrote deliberately about intended behaviour, and a check that still passes |
 | A route, command or exported entry point | The observable surface; a caller depends on it |
+| A CLI subcommand, flag or `usage()` banner | The same thing for a program nobody reaches over HTTP, which is most programs |
 | An explicit error path or refusal | A decision about failure, which specs usually lack entirely |
-| A config or feature flag read | Behaviour that varies by deployment, which becomes a `Where` requirement |
+| A config or feature flag read, or a declared config key | Behaviour that varies by deployment, which becomes a `Where` requirement |
 
-Evidence that does not count on its own: a function name, a type, a comment, a
-line in a README, a commit message. Each describes an intention nobody enforces,
-and a README is the single most common place for a system to describe behaviour
-it stopped having two years ago.
+Evidence that counts only at **weak** tier, and only when the survey's Verdict
+says `DRAFT TIER: WEAK`:
+
+| Evidence | What it actually proves |
+|---|---|
+| A README or doc heading | That somebody wrote this sentence once. Not that it is still true. |
+| A CI job or step name | That a gate with this name runs. Not what it asserts, and not that it passes. |
+| A `SKILL.md` description, or a script in the inventory | That the file exists and claims a purpose. Nothing about its behaviour. |
+| Change history and churn | Where the work has been. On a young repo this is the version-bumped manifests, every time. |
+
+Nothing counts at either tier on its own if it is a function name, a type or a
+comment. And a README is the single most common place for a system to describe
+behaviour it stopped having two years ago — which is exactly why it is weak
+rather than excluded.
 
 ## Order and volume
 
@@ -57,8 +85,8 @@ Draft in this order and stop at the cap:
    pattern a first spec is otherwise guaranteed to be missing.
 4. **From config and feature flags** — `Where <feature is included>, …`.
 
-**No more than 30 requirements in the first pass**, whatever the size of the
-repo. The cap is not about token cost. A human has to read every sentence and
+**No more than 30 requirements in the first pass at strong tier, and no more
+than 10 at weak tier**, whatever the size of the repo. The cap is not about token cost. A human has to read every sentence and
 say whether it is true, and a 200-row draft is approved wholesale without being
 read, which produces exactly the fiction this stage exists to prevent. Import
 the core surface, ratify it, and let intake carry the rest as it comes up.
@@ -84,6 +112,16 @@ and the provenance in one line:
   constantly` (`test/api-cache-control.test.js`). Unconfirmed.
 ```
 
+A **weak-tier** requirement takes the same shape with the strength named inside
+the marker, so it is impossible to cite the requirement without reading it:
+
+```
+- **R9** — When an order is placed after 16:00, the `northwind` dispatcher shall
+  ship it the following day.
+  Inferred (weak evidence) from `notes/dispatch.md` heading "Cut-off".
+  Unconfirmed. No code, test or config in this repo asserts this.
+```
+
 Rules that make this survive contact with the rest of the lifecycle:
 
 - **Inferred requirements take real ids from the normal counter.** A separate
@@ -94,6 +132,13 @@ Rules that make this survive contact with the rest of the lifecycle:
 - **`Unconfirmed.` is load-bearing punctuation.** It is what every later stage
   keys off. Never write an inferred requirement without it, and never edit it
   away as tidying.
+- **`(weak evidence)` is load-bearing in exactly the same way.** It is the
+  difference between a claim backed by a route plus a test that exercises it and
+  a claim backed by a sentence in a README. Never drop it because the sentence
+  reads confidently, never drop it at promotion time as tidying, and never
+  re-cite a weak requirement in a plan as though it were strong. A weak
+  requirement that loses its marker is worse than one that was never written,
+  because it now looks measured.
 - **No acceptance criteria row.** That table is for active requirements only,
   and the count of rows against the count of active requirements is what answers
   "do the tests assert the criteria". Adding inferred rows inflates the answer.
@@ -105,6 +150,39 @@ Rules that make this survive contact with the rest of the lifecycle:
   behaviour you think was meant — a corrected requirement no test asserts is a
   spec that disagrees with the running system with nothing to reveal which is
   right.
+
+## Drafting at weak tier
+
+Only when the Verdict says `DRAFT TIER: WEAK`. The survey reached the repo, ran
+every behaviour probe, and found under eight lines of behaviour — while finding
+real self-description. That combination has a specific meaning: **this repo says
+what it is for and does not say what it does**, at least not anywhere the survey
+can read. Documentation repos, content sites, config-and-template repos, and
+codebases in a language or framework the probes do not cover all land here, and
+they are not the same case as each other.
+
+1. **Say which one it is, first.** Before drafting a single requirement, state
+   whether you think the behaviour is absent (a docs repo genuinely has none) or
+   unreachable (the probes missed a covered surface). Name the languages the
+   survey's `Languages by file count` section reported and say whether the probes
+   cover them. Getting this wrong in the optimistic direction produces a spec for
+   a system nobody surveyed.
+2. **Ten requirements, hard cap.** Not thirty. A weak-tier draft is a list of
+   questions, and ten is roughly what a person will genuinely answer in a sitting.
+3. **Every sentence is phrased so a human can say no to it.** Prefer the specific
+   claim you actually read to the general one it implies. `notes/dispatch.md`
+   saying orders after 16:00 ship next day is a requirement; "the system handles
+   dispatch scheduling" is a paraphrase of nothing.
+4. **The citation is the doc, and the doc's age is part of it.** Cite the file and
+   the heading. Where the survey's change history shows the file has not been
+   touched in a year, say so in the marker line.
+5. **Never fill the strong-tier gap with a weak-tier sentence.** If the repo has
+   no error paths, the finding is that it has no error paths the survey could
+   reach. Do not invent `If <trigger>` requirements from a doc that mentions
+   failure — that is exactly the invented threshold this stage exists to prevent.
+6. **Report the gap as the headline.** The most useful output of a weak-tier
+   import is the sentence "this repo has N lines of behaviour the survey could
+   read, which is not enough to describe it". Put that above the draft, not below.
 
 ## What to refuse to guess
 
@@ -119,6 +197,8 @@ failure it prevents.
 | Business rules from data files or seed data | A row in a table is a value, not a rule, and it changes without a commit |
 | Behaviour described only in a doc or comment | Doc drift is the normal state; a requirement citing a README asserts that the README is true |
 | Anything from a section the survey marked truncated | You are inferring from a sample and calling it the system |
+| A strong-tier claim from a weak-tier citation | The tier is what the reader is being asked to trust; upgrading it silently is the one failure this whole stage is built to stop |
+| Behaviour in a language the survey's Verdict shows no probe fired for | A probe that returned nothing in a language it does not cover is not evidence of absence, and the Verdict tally shows which those are |
 | Whether anything is dead | A route with no caller and a route under load look identical in a survey |
 
 ## Inferred requirements cannot stop work
@@ -163,10 +243,14 @@ somebody has just noticed, so offer to open an issue for it.
 ## Report
 
 - The spec path, the id range allocated, and the count inferred.
+- **The tier the survey's Verdict named, and the two tally numbers that produced
+  it.** Quote them. A reader who is asked to ratify thirty sentences is entitled
+  to the measurement that decided how much they should trust them.
 - The counts by evidence type, so the reader can weigh the draft.
 - Areas covered and areas left, when the cap bit.
 - Every refusal to infer, as a named gap.
 - The next action: which batch to confirm first.
 
 Say plainly, in the report and in the spec header line for the change, that
-**nothing in this spec is agreed yet**.
+**nothing in this spec is agreed yet** — and, where the tier was weak, that
+**nothing in this spec was read from behaviour**.

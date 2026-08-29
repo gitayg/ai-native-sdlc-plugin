@@ -12,11 +12,28 @@
 #                 --tags auth,pii \
 #                 --out .claude/productizer/checks-result.json
 #
-#   --config PATH    the declaration. Default .claude/productizer/checks.yaml
-#   --changed PATH   file of changed paths, one per line ("-" reads stdin)
+#   --config PATH    the declaration, honoured exactly as typed: absolute, or
+#                    relative to the working directory. Default, when omitted:
+#                    `.claude/productizer/checks.yaml` under the git work tree
+#                    holding the working directory, then under the one holding
+#                    this script. The DEFAULT is deliberately not resolved
+#                    against the working directory - that made the runner
+#                    startable only from the repository root, and every root
+#                    resolution below is downstream of this lookup.
+#   --changed PATH   file of changed paths, one per line ("-" reads stdin).
+#                    Looked for relative to the working directory first, which
+#                    is what someone typing a path means, then under the
+#                    repository root. A miss names both places searched.
 #   --base REF       derive the changed paths from git diff against REF
 #   --tags LIST      comma-separated requirement tags carried by this change
-#   --root DIR       repo root the checks run in. Default: the config's parent
+#   --root DIR       repo root the checks run in, and what every relative path
+#                    inside the config resolves against. Default: the git work
+#                    tree holding the config — NOT the config's own directory,
+#                    which for the default `.claude/productizer/checks.yaml`
+#                    is two levels down and makes every relative tool path
+#                    miss. Falls back to the config's directory only when
+#                    there is no work tree. The root chosen, and how, is
+#                    printed and recorded in the result.
 #   --out PATH       where the result JSON lands ("-" for stdout).
 #                    Default: policy.output from the config
 #
@@ -47,6 +64,22 @@
 #   - A check that examined nothing FAILS, whatever it printed and whatever it
 #     returned. This is the point of the whole script; see the coverage
 #     section of `references/checks.md`.
+#   - The coverage denominator is derived from the spec, not from the check.
+#     A check that shrinks what it claims does not shrink what it is measured
+#     against: every active requirement in `policy.spec` gets a row, and a row
+#     nothing covers is `Missing`, which refuses.
+#   - A spec that cannot be read, or that holds no requirements, is reported
+#     as UNMEASURED and refuses. It is never rendered as "0 units, all
+#     covered": a denominator nobody could compute is not a denominator of 0.
+#   - A configuration in which every check is `enabled: false` is exit 2. A
+#     configuration with no active verification refuses to load rather than
+#     exit 0 having verified nothing.
+#   - Team-level settings — anything deciding what is examined or whether the
+#     run blocks — are honoured only from the committed config. A
+#     `<config>.local.<ext>` copy supplying one is ignored with a named
+#     warning on stderr; only `timeout_seconds` is locally overridable.
+#   - A check that could not run blocks whatever its severity. `advise`
+#     softens a check's findings, never its absence.
 #   - Every check's tool version is recorded in the result. A scanner that
 #     silently stops working usually changes version first, and a version that
 #     cannot be obtained fails the check.
@@ -88,6 +121,34 @@ trap on_exit EXIT
 
 die_usage() { printf 'run-checks: %s\n' "$1" >&2; exit 2; }
 
+# Echoes the git work tree containing $1, or nothing. git's own explanation is
+# kept in GIT_WHY rather than discarded: a fallback that cannot say why it fell
+# back is a fallback nobody can debug.
+GIT_WHY=""
+git_toplevel() {
+  GIT_WHY=""
+  if ! command -v git >/dev/null 2>&1; then
+    GIT_WHY="git is not on PATH"
+    return 1
+  fi
+  if [ ! -d "$1" ]; then
+    GIT_WHY="$1 is not a directory"
+    return 1
+  fi
+  _gt_err="$(mktemp "${TMPDIR:-/tmp}/run-checks-git.XXXXXX")"
+  if _gt_top="$(git -C "$1" rev-parse --show-toplevel 2>"$_gt_err")" && [ -n "$_gt_top" ]; then
+    rm -f "$_gt_err"
+    printf '%s\n' "$_gt_top"
+    return 0
+  fi
+  GIT_WHY="$(tr '\n' ' ' < "$_gt_err")"
+  [ -n "$GIT_WHY" ] || GIT_WHY="git could not name a work tree"
+  rm -f "$_gt_err"
+  return 1
+}
+
+SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
+
 CONFIG=""
 CHANGED=""
 BASE=""
@@ -103,20 +164,69 @@ while [ "$#" -gt 0 ]; do
     --tags)    [ "$#" -ge 2 ] || die_usage "--tags needs a list";    TAGS="$2";    shift 2 ;;
     --root)    [ "$#" -ge 2 ] || die_usage "--root needs a path";    ROOT="$2";    shift 2 ;;
     --out)     [ "$#" -ge 2 ] || die_usage "--out needs a path";     OUT="$2";     shift 2 ;;
-    -h | --help) sed -n '2,60p' "$0"; exit 0 ;;
+    # Print the header block, however long it grows. A hardcoded line range
+    # goes stale the first time someone adds a paragraph to it, and then the
+    # help text stops mid-sentence and nobody notices.
+    -h | --help) awk 'NR>1 && !/^#/{exit} NR>1' "$0"; exit 0 ;;
     *) die_usage "unknown argument: $1" ;;
   esac
 done
 
-CONFIG="${CONFIG:-.claude/productizer/checks.yaml}"
-[ -f "$CONFIG" ] || die_usage "no config at $CONFIG. The checks stage is declared in a file; there is no built-in list to fall back on."
+# WHERE THE DEFAULT CONFIG IS LOOKED FOR.
+#
+# `.claude/productizer/checks.yaml` is a path relative to the REPOSITORY, not
+# to wherever the caller happens to be standing. Resolving it against the
+# working directory meant the runner could only ever be started from the repo
+# root: from a subdirectory it reported "no config" and stopped - and every
+# root resolution below is downstream of this lookup, so a fix there was never
+# reached. An explicit --config is a different thing: someone typed it, so it
+# is honoured exactly as typed.
+DEFAULT_CONFIG_REL=".claude/productizer/checks.yaml"
+CONFIG_WHY=""
+if [ -n "$CONFIG" ]; then
+  CONFIG_SOURCE="--config, given on the command line"
+elif TOP="$(git_toplevel "$PWD")" && [ -f "$TOP/$DEFAULT_CONFIG_REL" ]; then
+  CONFIG="$TOP/$DEFAULT_CONFIG_REL"
+  CONFIG_SOURCE="the default, under the git work tree holding the working directory"
+elif TOP="$(git_toplevel "$SELF_DIR")" && [ -f "$TOP/$DEFAULT_CONFIG_REL" ]; then
+  CONFIG="$TOP/$DEFAULT_CONFIG_REL"
+  CONFIG_SOURCE="the default, under the git work tree holding this script"
+else
+  CONFIG="$DEFAULT_CONFIG_REL"
+  CONFIG_SOURCE="the default, relative to the working directory"
+  CONFIG_WHY=" No git work tree holding the working directory or this script has one: ${GIT_WHY}"
+fi
+[ -f "$CONFIG" ] || die_usage "no config at $CONFIG ($CONFIG_SOURCE).${CONFIG_WHY} The checks stage is declared in a file; there is no built-in list to fall back on."
 
 command -v python3 >/dev/null 2>&1 ||
   die_usage "python3 is not on PATH, so the config cannot be read. Refusing rather than guessing what was declared."
 
 CONFIG_ABS="$(cd "$(dirname "$CONFIG")" && pwd)/$(basename "$CONFIG")"
+
+# WHERE EVERY RELATIVE PATH IN THE CONFIG RESOLVES FROM.
+#
+# The config's own directory is NOT the repository root, and treating it as one
+# was a real bug. The default config lives at `.claude/productizer/checks.yaml`,
+# so `dirname` yields `.claude/productizer`; every relative path in the file
+# then resolved against that. `./scripts/check-hygiene.sh` in `requires`
+# reported `missing_tool` for a tool that was present and executable,
+# the shell linter could not open the files it was handed, `policy.output` wrote
+# `.claude/productizer/.claude/productizer/checks-result.json` — a nested
+# shadow of the config directory, outside anything anyone intended.
+#
+# A manufactured `missing_tool` is a false absence, which is the one thing this
+# whole stage exists to refuse; and it is worse now that a check which cannot
+# run blocks whatever its severity. So anchor to the work tree, and say out
+# loud which anchor was used: a runner that quietly picks a different root than
+# the reader assumes makes every path below it confidently wrong at once.
+ROOT_SOURCE="--root, given on the command line"
 if [ -z "$ROOT" ]; then
-  ROOT="$(dirname "$CONFIG_ABS")"
+  if ROOT="$(git_toplevel "$(dirname "$CONFIG_ABS")")"; then
+    ROOT_SOURCE="the git work tree holding the config"
+  else
+    ROOT="$(dirname "$CONFIG_ABS")"
+    ROOT_SOURCE="the config's own directory, because there is no git work tree: ${GIT_WHY%% }"
+  fi
 fi
 [ -d "$ROOT" ] || die_usage "--root $ROOT is not a directory"
 ROOT="$(cd "$ROOT" && pwd)"
@@ -135,8 +245,21 @@ if [ -n "$CHANGED" ]; then
   if [ "$CHANGED" = "-" ]; then
     cat > "$WORK/changed.txt"
   else
-    [ -f "$CHANGED" ] || die_usage "--changed $CHANGED does not exist"
-    cp "$CHANGED" "$WORK/changed.txt"
+    # Someone typing a relative path means it relative to where they are
+    # standing, so that is tried first. But the documented invocation names a
+    # file that lives in the repository, and from a subdirectory that used to
+    # be reported as "does not exist" while the file sat at the root. Fall back
+    # to ROOT, and when neither holds it, name both places searched - a
+    # not-found that will not say where it looked sends people to recreate a
+    # file they already have.
+    if [ -f "$CHANGED" ]; then
+      CHANGED_SRC="$CHANGED"
+    elif [ -f "$ROOT/$CHANGED" ]; then
+      CHANGED_SRC="$ROOT/$CHANGED"
+    else
+      die_usage "--changed $CHANGED does not exist. Looked in the working directory ($PWD) and under the repository root ($ROOT)."
+    fi
+    cp "$CHANGED_SRC" "$WORK/changed.txt"
   fi
 elif [ -n "$BASE" ]; then
   command -v git >/dev/null 2>&1 || die_usage "--base needs git on PATH"
@@ -155,7 +278,7 @@ fi
 cat > "$WORK/plan.py" <<'PY'
 import json, os, re, sys
 
-CONFIG, WORK, CHANGED, TAGS, ROOT = sys.argv[1:6]
+CONFIG, WORK, CHANGED, TAGS, ROOT, ROOT_SOURCE, CONFIG_SOURCE = sys.argv[1:8]
 
 def bad(msg):
     sys.stderr.write("run-checks: %s: %s\n" % (os.path.basename(CONFIG), msg))
@@ -182,6 +305,83 @@ if doc.get("version") != 1:
     bad("unsupported `version: %r`. This runner reads version 1 only; a config it half-understands drops checks silently."
         % doc.get("version"))
 
+# --- committed config vs local override -----------------------------------
+# A setting that decides what a check examines, or whether the run blocks,
+# decides what everyone downstream reads in checks-result.json. That is a team
+# decision and it is honoured only from the committed config, where it is in
+# the diff someone approved. A `<config>.local.<ext>` file may still say how
+# long this particular machine is allowed to take, because a slow laptop is
+# nobody else's business.
+#
+# Ignored, never silently: a dropped override that nobody is told about looks
+# exactly like an honoured one to the developer who wrote it.
+
+LOCAL_CHECK_KEYS = ("timeout_seconds",)
+LOCAL_DEFAULT_KEYS = ("timeout_seconds",)
+
+_base, _ext = os.path.splitext(CONFIG)
+LOCAL = _base + ".local" + _ext
+LOCAL_NAME = os.path.basename(LOCAL)
+ignored_local, local_defaults, local_checks = [], {}, {}
+
+if os.path.exists(LOCAL):
+    try:
+        with open(LOCAL) as fh:
+            loc = yaml.safe_load(fh)
+    except yaml.YAMLError as exc:
+        bad("its local override %s is not valid YAML, so nothing was run. %s"
+            % (LOCAL_NAME, str(exc).replace("\n", " ")))
+    except OSError as exc:
+        bad("its local override %s cannot be read: %s" % (LOCAL_NAME, exc))
+    if loc is None:
+        loc = {}
+    if not isinstance(loc, dict):
+        bad("its local override %s must be a mapping" % LOCAL_NAME)
+
+    lp = loc.get("policy") or {}
+    if not isinstance(lp, dict):
+        bad("`policy` in %s must be a mapping" % LOCAL_NAME)
+    # Every policy key is team-level. There is no policy setting that changes
+    # only this machine.
+    ignored_local.extend("policy.%s" % k for k in sorted(lp))
+
+    ld = loc.get("defaults") or {}
+    if not isinstance(ld, dict):
+        bad("`defaults` in %s must be a mapping" % LOCAL_NAME)
+    for k in sorted(ld):
+        if k in LOCAL_DEFAULT_KEYS:
+            local_defaults[k] = ld[k]
+        else:
+            ignored_local.append("defaults.%s" % k)
+
+    lc = loc.get("checks")
+    if lc is None:
+        lc = []
+    if not isinstance(lc, list):
+        bad("`checks` in %s must be a list" % LOCAL_NAME)
+    for i, entry in enumerate(lc):
+        if not isinstance(entry, dict) or not isinstance(entry.get("id"), str) or not entry["id"]:
+            bad("checks[%d] in %s must be a mapping naming an existing check by `id`" % (i, LOCAL_NAME))
+        eid = entry["id"]
+        for k in sorted(entry):
+            if k == "id":
+                continue
+            if k in LOCAL_CHECK_KEYS:
+                local_checks.setdefault(eid, {})[k] = entry[k]
+            else:
+                ignored_local.append("checks[%s].%s" % (eid, k))
+
+    for k in sorted(loc):
+        if k not in ("version", "policy", "defaults", "checks"):
+            ignored_local.append(k)
+
+for _name in ignored_local:
+    sys.stderr.write(
+        "run-checks: WARNING: ignoring `%s` from %s. It is a team-level setting: it decides what "
+        "gets examined or whether this run blocks, so it is honoured only from the committed %s "
+        "where everyone who reads this repo's results can see it. Locally overridable: %s.\n"
+        % (_name, LOCAL_NAME, os.path.basename(CONFIG), ", ".join(LOCAL_CHECK_KEYS)))
+
 policy = doc.get("policy") or {}
 if not isinstance(policy, dict):
     bad("`policy` must be a mapping")
@@ -192,6 +392,8 @@ if empty_run not in ("refuse", "pass"):
 defaults = doc.get("defaults") or {}
 if not isinstance(defaults, dict):
     bad("`defaults` must be a mapping")
+defaults = dict(defaults)
+defaults.update(local_defaults)
 
 # policy.output was checked by nothing: not type, not absoluteness, not whether
 # it lands inside the repo. A committed YAML value truncated a file outside the
@@ -218,9 +420,115 @@ if OUTPUT is not None:
             "stage writes one result file, inside the repo it is checking."
             % (OUTPUT, _res, _root))
 
+# The spec is the denominator. `require` always measures against it; `auto`
+# measures as soon as any check names a requirement, so a repo that has not
+# adopted this yet is not made to fail for it; `off` is the committed, visible
+# opt-out.
+SPEC_MODE = policy.get("spec_coverage", "auto")
+if SPEC_MODE is False:
+    # YAML 1.1 reads a bare `off` as the boolean false. Reading it as the word
+    # the author wrote is better than making them learn that; the alternative
+    # is an author who typed `off` and got a config error they cannot explain.
+    SPEC_MODE = "off"
+if SPEC_MODE not in ("require", "auto", "off"):
+    bad("`policy.spec_coverage` must be `require`, `auto` or `off`, not %r. YAML reads a bare "
+        "`on`/`yes`/`true` as a boolean; quote the word." % (SPEC_MODE,))
+SPEC_PATH = policy.get("spec", ".claude/productizer/spec.md")
+if not isinstance(SPEC_PATH, str) or not SPEC_PATH.strip():
+    bad("policy.spec must be a non-empty string, not %r" % (SPEC_PATH,))
+if os.path.isabs(SPEC_PATH):
+    bad("policy.spec %r is absolute. It is read relative to the repository being checked; an "
+        "absolute path lets a committed file choose which file on the puller's machine becomes "
+        "the denominator." % SPEC_PATH)
+
 checks = doc.get("checks")
 if not isinstance(checks, list) or not checks:
     bad("`checks` must be a non-empty list. A config declaring no checks is not a passing stage; delete the file or fill it in.")
+
+# --- the denominator, derived from the spec -------------------------------
+#
+# The check author does not get to state what the check is measured against. A
+# check that declares less than the spec holds is the hole this closes: the
+# unit list comes from `policy.spec` and from nothing the check said.
+#
+# Units are the ACTIVE requirement bullets — `- **R7** — ...`. A requirement
+# whose following line marks it superseded or withdrawn is out of the
+# denominator, because the spec says the behaviour is no longer agreed.
+#
+# An unreadable spec, or one holding no requirements, comes back UNMEASURED
+# and never as an empty set. "0 units, all covered" is the same hollow green
+# this whole script exists to refuse.
+
+REQ_RE = re.compile(r"^\s*[-*]\s+\*\*(R\d+)\*\*\s*[\u2014\u2013-]\s*(.+?)\s*$")
+STATUS_RE = re.compile(r"^(Superseded by R\d+|Withdrawn)\b")
+UNIT_ID_RE = re.compile(r"^R\d+$")
+
+
+def enumerate_spec(path, shown):
+    """-> (status, detail, active_units). active_units is None when unmeasured.
+
+    `shown` is the configured, repo-relative path. Messages quote that and never
+    the absolute one: this text lands in a committed result file, and an
+    absolute path there differs on every machine that runs the stage.
+    """
+    if not os.path.exists(path):
+        return ("unreadable",
+                "no spec at %s, so the coverage denominator could not be derived. Unmeasured, "
+                "not zero." % shown, None)
+    try:
+        with open(path, errors="replace") as fh:
+            lines = fh.read().splitlines()
+    except OSError as exc:
+        return ("unreadable",
+                "cannot read %s: %s. The coverage denominator could not be derived. Unmeasured, "
+                "not zero." % (shown, exc), None)
+
+    units, order, current, since = {}, [], None, 0
+    for ln in lines:
+        m = REQ_RE.match(ln)
+        if m:
+            rid, text = m.group(1), m.group(2)
+            if rid in units:
+                return ("unreadable",
+                        "%s declares %s twice. Ids are permanent and unique, so a duplicate means "
+                        "the denominator cannot be trusted. Unmeasured, not zero." % (shown, rid), None)
+            units[rid] = {"id": rid, "text": text, "status": "active"}
+            order.append(rid)
+            current, since = rid, 0
+            continue
+        if current is not None:
+            # The marker sits on the line after the requirement. Two lines of
+            # slack, then the requirement is taken as active: a marker further
+            # down belongs to prose, not to this id.
+            since += 1
+            if since > 2 or ln.strip().startswith("#"):
+                current = None
+            else:
+                s = STATUS_RE.match(ln.strip(" \t>*-"))
+                if s:
+                    units[current]["status"] = ("superseded" if s.group(1)[0] == "S" else "withdrawn")
+                    current = None
+
+    if not order:
+        return ("no_requirements",
+                "%s holds no `- **R<n>** - ...` requirement lines, so the coverage denominator "
+                "could not be derived. Unmeasured, not zero." % shown, None)
+    active = [units[r] for r in order if units[r]["status"] == "active"]
+    if not active:
+        return ("no_requirements",
+                "%s holds %d requirements and none of them active, so there is nothing to measure "
+                "coverage against. Unmeasured, not zero." % (shown, len(order)), None)
+    return "measured", None, active
+
+
+if SPEC_MODE == "off":
+    SPEC_STATUS, SPEC_DETAIL, SPEC_UNITS = "off", (
+        "policy.spec_coverage: off - no requirement was measured. This is a committed opt-out, "
+        "not a measurement."), None
+else:
+    SPEC_STATUS, SPEC_DETAIL, SPEC_UNITS = enumerate_spec(os.path.join(ROOT, SPEC_PATH), SPEC_PATH)
+SPEC_IDS = {u["id"] for u in SPEC_UNITS} if SPEC_UNITS else set()
+SPEC_CLAIMS = {}
 
 # --- glob matching --------------------------------------------------------
 # Deliberately small: `**` crosses directory separators, `*` and `?` do not.
@@ -320,6 +628,17 @@ for idx, chk in enumerate(checks):
     ids.add(cid)
     w = "check %r" % cid
 
+    if cid in local_checks:
+        chk = dict(chk)
+        chk.update(local_checks[cid])
+
+    # A disabled check is a check that covers nothing. It is not a quiet pass:
+    # its rows still appear, marked `disabled`, and every requirement it
+    # claimed goes back to Missing.
+    enabled = chk.get("enabled", True)
+    if not isinstance(enabled, bool):
+        bad("%s.enabled must be true or false, not %r" % (w, enabled))
+
     sev = chk.get("severity", defaults.get("severity", "block"))
     if sev not in ("block", "advise"):
         bad("%s.severity must be `block` or `advise`, not %r" % (w, sev))
@@ -409,6 +728,49 @@ for idx, chk in enumerate(checks):
         except re.error as exc:
             bad("%s.coverage.rules_pattern is not a valid regular expression: %s" % (w, exc))
 
+    # --- what this check claims to cover, from the spec's own unit list ---
+    # A claim is a claim, not coverage. It is bound to this check's result
+    # below: a check that is disabled, that could not run, or that failed
+    # covers nothing, whatever it declared here.
+    su = cov.get("spec_units")
+    if su is None:
+        su = []
+    if not isinstance(su, list):
+        bad("%s.coverage.spec_units must be a list of claims" % w)
+    seen_units = set()
+    for j, cl in enumerate(su):
+        cw = "%s.coverage.spec_units[%d]" % (w, j)
+        if not isinstance(cl, dict):
+            bad("%s must be a mapping with `id` and `verdict`" % cw)
+        uid = cl.get("id")
+        if not isinstance(uid, str) or not UNIT_ID_RE.match(uid):
+            bad("%s.id must be a requirement id like R7, got %r" % (cw, uid))
+        if uid in seen_units:
+            bad("%s claims %s twice; two verdicts on one unit is not a verdict" % (cw, uid))
+        seen_units.add(uid)
+        vd = cl.get("verdict")
+        if vd not in ("Covered", "Partial", "n/a"):
+            bad("%s.verdict must be `Covered`, `Partial` or `n/a`, not %r. `Missing` is not "
+                "claimable - it is what the runner concludes about a unit nothing covered." % (cw, vd))
+        reason = cl.get("reason")
+        if vd == "n/a":
+            if not isinstance(reason, str) or not reason.strip():
+                bad("%s claims `n/a` with no `reason`. An n/a removes a requirement from the "
+                    "denominator, so it states why in a line a reviewer can disagree with. "
+                    "\"Hard to test\" is not n/a." % cw)
+        elif reason is not None and (not isinstance(reason, str) or not reason.strip()):
+            bad("%s.reason must be a non-empty string when given" % cw)
+        evidence = cl.get("evidence")
+        if evidence is not None and (not isinstance(evidence, str) or not evidence.strip()):
+            bad("%s.evidence must be a non-empty string when given" % cw)
+        if SPEC_STATUS == "measured" and uid not in SPEC_IDS:
+            bad("%s claims %s, which %s does not list as an active requirement. A claim against "
+                "an id nobody can find is not coverage." % (cw, uid, SPEC_PATH))
+        SPEC_CLAIMS.setdefault(uid, []).append(
+            {"check": cid, "verdict": vd,
+             "reason": reason if isinstance(reason, str) else None,
+             "evidence": evidence})
+
     ver = chk.get("version_command")
     if ver is None:
         if sev == "block":
@@ -457,13 +819,43 @@ for idx, chk in enumerate(checks):
                      "must_cover": must, "min_covered": min_cov,
                      "min_rules": min_rules, "rules_command": rules_cmd,
                      "rules_pattern": rules_pat},
-        "triggered": bool(reasons), "triggered_by": reasons, "files": file_set,
+        "enabled": enabled,
+        "triggered": enabled and bool(reasons), "triggered_by": reasons, "files": file_set,
     })
+
+for _eid in sorted(local_checks):
+    if _eid not in ids:
+        sys.stderr.write("run-checks: WARNING: %s overrides check %r, which %s does not declare. "
+                         "Nothing was applied.\n" % (LOCAL_NAME, _eid, os.path.basename(CONFIG)))
+
+# A configuration with no active verification refuses to load. Exiting 0 over
+# a file that switched every check off is the largest hollow pass available,
+# and it is one line of YAML away in every repo that has this file.
+if not any(c["enabled"] for c in plan):
+    bad("every one of the %d declared checks is `enabled: false`. A configuration with no active "
+        "verification is a load error, not a clean pass: it would exit 0 having verified nothing. "
+        "Delete the file if the stage is not wanted." % len(plan))
+
+# `auto` measures the moment anyone declares a claim, and says so plainly when
+# nobody has. Silence is reported as not-declared, never as covered.
+_claim_count = sum(len(v) for v in SPEC_CLAIMS.values())
+SPEC_ENFORCED = SPEC_MODE == "require" or (SPEC_MODE == "auto" and _claim_count > 0)
+if SPEC_MODE == "auto" and _claim_count == 0:
+    SPEC_STATUS, SPEC_DETAIL, SPEC_UNITS = "not_declared", (
+        "no check names a requirement from %s, so no requirement was measured. Unmeasured, not "
+        "covered. Declare `coverage.spec_units` on the checks that verify something, or set "
+        "`policy.spec_coverage: off` if this repo deliberately does not." % SPEC_PATH), None
 
 os.makedirs(os.path.join(WORK, "run"), exist_ok=True)
 with open(os.path.join(WORK, "plan.json"), "w") as fh:
-    json.dump({"config": CONFIG, "root": ROOT, "policy": {"empty_run": empty_run,
+    json.dump({"config": CONFIG, "config_source": CONFIG_SOURCE,
+               "root": ROOT, "root_source": ROOT_SOURCE,
+               "policy": {"empty_run": empty_run,
                "output": OUTPUT}, "files": files, "tags": tags,
+               "local_overrides_ignored": ignored_local,
+               "spec_coverage": {"mode": SPEC_MODE, "spec": SPEC_PATH, "status": SPEC_STATUS,
+                                 "detail": SPEC_DETAIL, "enforced": SPEC_ENFORCED,
+                                 "units": SPEC_UNITS, "claims": SPEC_CLAIMS},
                "checks": plan}, fh, indent=2)
 
 for c in plan:
@@ -494,7 +886,7 @@ for c in plan:
 sys.stdout.write("\n".join(str(c["index"]) for c in plan if c["triggered"]) + "\n")
 PY
 
-TRIGGERED="$(python3 "$WORK/plan.py" "$CONFIG_ABS" "$WORK" "$WORK/changed.txt" "$TAGS" "$ROOT")" || {
+TRIGGERED="$(python3 "$WORK/plan.py" "$CONFIG_ABS" "$WORK" "$WORK/changed.txt" "$TAGS" "$ROOT" "$ROOT_SOURCE" "$CONFIG_SOURCE")" || {
   rc=$?
   cleanup
   exit "$rc"
@@ -655,11 +1047,37 @@ def norm(p):
 
 results, blocking_failures, advisory_failures, triggered = [], [], [], 0
 
+# A check that could not run reached no verdict, and no verdict is not a soft
+# finding. `advise` means "argue with this check's findings"; it never means
+# "it is acceptable for this check to be absent". So these statuses block
+# whatever the severity says.
+CANNOT_RUN = {"missing_tool", "timeout", "no_version", "refused", "unmapped_exit"}
+
+
+def record_failure(row):
+    if row["blocking"] or row["status"] in CANNOT_RUN:
+        if not row["blocking"]:
+            row["detail"] = (row.get("detail", "") + " Declared `advise`, but blocking anyway: a "
+                             "check that could not run has no findings to soften.").strip()
+        blocking_failures.append(row)
+    else:
+        advisory_failures.append(row)
+
+
 for c in plan["checks"]:
     row = {"id": c["id"], "why": c["why"], "severity": c["severity"],
            "blocking": c["severity"] == "block", "mode": c["mode"],
            "command": c["command"], "triggered": c["triggered"],
-           "triggered_by": c["triggered_by"], "files_in_scope": len(c["files"])}
+           "triggered_by": c["triggered_by"], "files_in_scope": len(c["files"]),
+           "enabled": c["enabled"]}
+    if not c["enabled"]:
+        # Reported, not omitted. A check switched off in a config that still
+        # lists it is a decision someone should see in the same place they see
+        # the passes, and every requirement it claimed goes back to Missing.
+        row["status"] = "disabled"
+        row["detail"] = "`enabled: false`. A disabled check covers nothing."
+        results.append(row)
+        continue
     if not c["triggered"]:
         row["status"] = "not_triggered"
         results.append(row)
@@ -674,7 +1092,7 @@ for c in plan["checks"]:
                          "is a check that did not run." % read(d, "missing").strip())
         row["tool"] = {"version": None}
         results.append(row)
-        (blocking_failures if row["blocking"] else advisory_failures).append(row)
+        record_failure(row)
         continue
 
     ver_exit = read(d, "version_exit").strip()
@@ -816,18 +1234,88 @@ for c in plan["checks"]:
         row["status"] = "pass"
 
     if row["status"] != "pass":
-        (blocking_failures if row["blocking"] else advisory_failures).append(row)
+        record_failure(row)
     elif not row["coverage"]["satisfied"]:
         row["detail"] = "passed, but the coverage assertion was not met."
 
     results.append(row)
+
+# --- spec coverage: the denominator the check did not choose --------------
+#
+# Every active requirement gets a row, the covered ones included, because a
+# report that lists only the failures leaves the reader supplying their own
+# denominator - which is the whole failure this file exists to prevent.
+
+sc = plan["spec_coverage"]
+by_id = {r["id"]: r for r in results}
+# A Covered or Partial claim is a measurement, and a check that could not reach
+# a verdict measured nothing. A disabled check is out of force entirely, n/a
+# included: a claim from something switched off covers nothing.
+VOID_RUN = {"missing_tool", "timeout", "no_version", "refused", "unmapped_exit", "fail", "hollow"}
+
+spec_report = {"mode": sc["mode"], "spec": sc["spec"], "status": sc["status"],
+               "detail": sc["detail"], "enforced": sc["enforced"],
+               "units_total": None, "counts": None, "units": None, "satisfied": None}
+spec_unsatisfied = []
+
+if sc["status"] == "measured":
+    unit_rows = []
+    for u in sc["units"]:
+        claims = []
+        for cl in sc["claims"].get(u["id"], []):
+            st = by_id.get(cl["check"], {}).get("status", "unknown")
+            if st == "disabled":
+                void = "the check is disabled, and a disabled, skipped or todo check covers nothing"
+            elif cl["verdict"] in ("Covered", "Partial") and st in VOID_RUN:
+                void = "the check came back %s, so it measured nothing here" % st
+            else:
+                void = None
+            claims.append({"check": cl["check"], "claimed": cl["verdict"], "reason": cl["reason"],
+                           "evidence": cl["evidence"], "check_status": st, "voided": void})
+        live = [c for c in claims if not c["voided"]]
+        if any(c["claimed"] == "Covered" for c in live):
+            uv = "Covered"
+        elif any(c["claimed"] == "Partial" for c in live):
+            uv = "Partial"
+        elif any(c["claimed"] == "n/a" for c in live):
+            uv = "n/a"
+        else:
+            uv = "Missing"
+        if uv == "Missing":
+            note = ("; ".join("%s claimed %s but %s" % (c["check"], c["claimed"], c["voided"])
+                              for c in claims if c["voided"])
+                    or "no check in this config names this requirement")
+        elif uv == "n/a":
+            note = "; ".join("%s: %s" % (c["check"], c["reason"])
+                             for c in live if c["claimed"] == "n/a")
+        elif uv == "Partial":
+            note = "; ".join("%s: %s" % (c["check"], c["reason"] or c["evidence"] or "part only")
+                             for c in live if c["claimed"] == "Partial")
+        else:
+            note = None
+        unit_rows.append({"id": u["id"], "text": u["text"], "verdict": uv, "note": note,
+                          "exercised": any(by_id.get(c["check"], {}).get("status") == "pass"
+                                           for c in live),
+                          "claims": claims})
+    counts = {"Covered": 0, "Partial": 0, "Missing": 0, "n/a": 0}
+    for r in unit_rows:
+        counts[r["verdict"]] += 1
+    spec_unsatisfied = [r for r in unit_rows if r["verdict"] in ("Partial", "Missing")]
+    spec_report.update({"units_total": len(unit_rows), "counts": counts, "units": unit_rows,
+                        "satisfied": not spec_unsatisfied})
+
+# An unmeasured denominator refuses when it is being enforced. `units_total`
+# and `counts` stay null rather than 0 - a number nobody could compute is not
+# the number zero, and rendering it as zero is how "all covered" gets printed
+# over a spec that was never read.
+spec_refused = bool(sc["enforced"] and (sc["status"] != "measured" or spec_unsatisfied))
 
 empty = triggered == 0
 refuse_empty = empty and plan["policy"]["empty_run"] == "refuse"
 
 verdict = "pass"
 code = 0
-if blocking_failures or refuse_empty:
+if blocking_failures or refuse_empty or spec_refused:
     verdict = "refused"
     code = 3
 
@@ -835,6 +1323,8 @@ doc = {
     "schema": "productizer.checks.result/1",
     "config": plan["config"],
     "root": plan["root"],
+    "config_source": plan["config_source"],
+    "root_source": plan["root_source"],
     "change": {"files": plan["files"], "file_count": len(plan["files"]), "tags": plan["tags"]},
     "verdict": verdict,
     "exit_code": code,
@@ -842,7 +1332,12 @@ doc = {
                "passed": sum(1 for r in results if r["status"] == "pass"),
                "blocking_failures": len(blocking_failures),
                "advisory_failures": len(advisory_failures),
-               "not_triggered": sum(1 for r in results if r["status"] == "not_triggered")},
+               "disabled": sum(1 for r in results if r["status"] == "disabled"),
+               "not_triggered": sum(1 for r in results if r["status"] == "not_triggered"),
+               "spec_units_unsatisfied": (len(spec_unsatisfied)
+                                          if sc["status"] == "measured" else None)},
+    "spec_coverage": spec_report,
+    "local_overrides_ignored": plan["local_overrides_ignored"],
     "checks": results,
 }
 
@@ -872,9 +1367,38 @@ for r in results:
     e.write("  %-9s %-18s %-6s exit %-4s %s%s\n"
             % (r["status"].upper(), r["id"], r["severity"],
                r.get("exit_code", "-"),
-               (r["tool"].get("version") or "version unknown")[:44], cov_txt))
+               ((r.get("tool") or {}).get("version") or "version unknown")[:44], cov_txt))
     if r.get("detail"):
         e.write("             -> %s\n" % r["detail"])
+
+if sc["status"] == "measured":
+    e.write("spec coverage: %d active requirement(s) derived from %s - %d Covered, %d Partial, "
+            "%d Missing, %d n/a%s\n"
+            % (spec_report["units_total"], sc["spec"], spec_report["counts"]["Covered"],
+               spec_report["counts"]["Partial"], spec_report["counts"]["Missing"],
+               spec_report["counts"]["n/a"],
+               "" if sc["enforced"] else " (declared but not enforced)"))
+    for r in spec_report["units"]:
+        e.write("  %-8s %-5s %s\n" % (r["verdict"].upper(), r["id"], r["text"][:78]))
+        if r["note"]:
+            e.write("             -> %s\n" % r["note"])
+else:
+    e.write("spec coverage: UNMEASURED (%s). %s\n" % (sc["status"], sc["detail"]))
+
+if plan["local_overrides_ignored"]:
+    e.write("ignored %d local override(s) of team-level settings: %s. Team-level settings are "
+            "honoured only from the committed config.\n"
+            % (len(plan["local_overrides_ignored"]), ", ".join(plan["local_overrides_ignored"])))
+
+if spec_refused:
+    if sc["status"] != "measured":
+        e.write("REFUSED: %s A stage that cannot say what it was measured against does not get "
+                "to report a pass.\n" % sc["detail"])
+    else:
+        e.write("REFUSED: %d of %d requirement(s) in %s are not covered: %s. The denominator is "
+                "derived from the spec, not from what a check declared about itself.\n"
+                % (len(spec_unsatisfied), spec_report["units_total"], sc["spec"],
+                   ", ".join("%s (%s)" % (r["id"], r["verdict"]) for r in spec_unsatisfied[:8])))
 
 if refuse_empty:
     e.write("REFUSED: no declared check was triggered by this change. "
@@ -885,7 +1409,7 @@ if advisory_failures:
             % ", ".join("%s (%s)" % (r["id"], r["status"]) for r in advisory_failures))
 if blocking_failures:
     e.write("REFUSED: %s\n" % ", ".join("%s (%s)" % (r["id"], r["status"]) for r in blocking_failures))
-elif not refuse_empty:
+elif not refuse_empty and not spec_refused:
     # Say what actually passed. "PASS" over a run that examined nothing, or one
     # with an unread advisory failure in it, is the same hollow green this
     # whole stage exists to make visible.
@@ -897,6 +1421,10 @@ elif not refuse_empty:
                 "%d advisory check(s) did not — read them above.\n" % len(advisory_failures))
     else:
         e.write("PASS: every blocking check ran, covered what it declared, and found nothing.\n")
+# Every relative path in the config resolved against this directory, and the
+# result file landed under it. Naming it is what makes a wrong one visible.
+e.write("config: %s (%s)\n" % (plan["config"], plan["config_source"]))
+e.write("root: %s (%s)\n" % (plan["root"], plan["root_source"]))
 e.write("result: %s\n" % ("stdout" if OUT == "-" else os.path.abspath(OUT)))
 sys.exit(code)
 PY

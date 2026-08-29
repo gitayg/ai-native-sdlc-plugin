@@ -24,6 +24,34 @@
 # thirty-three is the failure being prevented; `references/checks.md` sets out
 # that case in full.
 #
+# THE SECOND RULE, WHICH CLOSES THE HOLE IN THE FIRST:
+#
+#     THE DENOMINATOR COMES FROM THE SPEC, NOT FROM THE CHECK.
+#
+# `coverage` says what a check must have examined — and the check author writes
+# it, so a check can shrink its own scope and still pass honestly. The unit list
+# under `coverage.spec_units` is therefore measured against the requirements
+# enumerated from `policy.spec`, not against anything in this file. Drop a unit
+# from a check's list and it does not leave the denominator: it turns up as
+# `Missing` and the run refuses.
+#
+# Every active requirement gets a row in the result, the covered ones included.
+# A report that lists only the failures leaves the reader supplying their own
+# denominator, which is the same mistake in a different place.
+#
+# TEAM-LEVEL SETTINGS ARE NOT LOCALLY OVERRIDABLE.
+#
+# A `checks.local.yaml` beside this file may say `timeout_seconds`, because a
+# slow laptop is nobody else's business. Everything else here — severity, when,
+# coverage, commands, every `policy` key — decides what gets examined and
+# whether the run blocks, which is what everyone downstream reads out of
+# `checks-result.json`. Those are honoured only from this committed file. A
+# local copy supplying one is ignored, with a warning naming it on stderr.
+#
+# AND: a config in which every check is `enabled: false` is a load error, not
+# a clean pass. A configuration with no active verification refuses to load
+# rather than exit 0 having verified nothing.
+#
 # ---------------------------------------------------------------------------
 # THIS IS A TEMPLATE. AN UNEDITED COPY CHECKS AN IMAGINARY REPO.
 #
@@ -51,7 +79,27 @@ policy:
 
   # Where the machine-readable result lands. Stage 6 review reads this file;
   # it is the evidence that the checks stage ran and what it covered.
+  #
+  # This path — and every relative path in this file, including the tools named
+  # in `requires` and `command` — resolves against the REPOSITORY ROOT, which
+  # the runner takes from the git work tree holding this config, not from this
+  # config's own directory. It prints the root it chose on every run; read that
+  # line if a tool you know is installed reports as missing.
   output: .claude/productizer/checks-result.json
+
+  # The coverage denominator, derived mechanically. Every ACTIVE requirement in
+  # this file becomes one row in the result; a requirement marked superseded or
+  # withdrawn is out of the denominator, because the spec says the behaviour is
+  # no longer agreed. An unreadable spec, or one with no requirements in it, is
+  # reported UNMEASURED and refuses — never as "0 units, all covered".
+  spec: .claude/productizer/spec.md
+
+  # `auto`     measure as soon as any check declares `coverage.spec_units`, and
+  #            say plainly that nothing was measured while none does
+  # `require`  always measure; a spec that cannot be read refuses the run
+  # `"off"`    a committed, visible opt-out. QUOTE IT: YAML reads a bare `off`
+  #            as the boolean false.
+  spec_coverage: auto
 
 defaults:
   timeout_seconds: 120
@@ -88,6 +136,29 @@ checks:
       examined_when_exit_in: [0, 1]
       must_cover: all_triggering
       min_covered: 1
+
+      # WHICH REQUIREMENTS THIS CHECK VERIFIES. Uncomment and point at ids that
+      # exist in `policy.spec`; the runner refuses a claim against an id the
+      # spec does not list as active, because a claim nobody can look up is not
+      # coverage.
+      #
+      #   Covered  this check verifies the requirement       (evidence optional)
+      #   Partial  part of it — say which part is missing
+      #   n/a      vacuous by the spec itself — `reason` REQUIRED
+      #
+      # `Missing` is not claimable. It is what the runner concludes about a
+      # unit nothing covered, which is the one verdict a check must not be able
+      # to write about itself.
+      #
+      # A CLAIM IS NOT COVERAGE. Each claim is bound to this check's own result:
+      # if the check is disabled, its tool is absent, it timed out, it failed or
+      # it came back hollow, the claim is voided and the unit goes back to
+      # Missing. A disabled, skipped or todo check covers nothing.
+      #
+      # spec_units:
+      #   - {id: R31, verdict: Covered, evidence: "per-file gitleaks over the whole change"}
+      #   - {id: R32, verdict: Partial, reason: "history is not scanned, only the working tree"}
+      #   - {id: R33, verdict: n/a, reason: "concerns the deploy gate, which this stage does not run"}
 
   # --- 2 · shell linter ---------------------------------------------------
   #
@@ -222,6 +293,10 @@ checks:
   # Move it to `block` the week its findings stop being argued with. An
   # advisory check nobody ever promotes is a check nobody reads.
   - id: pii-log-scan
+    # `enabled: false` takes a check out of force without deleting it: it is
+    # reported as `disabled` rather than omitted, and every requirement it
+    # claimed goes back to Missing. Switching every check off is a load error.
+    enabled: true
     why: PII in a log line survives every retention policy the product promises
     when:
       paths:

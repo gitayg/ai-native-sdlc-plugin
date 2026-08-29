@@ -37,7 +37,7 @@ downloads that one file and the path will not resolve.
 
 ## Versioning: explicit `version`, bumped per release
 
-`plugin.json` sets `"version": "1.0.0"`.
+`plugin.json` sets `"version": "4.2.0"`.
 
 Claude Code resolves a plugin's version from the first source that is set:
 `plugin.json`, then the marketplace entry, then the resolved commit SHA of the
@@ -130,8 +130,8 @@ claude plugin marketplace update productizer
 Every template resolves repo-first:
 
 ```
-.claude/sdlc/templates/<name>     the repo's own version
-templates/<name>                  the plugin's default
+.claude/productizer/templates/<name>     the repo's own version
+templates/<name>                         the plugin's default
 ```
 
 Commit the ones that differ and the whole repo gets them, the same way

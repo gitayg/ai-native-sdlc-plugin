@@ -1,1 +1,8 @@
 .DS_Store
+
+# Per-developer check overrides. Only `timeout_seconds` is honoured from here;
+# every other key is ignored with a warning, because a setting that changes what
+# a check examines — or whether it blocks — has to be a committed, team-visible
+# decision, not one developer's local choice.
+.claude/productizer/checks.local.yaml
+.claude/productizer/checks.local.yml

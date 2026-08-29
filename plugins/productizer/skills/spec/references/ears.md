@@ -39,6 +39,8 @@ distinction is what separates a designed path from a defended one.
 4. **Number every requirement** (`R1`, `R2`, …). The id is the handle everything
    downstream cites, and it is permanent — see *Requirement identity and
    lifecycle* below for allocation, supersession and the rules against reuse.
+   The id grammar itself is normative and executable: `references/format-spec.md`
+   states it, `scripts/validate-spec.py` enforces it.
 5. **No unquantified adjectives.** Fast, robust, user-friendly, appropriate, as
    needed, etc. Each is an argument deferred to review. Give a number or drop it.
 6. **Unwanted-behaviour requirements are not optional.** A spec with no `If`
@@ -189,6 +191,127 @@ contradiction, not a second defence.
 
 Point a criteria checker at the requirements section directly — that is what the
 numbering and the one-response rule are for.
+
+## Checking it instead of trusting it
+
+Everything above is prose, and prose loses to a hurried agent. The two rules
+that cost the most when they are broken — EARS syntax and id permanence — are
+therefore also a grammar (`references/format-spec.md`) and a checker
+(`scripts/validate-spec.py`, Python 3 standard library only).
+
+```bash
+python3 scripts/validate-spec.py .claude/productizer/spec.md \
+                                 .claude/productizer/constitution.md \
+                                 .claude/productizer/backlog.md
+python3 scripts/validate-spec.py --strict .claude/productizer/spec.md
+python3 scripts/validate-spec.py --self-test
+```
+
+Two severities. **ERROR** is a document that cannot be parsed or an invariant
+that is broken — the failures that resolve silently downstream instead of
+erroring. **WARN** is a document that parses and holds its ids but violates the
+contract in a way something later mangles or half-tests. `--strict` promotes
+WARN to failure; new spec content should pass it, and a spec written before the
+checker existed should at minimum be ERROR-free.
+
+Output is `file:line: SEVERITY CODE message`, sorted and free of any clock, so
+it greps and it diffs. Exit 0 clean, 1 failed, 2 usage, 3 self-test failed, and
+**4 for NOT MEASURED** — a file that could not be read or that holds no
+requirements prints no counts at all, because a fabricated `0 errors` reads
+exactly like a real one a month later.
+
+### Requirement ids
+
+| Code | Sev | Fires on |
+|---|---|---|
+| `ID_MALFORMED` | ERROR | an id that is not `R<n>`, leading zeros included |
+| `ID_REUSED` | ERROR | the same id defined twice |
+| `ID_AT_OR_ABOVE_COUNTER` | ERROR | an id at or above `Next requirement id` — the next allocation reuses it |
+| `COUNTER_MISSING` / `COUNTER_MALFORMED` | ERROR | no usable counter, so reuse cannot be ruled out |
+| `ID_OUT_OF_ORDER` | WARN | a descending id within one pattern section: the signature of an insertion or renumber |
+| `ID_SEPARATOR` | WARN | something other than an em dash after the id |
+| `TEXT_DUPLICATE` | WARN | one behaviour under two active ids, so its citations split |
+
+### EARS syntax
+
+| Code | Sev | Fires on |
+|---|---|---|
+| `EARS_NO_SHALL` | ERROR | no obligation stated |
+| `EARS_PATTERN` | ERROR | matches none of the six patterns |
+| `EARS_EMPTY` | ERROR | an id with no requirement text |
+| `EARS_MULTIPLE_SHALL` | WARN | more than one obligation under one id |
+| `EARS_IF_MISSING_THEN` | WARN | `If …, the system shall`, without `then` |
+| `EARS_SECTION_MISMATCH` | WARN | the pattern and its heading disagree |
+| `EARS_UNQUANTIFIED` | WARN | `fast`, `robust`, `reasonable`, `timely`, `gracefully`, … |
+| `EARS_NO_FULL_STOP` | WARN | one requirement is one sentence |
+
+### Supersession and permanence
+
+| Code | Sev | Fires on |
+|---|---|---|
+| `SUPERSEDED_TEXT_OVERWRITTEN` | ERROR | a superseded requirement carrying its replacement's text |
+| `STATUS_MALFORMED` | ERROR | a marker that is neither `Superseded by R<n>.` nor `Withdrawn.` |
+| `STATUS_DUPLICATE` | ERROR | two status markers on one requirement |
+| `SUPERSEDE_SELF` | ERROR | a requirement superseded by itself |
+| `SUPERSEDE_TARGET_ABSENT` | WARN | the replacement is not in the files given — legal only for a split spec |
+| `SUPERSEDE_BACKWARD` | WARN | superseded by a *lower* id; a replacement is newly allocated |
+| `STATUS_NO_REASON` | WARN | the marker records that it changed, not why |
+
+### Against a previous copy (`--baseline`)
+
+A renumber cannot be seen in one file — a renumbered spec is internally
+consistent. Against an earlier copy it is arithmetic:
+
+| Code | Sev | Fires on |
+|---|---|---|
+| `RENUMBERED` | ERROR | agreed text now carrying a different id |
+| `ID_DISAPPEARED` | ERROR | an id in the baseline and not in the file: a deletion |
+| `SUPERSEDED_TEXT_CHANGED` | ERROR | a superseded or withdrawn requirement whose text was edited rather than retained |
+| `ID_IDENTITY_CHANGED` | ERROR | an active requirement rewritten wholesale under the same id |
+| `PATTERN_CHANGED` | ERROR | the trigger changed pattern, which makes it a different requirement |
+| `COUNTER_REWOUND` | ERROR | the counter went backwards |
+| `STATUS_REVERTED` | WARN | superseded or withdrawn, now active again |
+
+### Constitution and backlog
+
+`PRINCIPLE_MALFORMED`, `PRINCIPLE_ID_REUSED`, `PRINCIPLE_ID_PREFIX` (an `R` id
+inside `## Principles`), `PRINCIPLE_ID_AT_OR_ABOVE_COUNTER`,
+`PRINCIPLE_COUNTER_MISSING` / `_MALFORMED`, `PRINCIPLE_STATUS_MISSING` and
+`PRINCIPLE_STATUS_MALFORMED` are ERROR; `PRINCIPLE_NO_CHECK` (a principle
+nothing checks is a slogan), `PRINCIPLE_NO_RATIFIER`, `PRINCIPLE_NO_DATE`,
+`PRINCIPLE_SUPERSEDE_TARGET_ABSENT`, `PRINCIPLE_ENFORCED_UNKNOWN` and
+`PRINCIPLE_TOO_MANY` are WARN. The backlog carries the same id checks under
+`BACKLOG_*`, plus `BACKLOG_STATUS_UNKNOWN` for a status outside the vocabulary
+on a row that names no Jira key.
+
+Whole-document failures — `KIND_UNKNOWN`, `NO_REQUIREMENTS_SECTION`,
+`NO_REQUIREMENTS`, `NO_PRINCIPLES*`, `NO_BACKLOG_ITEMS*`, `IO` — all exit 4 and
+report NOT MEASURED rather than a count.
+
+### What it does not catch
+
+The blind spots matter more than the coverage, because an undocumented one
+turns "nobody looked" into "it passed". The full list is in
+`references/format-spec.md`; the ones worth carrying in your head:
+
+- **A renumber, without `--baseline`.** In-file you get the signatures, not the
+  fact.
+- **A refinement that is really a contradiction.** `200 ms → 100 ms` and
+  `200 ms → 500 ms` look identical to a text differ. That is
+  `scripts/contradiction-check.py`'s question, and even it answers UNDECIDED
+  rather than guessing.
+- **Whether a reason line is true.** `Superseded by R41. Because.` is
+  grammatical.
+- **System-name drift.** `ears.md` rule 2 asks for one system noun; the real
+  spec uses four, some of them genuinely sub-components. No grammar separates a
+  component from drift, so it is not enforced.
+- **Whether a requirement is correct.** Which is what Stage 2's review is for.
+
+One inconsistency is worth knowing before you run it: rule 1 above says one
+`shall` per requirement, and this repo's own spec breaks it at **R14**, **R16**
+and **R21**. That is why `EARS_MULTIPLE_SHALL` is WARN rather than ERROR — the
+spec is green by default and fails `--strict` until the three are split or the
+rule is amended. Reporting it clean would make rule 1 decorative.
 
 ## What EARS does not do
 

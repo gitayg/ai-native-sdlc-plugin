@@ -82,21 +82,21 @@ if [ -f "$SPEC" ]; then
   # spec as 0 requirements: a measured zero that was not one. Keep this in step
   # with the same pattern in build-view.sh; two counters for one number
   # disagree the moment someone edits one of them.
-  actives=$(grep -cE '^([-*][[:space:]]+)?\*\*R[0-9]+\*\*' "$SPEC" 2>/dev/null || echo 0)
+  actives=$(grep -cE '^([-*][[:space:]]+)?\*\*R[0-9]+\*\*' "$SPEC" || true)
   row 0a Scaffold ok "$SPEC - $actives requirement(s)"
 else
   row 0a Scaffold "not run" "no living spec; Stage 2 has nothing to merge into"
 fi
 
 if [ -f "$SPEC" ] && grep -q 'Inferred from' "$SPEC" 2>/dev/null; then
-  n=$(grep -c 'Inferred from' "$SPEC" 2>/dev/null || echo 0)
+  n=$(grep -c 'Inferred from' "$SPEC" || true)
   row 0c Import waiting "$n inferred requirement(s) awaiting confirmation"
 else
   row 0c Import "n/a" "no imported requirements"
 fi
 
 if [ -f "$CONST" ]; then
-  p=$(grep -cE '^### P[0-9]+' "$CONST" 2>/dev/null || echo 0)
+  p=$(grep -cE '^### P[0-9]+' "$CONST" || true)
   [ "$p" -gt 0 ] && row 0d Constitution ok "$p principle(s)" \
                  || row 0d Constitution waiting "file exists, no principles ratified"
 else
@@ -105,7 +105,7 @@ fi
 
 # --- Stage 1 ---------------------------------------------------------------
 if [ -f "$BACKLOG" ]; then
-  b=$(grep -cE '^\| B[0-9]+' "$BACKLOG" 2>/dev/null || echo 0)
+  b=$(grep -cE '^\| B[0-9]+' "$BACKLOG" || true)
   row 1 Plan ok "$b backlog item(s)"
 else
   row 1 Plan "not run" "no backlog; intents arrive without a queue"
