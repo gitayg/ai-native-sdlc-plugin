@@ -1124,10 +1124,28 @@ tabs = ''.join('<button class="tab%s" data-p="%s">%s%s</button>'
                   '<span class="cnt">%s</span>' % esc(cnt) if cnt else '')
                for i, (pid, label, cnt) in enumerate(TABS))
 
+# When the DATA last changed, which is not when the view was generated and not
+# when the repo last had any commit. Taken from git rather than from the clock,
+# because a wall-clock stamp would make two runs of an unchanged repo differ -
+# and byte-identical output is what lets you tell a real change from a re-run.
+_data_paths = [p for p in file_dates
+               if p.startswith('.claude/productizer/') or p in ('REVIEW.md', 'CLAUDE.md')]
+DATA_UPDATED = max((file_dates[p] for p in _data_paths), default='')
+
 if IS_GIT and HEAD_SHA:
     stamp = 'generated from %s · %s' % (esc(HEAD_SHA), esc(HEAD_DATE or 'undated'))
 else:
     stamp = 'generated from the directory · no git history'
+
+if DATA_UPDATED:
+    data_stamp = ('<span class="crumb mono" title="When the lifecycle files last changed in git. '
+                  'Not when this page was generated - the page is regenerated from these files, '
+                  'so a re-run with no change produces the same page.">data updated %s</span>'
+                  % esc(DATA_UPDATED))
+else:
+    data_stamp = ('<span class="crumb mono" title="No lifecycle file has ever been committed, '
+                  'so there is no date to report. This is not a stale page - it is an unstarted '
+                  'one.">data updated &mdash; never committed</span>')
 
 crumb = esc(SPEC_REPO or GH or PRODUCT)
 verchip = ('<span class="verchip mono">%s <b>%s</b></span>' % (esc(PRODUCT), esc(LATEST))) if LATEST \
@@ -1136,7 +1154,7 @@ verchip = ('<span class="verchip mono">%s <b>%s</b></span>' % (esc(PRODUCT), esc
 
 BODY = (
     '<div class="bar"><span class="crumb"><b>%s</b> · SDLC pipeline</span>'
-    '<span style="flex:1"></span>%s<span class="crumb mono">read-only · %s</span></div>'
+    '<span style="flex:1"></span>%s%s<span class="crumb mono">read-only · %s</span></div>'
     '<div class="banners">%s</div>'
     '<div class="dashnote"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#3fb950" '
     'stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4"/>'
@@ -1155,7 +1173,7 @@ BODY = (
     '<section class="panel" id="p-rel">%s</section>'
     '<section class="panel" id="p-cmds">%s</section>'
     '</div>'
-    % (crumb, verchip, stamp, ''.join(banners), tabs,
+    % (crumb, verchip, data_stamp, stamp, ''.join(banners), tabs,
        p_dash, p_setup, p_stages, p_files, p_backlog, p_rel, p_cmds))
 
 DATA = ('var PROD = %s;\nvar CUR0 = %d;\nvar S = %s;\n'

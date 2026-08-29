@@ -256,7 +256,7 @@
         "exit_code": 0
       },
       "exit_code": 0,
-      "duration_seconds": 16,
+      "duration_seconds": 13,
       "coverage": {
         "from": "per_file_exit",
         "required": {

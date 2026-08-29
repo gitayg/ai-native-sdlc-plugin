@@ -1,4 +1,4 @@
-# Stage 4C for this repo. Not the shipped template: these are the checks that
+# Stage 5 for this repo. Not the shipped template: these are the checks that
 # actually matter for a plugin published publicly and installed by other people.
 version: 1
 

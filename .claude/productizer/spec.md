@@ -1,4 +1,4 @@
-# <System> — living spec
+# Productizer — living spec
 
 System
 : `<system-name>` — the exact noun every requirement below uses. Never vary it.
@@ -57,10 +57,22 @@ is built from the delta this file gained, not from the intent.
 The durable boundary of this system, not of any one change.
 
 In scope
-- <capability area this system owns>
+- Holding one living spec per product, and classifying every arriving intent
+  against the whole of it.
+- Halting when an intent contradicts an agreed requirement, and recording the
+  ruling that resolves it.
+- Declaring and running the checks a change must pass, and refusing a check
+  that cannot show what it examined.
+- Publishing read-only views of all of the above, regenerated from the files.
+- Gating the two irreversible acts — deploying and publishing — behind a person.
 
 Out of scope
-- <what it deliberately does not own, and which system owns it instead>
+- Writing the code. The agent already does that; this governs what it is
+  allowed to build and when it must stop.
+- Being a ticket tracker. Where a backlog item names a Jira key, Jira owns that
+  item's status and nothing is written back to it.
+- Hosting, CI, or deployment mechanics. Those belong to the repo's own tooling;
+  this only decides whether the change may proceed.
 
 ## Requirement index
 
