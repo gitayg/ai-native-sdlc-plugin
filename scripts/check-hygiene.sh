@@ -13,7 +13,7 @@ set -euo pipefail
 
 # Each pattern is a thing that has actually leaked into this repo before, or
 # would be a credential. Added to only with a reason.
-PATTERNS='opswat|deployhub|appCrane|agentclub|raisemehost|nanoai|LMmOS-[A-Z0-9]+|/Users/[a-z.]+|ghp_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|-----BEGIN [A-Z ]*PRIVATE KEY'
+PATTERNS='opswat|deployhub|appCrane|agentclub|raisemehost|nanoai|LMmOS-[A-Z0-9]+|/Users/[a-z.]+|ghp_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|-----BEGIN [A-Z ]*PRIVATE KEY|beads|gascity|gastownhall'
 
 found=0
 for f in "$@"; do
@@ -28,7 +28,11 @@ for f in "$@"; do
   # checks-result.json - so finding a leak created one, and the next run found
   # its own report. Same rule the delegated agents follow for injected text:
   # name where it is and what class it is; the reader opens the file.
-  hits=$(grep -EnI "$PATTERNS" "$f" | grep -v '^[0-9]*:PATTERNS=' || true)
+  # -i because the real-world spelling of these names is CamelCase while the
+  # pattern list is lower case. The check was not case-folding, so a capitalised
+  # spelling walked straight past the rule that names it - and did, into a
+  # public commit. Do not write an example here: this file is checked too.
+  hits=$(grep -EnIi "$PATTERNS" "$f" | grep -v '^[0-9]*:PATTERNS=' || true)
   if [ -n "$hits" ]; then
     while IFS=: read -r ln _; do
       printf '    %s:%s: matches a forbidden pattern (employer, private repo, personal path, hostname or credential) - open the file to see it\n' "$f" "$ln"
