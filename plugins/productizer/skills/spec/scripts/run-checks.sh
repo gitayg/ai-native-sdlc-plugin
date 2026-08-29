@@ -1319,10 +1319,19 @@ if blocking_failures or refuse_empty or spec_refused:
     verdict = "refused"
     code = 3
 
+# This file is committed. An absolute path in it publishes the maintainer's
+# home directory to everyone who clones the repo -- exactly what check-hygiene
+# refuses, leaked by the tool that reports on hygiene. Emit repo-relative:
+# `root` is where this file lives, so "." says everything true about it, and
+# the absolute values stay in memory for path resolution and never on disk.
+def _rel(p, root):
+    r = root.rstrip("/") + "/"
+    return p[len(r):] if p.startswith(r) else os.path.basename(p)
+
 doc = {
     "schema": "productizer.checks.result/1",
-    "config": plan["config"],
-    "root": plan["root"],
+    "config": _rel(plan["config"], plan["root"]),
+    "root": ".",
     "config_source": plan["config_source"],
     "root_source": plan["root_source"],
     "change": {"files": plan["files"], "file_count": len(plan["files"]), "tags": plan["tags"]},

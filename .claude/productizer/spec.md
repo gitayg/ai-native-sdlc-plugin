@@ -9,13 +9,13 @@ site generators, doc builds and packaging all skip that directory, so the spec
 is never rendered as a page or shipped in a release.
 
 Next requirement id
-: `R23` — allocate from here, then increment. This is the highest id the spec
+: `R29` — allocate from here, then increment. This is the highest id the spec
 has ever used, not a count of the rows on screen. Ids are never reused and
 never renumbered, and stay unique across the whole repo even if this spec is
 later split into several files.
 
 Requirements
-: `<n>` active, `<n>` superseded, `<n>` withdrawn.
+: 25 active, 3 superseded, 0 withdrawn.
 
 Audit trail
 : `git log -p .claude/productizer/spec.md`. Each commit is one change, joined to the
@@ -112,17 +112,29 @@ file stays skimmable at two hundred. One row per requirement, in id order.
 ### Unwanted behaviour
 
 - **R14** — If an intent contradicts an active requirement, then the lifecycle shall stop and ask which wins, and shall merge nothing.
+  Superseded by R23. Split into R23 and R24 — the sentence carried two obligations under one id, so a test could satisfy one half and leave the other unasserted.
+
 - **R15** — If a check exits zero having examined less than it declared, then the lifecycle shall report it as hollow and treat it as a failure.
 - **R16** — If a value could not be measured, then the lifecycle shall report it as unmeasured and shall not record it as zero.
+  Superseded by R25. Split into R25 and R26 — the sentence carried two obligations under one id, so a test could satisfy one half and leave the other unasserted.
+
 - **R17** — If a command would publish or deploy, then the gate shall block it until a person approves.
 - **R18** — If a configured command names a shell or an interpreter with an inline program, then the lifecycle shall refuse to run it.
 - **R19** — If the spec home is unreachable, then the lifecycle shall stop rather than classify against a remembered copy.
 - **R20** — If a survey finds too little evidence to draft from, then the lifecycle shall refuse to draft a spec from it.
+- **R23** — If an intent contradicts an active requirement, then the lifecycle shall stop and ask which wins.
+- **R24** — If an intent contradicts an active requirement, then the lifecycle shall merge nothing.
+- **R25** — If a value could not be measured, then the lifecycle shall report it as unmeasured.
+- **R26** — If a value could not be measured, then the lifecycle shall not record it as zero.
 
 ### Optional
 
 - **R21** — Where a backlog item names a Jira key, the lifecycle shall read that item's status from Jira and shall write nothing back.
+  Superseded by R27. Split into R27 and R28 — the sentence carried two obligations under one id, so a test could satisfy one half and leave the other unasserted.
+
 - **R22** — Where a repository declares its own check tools, the lifecycle shall run them only if the configuration explicitly opts in.
+- **R27** — Where a backlog item names a Jira key, the lifecycle shall read that item's status from Jira.
+- **R28** — Where a backlog item names a Jira key, the lifecycle shall write nothing back to Jira.
 
 ## Design
 
@@ -150,13 +162,17 @@ until a human rules on it.
 | R2 | `references/ears.md` id-lifecycle rules; reviewed at intake |
 | R5 | `scripts/run-checks.sh` coverage assertion; `hollow` path |
 | R11 | `scripts/build-view.sh` — byte-identical across runs and timezones |
-| R14 | `scripts/contradiction-check.py --selftest` — 7 true positives, precision 1.00 |
 | R15 | `run-checks.sh` hollow detection — proven on a stub and on real semgrep |
-| R16 | `check-hygiene.sh`, `stage-status.sh`, `build-view.sh` unmeasured states |
 | R17 | `templates/publish-gate.sh` — 42-case block corpus, 41-case allow corpus |
 | R18 | `run-checks.sh` argv[0] validation — shells, interpreters, repo-local paths |
 | R20 | `scripts/import-survey.sh` Verdict section |
 | R22 | `policy.allow_repo_local_tools`, default false |
+| R23 | `scripts/contradiction-check.py --selftest` — 7 true positives, precision 1.00 (inherited from R14; asserts the stop, not the non-merge) |
+| R24 | not yet verified — R14's checks asserted the stop; no check yet observes that nothing was merged |
+| R25 | `check-hygiene.sh`, `stage-status.sh`, `build-view.sh` unmeasured states (inherited from R16) |
+| R26 | not yet verified — inherited from R16, whose checks observe the unmeasured report, not the absence of a recorded zero |
+| R27 | not yet verified — R21 carried no acceptance-criteria row |
+| R28 | not yet verified — R21 carried no acceptance-criteria row |
 
 ## Change log
 
@@ -174,6 +190,7 @@ someone edits one and not the other.
 | Date | Issue | Branch / PR | Added | Refined | Superseded / withdrawn | Summary |
 |---|---|---|---|---|---|---|
 | <YYYY-MM-DD> | <#123 / PROJ-123> | `<branch>` / <pr> | R41–R43 | R12 | R7 → R41 | <what changed and why> |
+| 2026-08-29 | — | — | R23–R28 | — | R14 → R23, R24; R16 → R25, R26; R21 → R27, R28 | Each of the three carried two `shall` clauses under one id. Split so every obligation has its own id and neither half can be half-tested. Originals retained verbatim, marked superseded. |
 
 ## Decision record
 
@@ -183,3 +200,4 @@ every contradiction ruling.
 | Date | Decision | Why | Who |
 |---|---|---|---|
 | <YYYY-MM-DD> | <what was decided> | <the reason, not the restatement> | <name> |
+| 2026-08-29 | Split R14, R16 and R21 into new ids rather than editing them in place or amending the one-`shall` rule | A split is not a refinement: two obligations cannot share one id, and the id is what tests and plans cite. Editing in place would leave every existing citation pointing at half of what it used to mean. Amending the rule was the other option `ears.md` names, and was rejected because the rule is what makes a requirement single-assertion testable. | — |

@@ -783,13 +783,73 @@ if constit is not None and principles == 0:
                           'P1 upward and do not ratify any of them without asking me.'
                           % (PRODUCT, CONST_PATH)))
 
+# --- what a pushed tag actually starts here --------------------------------
+# This banner used to tell people to push tags "so CI builds the releases".
+# Nothing ever read whether this repo has any CI. A repo with no workflows
+# builds nothing on a tag push, and a page that says otherwise is asserting a
+# capability it never measured - the same failure as drawing an unknown as a
+# zero, committed on a sentence instead of on a number. So: measure it.
+#
+# The file list is the evidence. If it could not be read, that is unknown, not
+# "no CI", and an unknown never earns a claim - the CI clause is dropped either
+# way, because the wrong thing to do with "I cannot tell" is to say something.
+FILES_READ = tmpf('files') is not None
+WORKFLOWS = sorted(p for p in tracked
+                   if p.startswith('.github/workflows/')
+                   and p.rsplit('.', 1)[-1].lower() in ('yml', 'yaml'))
+
+# A workflow answers a tag push only if its trigger block says so. Only the
+# text above `jobs:` counts: `tags:` under a step's `with:` is an argument to
+# an action - docker/build-push-action takes exactly that key - and reading it
+# as a trigger would put back a guess of the same kind that was here before.
+TAG_WORKFLOWS = []
+for _p in WORKFLOWS:
+    _text = slurp(rel(_p))
+    if _text is None:
+        continue
+    _trig = re.split(r'^jobs\s*:', _text, maxsplit=1, flags=re.M)[0]
+    if re.search(r'^\s+tags\s*:', _trig, re.M):
+        TAG_WORKFLOWS.append(_p)
+
+if TAG_WORKFLOWS:
+    _names = ', '.join('<span class="mono">%s</span>' % esc(os.path.basename(p)) for p in TAG_WORKFLOWS)
+    _one = len(TAG_WORKFLOWS) == 1
+    _tag_effect = (' Pushing the tag also starts %s, which %s a tag push in %s trigger block.'
+                   % (_names, 'names' if _one else 'name', 'its' if _one else 'their'))
+    _tag_prompt = ('Tag the untagged released versions in %s and push the tags so %s %s and each '
+                   'version gets a release page. List what you will tag before you do it.'
+                   % (PRODUCT, ', '.join(os.path.basename(p) for p in TAG_WORKFLOWS),
+                      'runs' if _one else 'run'))
+elif WORKFLOWS:
+    _tag_effect = (' This repo has %s, and %s a tag push in its trigger block, so do not expect '
+                   'the tag itself to build anything.'
+                   % ('1 workflow file' if len(WORKFLOWS) == 1 else '%d workflow files' % len(WORKFLOWS),
+                      'it does not name' if len(WORKFLOWS) == 1 else 'not one of them names'))
+    _tag_prompt = ('Tag the untagged released versions in %s and push the tags so each version gets a '
+                   'release page. Nothing here is known to build on a tag push, so do not wait on CI. '
+                   'List what you will tag before you do it.' % PRODUCT)
+elif FILES_READ:
+    # The measured fact, and then nothing. No CI clause at all rather than a
+    # softened one: the reader who was told to expect a build needs the
+    # correction, and the prompt they paste needs no premise beyond the tag.
+    _tag_effect = (' There is no <span class="mono">.github/workflows/</span> in this repo, so pushing '
+                   'a tag starts no build here.')
+    _tag_prompt = ('Tag the untagged released versions in %s and push the tags so each version gets a '
+                   'release page. List what you will tag before you do it.' % PRODUCT)
+else:
+    # The tracked-file list could not be read, so whether anything builds is
+    # unknown. The banner says the part that is true regardless and no more.
+    _tag_effect = ''
+    _tag_prompt = ('Tag the untagged released versions in %s and push the tags so each version gets a '
+                   'release page. List what you will tag before you do it.' % PRODUCT)
+
 if IS_GIT and UNTAGGED and releases:
     banners.append(banner('warn', '%d version%s shipped without a tag.'
                           % (len(UNTAGGED), '' if len(UNTAGGED) == 1 else 's'),
                           'The newest untagged one is <span class="mono">%s</span>. A version in the log with '
-                          'no tag has no release page, which is where most people look.' % esc(UNTAGGED[0]['ver']),
-                          'Tag the untagged released versions in %s and push the tags so CI builds the '
-                          'releases. List what you will tag before you do it.' % PRODUCT))
+                          'no tag has no release page, which is where most people look.%s'
+                          % (esc(UNTAGGED[0]['ver']), _tag_effect),
+                          _tag_prompt))
 
 # --- kanban ---------------------------------------------------------------
 def card(cid, title, note='', level=''):
@@ -941,18 +1001,47 @@ else:
 p_dash = (
     '<div class="h">How it is going — %s</div>'
     '<div class="stats">%s</div>'
-    '<div class="h" style="margin-top:26px">In flight — one card per thing actually moving</div>'
-    '%s%s%s'
+    '%s'
     '<p class="provenance">Every number here was read at generation time: '
-    '<span class="mono">%s</span> for requirement counts and contradictions, '
-    '<span class="mono">%s</span> for the queue, '
+    '<span class="mono">%s</span> for requirement counts, contradictions and the promotion queue '
+    'above, <span class="mono">%s</span> for the backlog tile, '
     '<span class="mono">%s</span> for the last check run, and the git log for releases. '
+    'The cards those same files put in flight are drawn on the <b>Board</b> tab, which is where '
+    'the in-flight count beside it comes from. '
     'A tile showing <b>—</b> was never run; a tile showing <b>?</b> was read and could not be '
     'understood. Neither is a zero.</p>'
-    % (sub, ''.join(stats), kanban, kan_note, p_queue, SPEC_PATH, BACKLOG_PATH, RESULT_PATH))
+    % (sub, ''.join(stats), p_queue, SPEC_PATH, BACKLOG_PATH, RESULT_PATH))
 
 # --------------------------------------------------------------------------
-# panel: setup
+# panel: board
+# --------------------------------------------------------------------------
+# The count on the tab is the number of cards actually in flight - but only when
+# every column could be counted. An unreadable checks-result leaves `checks`
+# empty, so the Check column would draw a confident zero over a number nobody
+# read. That case reports itself as unknown, on the tab and on the panel, for
+# the same reason every other unknown on this page does.
+BOARD_COUNTABLE = check_state != 'unreadable'
+board_count = str(kan_total) if BOARD_COUNTABLE else '—'
+board_note = '' if BOARD_COUNTABLE else (
+    '<div class="relnote"><b>This board is short by an unknown number of cards.</b> '
+    '<span class="mono">%s</span> is present and would not parse, so the checks it records could '
+    'not be read and the <b>Check · 5</b> column below is drawn from nothing. The count on the '
+    'tab reads <b>—</b> rather than a total this page cannot stand behind.</div>' % esc(RESULT_PATH))
+
+p_board = (
+    '<div class="h">In flight — one card per thing actually moving</div>'
+    '%s%s%s'
+    '<p class="provenance">Every card was read at generation time: '
+    '<span class="mono">%s</span> for backlog items, <span class="mono">%s</span> for open '
+    'contradictions, <span class="mono">%s</span> for checks that did not pass, '
+    '<span class="mono">plan.md</span> and <span class="mono">REVIEW.md</span> asked of the '
+    'filesystem, and the git log for versions shipped without a tag. A card sits in the column of '
+    'the stage that is <i>holding</i> it, not the one it will reach next, and nothing here is '
+    'carried over from a previous run.</p>'
+    % (board_note, kanban, kan_note, BACKLOG_PATH, SPEC_PATH, RESULT_PATH))
+
+# --------------------------------------------------------------------------
+# the setup checklist  (rendered above the tabs, not as a panel)
 # --------------------------------------------------------------------------
 TICK = ('<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" '
         'stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>')
@@ -970,28 +1059,78 @@ SETUP = [
      'Draft a constitution for %s from how this repo already works. Number the principles P1 upward and do not ratify any of them without asking me.'),
 ]
 
-setup_html, setup_done = [], 0
+# Four states, four markers, four classes - the same vocabulary the stat tiles
+# already use: a tick is measured done, `n/a` is read and does not apply here,
+# `?` is read and could not be determined, `—` has not run. An inapplicable
+# item and an unperformed one are different facts, and reporting one as the
+# other is the exact failure the rest of this page exists to prevent.
+SETUP_MARK = {'ok':      (TICK,  'done'),
+              'n/a':     ('n/a', 'na'),
+              'unknown': ('?',   'unk')}
+
+setup_html = []
+setup_done, setup_todo, setup_na, setup_unk = 0, 0, 0, 0
+settled_na, settled_unk = [], []
 for sid, name, what, prompt in SETUP:
     if sid == '0b':
         st, detail = 'unknown', 'scheduled tasks live outside the tree; this page cannot see them'
     else:
         r = stage(sid)
         st, detail = r['state'], r['detail']
-    done = st == 'ok'
-    setup_done += 1 if done else 0
-    icon = TICK if done else ('?' if st == 'unknown' else '—')
+    icon, cls = SETUP_MARK.get(st, ('—', 'todo'))
+    if cls == 'done':
+        setup_done += 1
+    elif cls == 'na':
+        setup_na += 1;  settled_na.append(sid)
+    elif cls == 'unk':
+        setup_unk += 1; settled_unk.append(sid)
+    else:
+        setup_todo += 1
     setup_html.append(
         '<div class="sx %s"><span class="sxi">%s</span><div><span class="sxt">%s · %s</span>'
         '<span class="sxd">%s</span><span class="sxd" style="opacity:.75">%s — %s</span></div>%s</div>'
-        % ('done' if done else 'todo', icon, esc(sid), esc(name), what,
+        % (cls, icon, esc(sid), esc(name), what,
            esc(st), esc(detail), cp(prompt % PRODUCT)))
 
-p_setup = ('<div class="h">Setup — once per repo, before the loop runs</div>'
-           '<div class="setup">%s</div>'
-           '<p class="provenance">Each state below is <b>stage-status.sh</b>\'s answer for that stage, '
-           'not a second reading of the tree. <span class="mono">0b</span> is drawn as unknown because '
-           'scheduled tasks are not files — a page cannot see your machine, and guessing would be '
-           'worse than saying so.</p>' % ''.join(setup_html))
+# Setup is not a tab. This page exists to show what needs a person, so the gate
+# is what needs a person - not how many items carry ticks. `ok` needs nobody.
+# `n/a` needs nobody by definition. `unknown` needs nobody either: 0b is always
+# unknown because scheduled tasks live outside the tree, and no work the reader
+# does will ever flip it from this page. Gating on setup_done == len(SETUP)
+# would mean 0b and 0c could never both tick and the block could never leave -
+# a checklist pinned to every page forever, which is worse than the tab it
+# replaced. Only a genuine `todo` holds it open.
+#
+# It renders whole while it is up: the settled items stay on screen with their
+# own markers, because a filtered view would leave the reader hunting for ticks
+# that are never coming.
+if setup_todo:
+    _settled = []
+    if setup_done:
+        _settled.append('%d done' % setup_done)
+    if setup_na:
+        _settled.append('%d not applicable to this repo (%s)' % (setup_na, ', '.join(settled_na)))
+    if setup_unk:
+        _settled.append('%d this page cannot see (%s)' % (setup_unk, ', '.join(settled_unk)))
+    _rest = (' The other %d need nobody: %s — those will never tick, and they are not waiting on you.'
+             % (len(SETUP) - setup_todo, esc(', '.join(_settled)))) if _settled else ''
+    setup_bar = (
+        '<div class="bn warn setupbar"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" '
+        'stroke="#d29922" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+        '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>'
+        '<div class="setupbody">'
+        '<p><b>Setup — %d of %d still %s you.</b> Once per repo, before the loop runs.%s '
+        'Each state is <b>stage-status.sh</b>\'s answer for that stage, not a second reading of the '
+        'tree: a tick is done, <b>n/a</b> was read and does not apply here, <b>?</b> was read and '
+        'could not be determined — <span class="mono">0b</span> always is, because scheduled tasks '
+        'are not files and a page cannot see your machine — and <b>—</b> has not run. Only the '
+        '<b>—</b> items are waiting on you, and this block is not drawn at all once the last of '
+        'them is done.</p>'
+        '<div class="setup">%s</div></div></div>'
+        % (setup_todo, len(SETUP), 'needs' if setup_todo == 1 else 'need', _rest,
+           ''.join(setup_html)))
+else:
+    setup_bar = ''
 
 # --------------------------------------------------------------------------
 # panel: stages  (var S)
@@ -1368,7 +1507,7 @@ p_stages = (
 # assembly
 # --------------------------------------------------------------------------
 TABS = [('dash', 'Dashboard', ''),
-        ('setup', 'Setup', '%d/%d' % (setup_done, len(SETUP))),
+        ('board', 'Board', board_count),
         ('stages', 'Stages', str(len(S))),
         ('files', 'Files', str(len(rows))),
         ('backlog', 'Backlog', str(len(items)) if backlog is not None else '—'),
@@ -1411,7 +1550,7 @@ verchip = ('<span class="verchip mono">%s <b>%s</b></span>' % (esc(PRODUCT), esc
 BODY = (
     '<div class="bar"><span class="crumb"><b>%s</b> · SDLC pipeline</span>'
     '<span style="flex:1"></span>%s%s<span class="crumb mono">read-only · %s</span></div>'
-    '<div class="banners">%s</div>'
+    '<div class="banners">%s%s</div>'
     '<div class="dashnote"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#3fb950" '
     'stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4"/>'
     '<path d="m16.2 7.8 2.9-2.9"/><path d="M18 12h4"/><path d="m16.2 16.2 2.9 2.9"/><path d="M12 18v4"/>'
@@ -1422,15 +1561,15 @@ BODY = (
     '<div class="tabs" id="tabs">%s</div>'
     '<div class="wrap">'
     '<section class="panel on" id="p-dash">%s</section>'
-    '<section class="panel" id="p-setup">%s</section>'
+    '<section class="panel" id="p-board">%s</section>'
     '<section class="panel" id="p-stages">%s</section>'
     '<section class="panel" id="p-files">%s</section>'
     '<section class="panel" id="p-backlog">%s</section>'
     '<section class="panel" id="p-rel">%s</section>'
     '<section class="panel" id="p-cmds">%s</section>'
     '</div>'
-    % (crumb, verchip, data_stamp, stamp, ''.join(banners), tabs,
-       p_dash, p_setup, p_stages, p_files, p_backlog, p_rel, p_cmds))
+    % (crumb, verchip, data_stamp, stamp, setup_bar, ''.join(banners), tabs,
+       p_dash, p_board, p_stages, p_files, p_backlog, p_rel, p_cmds))
 
 DATA = ('var PROD = %s;\nvar CUR0 = %d;\nvar S = %s;\n'
         % (json.dumps(PRODUCT), CUR0,

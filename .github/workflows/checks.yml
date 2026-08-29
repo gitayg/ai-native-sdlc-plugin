@@ -1,0 +1,166 @@
+# The gate this repo already claims to have.
+#
+# README and CONTRIBUTING both assert what must pass before a change ships.
+# Until this file existed, nothing off the maintainer's machine had ever tested
+# that assertion, and `scripts/signals.sh` said so: `ci: unavailable`, which
+# caps `score.sh` at 60 — "no upstream CI status: nothing built or tested this
+# change off this machine". That cap was telling the truth.
+#
+# WHAT THIS FILE IS NOT. There is no build step, because there is no artifact:
+# this is a plugin marketplace, and what ships is the source. A build step here
+# would be theatre.
+name: checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# `pull_request`, never `pull_request_target`. The latter runs with the base
+# repo's token and secrets against a fork's code, on a public repo, before
+# anyone has looked at the diff. There is nothing here that needs it.
+
+# This job reads code. That is the whole scope. Everything not listed is
+# dropped, so a step that gets compromised has no token worth stealing.
+permissions:
+  contents: read
+
+concurrency:
+  group: checks-${{ github.workflow }}-${{ github.ref }}
+  # Supersede an in-flight PR run: it is testing code nobody is proposing any
+  # more. Do NOT cancel on main — that run is the permanent record for a
+  # commit, and a cancelled one reads as `failure` to signals.sh.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      # Third-party actions are pinned to a major version so a moved floating
+      # tag cannot swap the code that checks out this repo. A full commit SHA
+      # is stricter still; the major pin is the floor, not the ideal.
+      - uses: actions/checkout@v4
+        with:
+          # The Stage 5 gate diffs against a base commit. A shallow clone has
+          # no base to diff against, and run-checks.sh reads an unresolvable
+          # base as a usage error rather than as "nothing changed" — correct,
+          # and useless if the history was never fetched.
+          fetch-depth: 0
+
+      # Pinned runtimes, so a runner-image bump cannot change what was checked
+      # without a diff saying so.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # FAIL CLOSED, FIRST. Every tool below is asserted present here so a
+      # missing one is a named failure at the top of the log, not a check that
+      # quietly did not run. This is the same rule run-checks.sh enforces
+      # internally: a declared tool that is absent FAILS its check, it is never
+      # skipped. CI must not undercut that.
+      - name: Preflight — tools this job refuses to run without
+        run: |
+          set -euo pipefail
+          missing=()
+          for tool in git python3 node npm npx; do
+            command -v "$tool" >/dev/null 2>&1 || missing+=("$tool")
+          done
+          if [ "${#missing[@]}" -gt 0 ]; then
+            echo "::error::not on PATH: ${missing[*]}"
+            exit 1
+          fi
+          git --version
+          python3 --version
+          node --version
+          # checks.yaml runs shellcheck as `npx --yes shellcheck`, so PATH is
+          # not where it has to exist — the registry is. Resolving it here
+          # means a registry or network failure is reported as a preflight
+          # failure, instead of surfacing later as an unexplained shell-lint
+          # refusal.
+          npx --yes shellcheck --version
+
+      # Pinned exactly. `claude plugin validate` is the gate on both manifests,
+      # and a validator that changes what it accepts between two runs of an
+      # unchanged repo is not a gate. Bump this deliberately, in a diff.
+      - name: Install the Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code@2.1.251
+
+      # README, "Publisher: shipping a change", step 3: both must pass.
+      # Manifest validation only — reads two JSON files, needs no account.
+      - name: Manifests — plugin and marketplace, strict
+        if: ${{ !cancelled() }}
+        run: |
+          set -euo pipefail
+          claude plugin validate ./plugins/productizer --strict
+          claude plugin validate . --strict
+
+      # Grammar, then permanence. Exit 4 is NOT MEASURED — a file that could
+      # not be read, or holds no requirements — and it is non-zero on purpose:
+      # a spec nobody parsed has not passed.
+      #
+      # Deliberately not --strict. The spec carries WARNs today (three
+      # requirements with two `shall` clauses); --strict would fail this job on
+      # a pre-existing condition and the first thing anyone did would be to
+      # delete the step. WARNs are printed and do not block. See references/ci.md.
+      - name: Spec — EARS grammar and id permanence
+        if: ${{ !cancelled() }}
+        run: |
+          set -euo pipefail
+          python3 plugins/productizer/skills/spec/scripts/validate-spec.py --self-test
+          python3 plugins/productizer/skills/spec/scripts/validate-spec.py \
+            .claude/productizer/spec.md \
+            .claude/productizer/constitution.md
+
+      # Precision must stay at 1.00. A contradiction checker that halts on a
+      # non-conflict gets switched off, and then nothing is checked.
+      - name: Solver — contradiction-check self-test
+        if: ${{ !cancelled() }}
+        run: |
+          set -euo pipefail
+          python3 plugins/productizer/skills/spec/scripts/contradiction-check.py --selftest
+
+      # Stage 5, last because it is the slowest: shellcheck runs per changed
+      # file. Exit 3 is REFUSED (a blocking check failed, was hollow, timed
+      # out, or its tool is missing); exit 2 is bad usage; exit 1 is a crash,
+      # which reads as unverified and never as a pass. All three fail the job.
+      #
+      # `--base`, not `--changed`. `--changed PATH` wants a FILE LISTING the
+      # changed paths, one per line — handing it a changed file instead reads
+      # as a one-path change set and passes having examined almost nothing.
+      # `--base REF` derives the set from `git diff` against the merge base,
+      # which is what CI has and what it should be measured on.
+      - name: Stage 5 — declared checks over this change
+        if: ${{ !cancelled() }}
+        env:
+          # Branch names, PR titles and commit messages are attacker-influenced
+          # on a public repo, so no `github.event.*` value is interpolated into
+          # a run: block anywhere in this file. These two are commit SHAs
+          # chosen by GitHub, passed through env, and quoted at every use.
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          base="${PR_BASE_SHA:-}"
+          [ -n "$base" ] || base="${PUSH_BEFORE:-}"
+          # A force-push, or a first push to a branch, gives an all-zero or
+          # unfetchable `before`. Falling back to the first parent measures a
+          # smaller change than really landed, so it is a fallback and not the
+          # default; when even that does not resolve, git exits non-zero under
+          # `set -e` and the job fails rather than gating on an unknown set.
+          if [ -z "$base" ] || ! git cat-file -e "${base}^{commit}" 2>/dev/null; then
+            echo "::warning::no usable base from the event payload; falling back to HEAD^"
+            base="$(git rev-parse --verify HEAD^)"
+          fi
+          echo "base: $base"
+          plugins/productizer/skills/spec/scripts/run-checks.sh \
+            --base "$base" \
+            --out "$RUNNER_TEMP/checks-result.json"

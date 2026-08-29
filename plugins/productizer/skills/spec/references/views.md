@@ -96,10 +96,22 @@ rather than inventing a denominator to make the fraction look finished. The
 queued ids also appear under *requirements with no test*, because the acceptance
 table is for agreed requirements and an inferred one is given no row on purpose.
 
-The second half is a **kanban of what is actually moving**, one card per item,
-each sitting in the column of the stage that is *holding* it — not the stage it
-will reach next. Columns follow the lifecycle: backlog, intake, build, check,
-review, gated. Cards carry what is blocking them, in words.
+**Board** — a **kanban of what is actually moving**, one card per item, each
+sitting in the column of the stage that is *holding* it — not the stage it will
+reach next. Columns follow the lifecycle: backlog, intake, build, check, review,
+gated. Cards carry what is blocking them, in words.
+
+It is its own tab rather than the second half of the dashboard, because the two
+answer different questions: the dashboard answers *how is this repo doing*, in
+numbers that are true whether or not anything is moving, and the board answers
+*what is moving right now*. The tab carries the number of cards in flight, and
+carries an em dash instead when a column could not be counted — an unreadable
+`checks-result.json` leaves the check column drawing a confident zero over a
+number nobody read, so the count says unknown and the panel says why.
+
+The promotion queue stays on the dashboard. It is read from `spec.md`, not from
+what is in flight, and a requirement waiting to be confirmed is not a card
+moving through a stage.
 
 That last column is the point of the whole board. **A full `Gated` column means
 work is finished and waiting on a person**, which is the only queue on the board
@@ -228,7 +240,7 @@ every stage off the tree and already keeps `not run`, `unknown` and `n/a` apart;
 it is run as a subprocess and its rows are parsed. A second copy of that
 reasoning would disagree with the first the day someone edited one of them.
 
-Three things the generator will not do, because each is how a dashboard starts
+Four things the generator will not do, because each is how a dashboard starts
 lying:
 
 - **It never renders an unreadable value as a measured zero.** A tile shows a
@@ -240,11 +252,48 @@ lying:
   `PASS`. A spec with no requirement awaiting promotion is `n/a` when the import
   never ran and a measured `0` when every drafted sentence has been ratified,
   because those are two different things to do next.
+- **It never asserts a capability it did not read.** The untagged-versions
+  banner used to end "push the tags so CI builds the releases". Nothing had
+  checked whether the repo has any CI, and in a repo with no workflows the
+  sentence was simply false — a maintainer acted on it. The banner now reads
+  `.github/workflows/` off the tracked-file list: with a workflow that names a
+  tag push in its trigger block it says which one runs, with workflows that do
+  not it says so, and with none it drops the claim entirely and keeps only the
+  part that is true regardless — an untagged version has no release page. Only
+  the trigger block counts, never a `tags:` key under a step's `with:`, which is
+  an argument to an action rather than a trigger. If the file list could not be
+  read, that is unknown, and an unknown earns no claim at all. The rule about
+  not drawing an unknown as a zero is about sentences too, not only numbers.
 - **It ships no sample data.** An absent backlog renders as an absent backlog
   and says what that costs; a present but empty one renders as an empty table.
   The only text on the page that is not this repo's own state is the
   traditional-versus-AI-native pair on the Stages panel, which describes the
   lifecycle rather than the repo — and says so, on the page, underneath itself.
+**Setup is a checklist, not a tab.** The five once-per-repo steps sit at the top
+of the page, in the banner region above the tab bar, for exactly as long as one
+of them still needs a person — and then the whole block is gone, not left as an
+empty panel behind a tab reading `n/n`. The page exists to show what needs a
+person, and a finished setup needs nobody. An unfinished one gates everything
+under it, which is not a thing to hide behind the seventh tab.
+
+**The gate is what needs a person, not how many ticks there are.** `ok` needs
+nobody. `n/a` needs nobody by definition. `unknown` needs nobody either: `0b` is
+always unknown because scheduled tasks live outside the tree, so no work the
+reader does will ever flip it from this page. Counting ticks instead would mean
+`0b` and `0c` could never both tick and the block could never leave — a
+checklist pinned to every page forever, which is worse than the tab it replaced.
+Only a genuine `—` holds it open, and the header says which of the others will
+never tick so nobody goes hunting for them.
+
+While it is up it renders whole, settled items included, each with its own
+marker and its own copy-prompt — a filtered view would leave the reader looking
+for ticks that are not coming. **Four states, four renderings**, the same
+vocabulary the stat tiles use: a tick is done, `n/a` was read and does not apply
+to this repo, `?` was read and could not be determined, `—` has not run. `n/a`
+and `—` are the pair most easily collapsed, and collapsing them reports an
+inapplicable step as an unperformed one — which is the failure the rest of this
+page exists to prevent, committed inside the page.
+
 - **It colours only what needs you.** Banner level follows `stage-status.sh`'s
   own ranking: `blocked` is red, `waiting`/`unknown`/`not run` are amber, and
   everything else has no colour at all. The heading count and the banner list

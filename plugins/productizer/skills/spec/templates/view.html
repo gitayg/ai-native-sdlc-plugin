@@ -41,9 +41,12 @@ border:1px solid var(--line);border-radius:10px;padding:10px 13px;margin-bottom:
 .sx{display:flex;align-items:flex-start;gap:11px;background:var(--surface);border:1px solid var(--line);
 border-radius:10px;padding:12px 13px}
 .sx.done{border-color:#1f6f36}
+.sx.unk{border-color:#6a5416}
 .sxi{width:20px;height:20px;border-radius:999px;display:grid;place-items:center;flex:0 0 auto;
 font-family:var(--mono);font-size:11px;color:var(--muted);border:1px solid var(--line);margin-top:1px}
 .sx.done .sxi{color:var(--ok);border-color:var(--ok)}.sx.done .sxi svg{width:11px;height:11px}
+.sx.unk .sxi{color:var(--warn);border-color:var(--warn)}
+.sx.na .sxi{font-size:8px;letter-spacing:-.3px;border-style:dashed}
 .sxt{display:block;font-size:12.5px;font-weight:600}
 .sxd{display:block;font-size:11.5px;color:var(--muted);margin-top:3px;line-height:1.45}
 .sx .cp{margin-left:auto;align-self:center}
@@ -224,6 +227,7 @@ padding:11px 14px;background:var(--surface)}
 .bn p{margin:0;font-size:12.5px;color:var(--muted)}
 .bn b{color:var(--text)}
 .bn .cp{margin-left:auto;align-self:center}
+.setupbody{flex:1;min-width:0;display:flex;flex-direction:column;gap:10px}
 .relnote{background:var(--raised);border:1px solid var(--line);border-left:2px solid var(--warn);
   border-radius:7px;padding:12px 15px;font-size:12.5px;color:var(--muted);line-height:1.65;margin-bottom:18px}
 .relnote b{color:var(--text)}

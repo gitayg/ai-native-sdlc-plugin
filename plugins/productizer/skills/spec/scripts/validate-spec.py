@@ -490,6 +490,15 @@ def check_spec_ids(doc, counter):
 
 def check_spec_ears(doc):
     for requirement in doc.requirements:
+        # Only active requirements are held to the EARS rules. A superseded or
+        # withdrawn one is a frozen record of what was once agreed, and its text
+        # must be retained verbatim (SUPERSEDED_TEXT_CHANGED is an ERROR). Judging
+        # it against the current style makes a warning that cannot be cleared
+        # without breaking the retention rule -- two of this skill's own rules in
+        # direct collision. Found by splitting R14/R16/R21: the split could never
+        # silence the warning, because the originals keep the text that raised it.
+        if requirement.status != "active":
+            continue
         text = requirement.text.strip()
         if not text:
             doc.add(requirement.line, ERROR, "EARS_EMPTY",
@@ -1067,6 +1076,7 @@ Next requirement id
 
 - **R4** — When an intent arrives, the widget shall classify it, and shall log it.
   Superseded by R4. Because.
+- **R5** — When a batch completes, the widget shall notify the caller, and shall write a log line.
 """
 
 VALID_CONSTITUTION = """# Widget — constitution
