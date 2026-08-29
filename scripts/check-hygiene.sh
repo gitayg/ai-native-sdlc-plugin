@@ -23,9 +23,16 @@ for f in "$@"; do
   # coverage saw it as unexamined. The only genuine false positive is the line
   # that DEFINES the pattern list, so drop exactly that line and nothing else.
   echo "$f"                          # coverage: one line per file examined
-  hits=$(grep -EnI "$PATTERNS" "$f" 2>/dev/null | grep -v '^[0-9]*:PATTERNS=' || true)
+  # Report by LOCATION, never by quoting the match. Printing the offending line
+  # put the leaked path into run-checks' `output_tail`, which is committed in
+  # checks-result.json - so finding a leak created one, and the next run found
+  # its own report. Same rule the delegated agents follow for injected text:
+  # name where it is and what class it is; the reader opens the file.
+  hits=$(grep -EnI "$PATTERNS" "$f" | grep -v '^[0-9]*:PATTERNS=' || true)
   if [ -n "$hits" ]; then
-    printf '%s\n' "$hits" | sed 's/^/    /'
+    while IFS=: read -r ln _; do
+      printf '    %s:%s: matches a forbidden pattern (employer, private repo, personal path, hostname or credential) - open the file to see it\n' "$f" "$ln"
+    done <<< "$hits"
     found=1
   fi
 done

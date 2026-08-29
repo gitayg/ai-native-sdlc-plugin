@@ -214,12 +214,16 @@ be right.
 ```bash
 scripts/build-view.sh                                  # cwd, to .claude/productizer/pipeline.html
 scripts/build-view.sh ../orders-api --out /tmp/v.html  # another repo, another path
+scripts/build-view.sh --stale-after                    # page notices its own age after 120s
+scripts/build-view.sh --stale-after 900                # ... after 15 minutes
+scripts/build-view.sh --stale-after never              # or 0 - the default, off
 ```
 
 Bash and python3 only; no network, no dependencies. It reads and writes exactly
 one file, and running it twice on an unchanged repo produces a byte-identical
 one — the only date on the page is HEAD's, never today's, so nothing moves
-because a clock did.
+because a clock did. `--stale-after` is the one documented exception, and it is
+opt-in for that reason; see the end of this section.
 
 Every panel is read at generation time: `.claude/productizer/config.json` for the product name
 and the Jira site links are built from, `spec.md` for requirement counts,
@@ -300,9 +304,91 @@ page exists to prevent, committed inside the page.
   name the same set of things, so a red banner can never sit above a heading
   that says nothing is waiting.
 
+**The attention count is a link to the things it counts.** The Dashboard heading
+reads `N things need you`, and those N banners are already on the page, above
+the tab bar. The count is an `<a href="#banners">` pointing at that region:
+underlined at rest rather than on hover, because a control that only appears
+under the cursor is one most readers never find, and keyboard-reachable because
+it is a real link, taking the sheet-wide `:focus-visible` ring. The region
+carries `id="banners"` and `tabindex="-1"`, so following the link moves focus
+into it instead of leaving a screen reader still in the heading. Each banner
+also carries `id="bn-1"`, `bn-2`, … in document order, so anything later can
+point at one of them rather than at the pile.
+
+The other branch — `nothing is waiting on you` — stays plain text. There is
+nothing to jump to, and a link that lands on an empty region is worse than no
+link.
+
+The banners sit outside the tab system, so the jump changes no tab and loses no
+panel: a reader on **Files** who follows it is still on **Files** afterwards.
+
+**The acceptance-row prompt interrogates; it does not fill anything in.** The
+banner for *active requirements with no acceptance row* used to hand an agent
+"add acceptance criteria rows … naming the test or command". An agent finishes
+that task by inventing test names, and a fabricated row converts *nobody knows*
+into a confident *yes* in the one table whose whole job is answering "do the
+tests assert this" as a fact — the exact failure this page refuses everywhere
+else, committed inside the page's own remedy for it.
+
+The prompt now takes the ids one at a time, quotes each requirement in full with
+its id, and asks what asserts it today: a test name, a command, a manual check,
+or nothing. A row is written **only from an answer** — never inferred from the
+code, never guessed by reading the suite, never filled in to make the table look
+complete. `Nothing asserts this yet` is a legitimate and expected answer and is
+recorded as one, not papered over. Silence is silence: an id nobody answers gets
+no row, and the unanswered ids are named at the end.
+
+**`--stale-after` lets the page notice it is old — and it costs the
+byte-identical guarantee.** Off unless asked for; a bare `--stale-after` (or
+`--stale-after=`) means 120 seconds, and `0` / `never` / `off` is the default
+state of off. A bare `--stale-after` immediately before the repo-root positional
+swallows it and exits 2 with the path quoted back — loudly wrong rather than
+quietly, but write `--stale-after=N` or put the path first. With it on, the
+page embeds its generation time and, past the threshold, shows a notice saying
+how old it is and the exact command that regenerates it — rebuilt from the real
+argv, so a page built with `--out somewhere.html` prints that `--out` rather
+than a guess at it. The command is shell-quoted, copy-pasteable, and carries the
+page's own copy button.
+
+**It does not reload, and that is the point.** This page is a static file:
+re-serving it returns the same bytes, and the numbers only move when
+`build-view.sh` runs again. A `<meta http-equiv="refresh">` would produce a page
+that *looks* live while showing figures nothing re-measured — a value presented
+as current that was never taken, which is the same defect as drawing an unknown
+as a zero. What would make it genuinely live is regeneration: a file watcher on
+`.claude/productizer/`, a post-commit hook, or a scheduled run. So the page
+hands over the command instead of performing freshness.
+
+**It says the page is old. It never says the page is wrong.** The page knows
+exactly one thing — how long ago it was generated. Whether anything in the repo
+changed since would take a re-read, and a file served off disk cannot re-read
+anything. An hour-old page over a repo nobody touched is exactly right. The
+wording claims only the age, and the git-derived `data updated` stamp in the
+header goes on answering the other question — when the lifecycle files last
+changed — because page age and data age are two facts and neither stands in for
+the other.
+
+**The price, plainly: with `--stale-after` the output is no longer byte-stable
+between runs.** The generation time is a wall-clock value, so two runs seconds
+apart over an unchanged repo differ — in exactly one place, the embedded epoch.
+That is the entire trade, it is only ever taken by someone who asked for it, and
+omitting the flag or passing `0` / `never` puts the guarantee back: all three
+produce output byte-identical to a build without the feature at all.
+
+The notice is `position:fixed`, so it never pushes a line of the page down under
+someone mid-read; `role="status" aria-live="polite"`, so it announces without
+taking focus off what they were reading; it has a Dismiss button; and there is
+no countdown — the age text is redrawn only when the words would change, at
+minute granularity. Its one transition is suppressed under
+`prefers-reduced-motion`, by its own rule as well as the sheet-wide one. A
+viewer whose clock is behind the generation time sees nothing rather than a
+negative age.
+
 `templates/view.html` stays the shared shell — tokens, primitives and the
-interaction code — with three substitution points: `@@TITLE@@`, `@@BODY@@` and
-`@@DATA@@`. Editing the template changes every generated view; editing the
+interaction code — with four substitution points: `@@TITLE@@`, `@@BODY@@`,
+`@@DATA@@` and `@@STALECSS@@`. The last one is empty on nearly every build and
+sits flush against the end of the last rule in the stylesheet, so replacing it
+with nothing leaves the sheet byte-for-byte what it was. Editing the template changes every generated view; editing the
 generator changes what is put into it. Both tables on the page lay their header
 and their rows out from one grid template used twice, and where a narrow
 viewport collapses the row, the header is hidden rather than left sitting a

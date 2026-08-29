@@ -6,18 +6,17 @@
   "root_source": "the git work tree holding the config",
   "change": {
     "files": [
+      ".claude/productizer/backlog.md",
       ".claude/productizer/checks-result.json",
-      ".claude/productizer/spec.md",
-      "plugins/productizer/skills/spec/references/release.md",
+      ".gitignore",
+      "README.md",
+      "plugins/productizer/.claude-plugin/plugin.json",
       "plugins/productizer/skills/spec/references/views.md",
       "plugins/productizer/skills/spec/scripts/build-view.sh",
-      "plugins/productizer/skills/spec/scripts/run-checks.sh",
-      "plugins/productizer/skills/spec/scripts/validate-spec.py",
       "plugins/productizer/skills/spec/templates/view.html",
-      ".github/workflows/checks.yml",
-      "plugins/productizer/skills/spec/references/ci.md"
+      "scripts/check-hygiene.sh"
     ],
-    "file_count": 10,
+    "file_count": 9,
     "tags": []
   },
   "verdict": "pass",
@@ -59,7 +58,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 10,
+      "files_in_scope": 9,
       "enabled": true,
       "tool": {
         "command": [
@@ -79,28 +78,27 @@
           "min_rules": 0
         },
         "observed": {
-          "covered": 10,
+          "covered": 9,
           "covered_items": [
+            ".claude/productizer/backlog.md",
             ".claude/productizer/checks-result.json",
-            ".claude/productizer/spec.md",
-            "plugins/productizer/skills/spec/references/release.md",
+            ".gitignore",
+            "README.md",
+            "plugins/productizer/.claude-plugin/plugin.json",
             "plugins/productizer/skills/spec/references/views.md",
             "plugins/productizer/skills/spec/scripts/build-view.sh",
-            "plugins/productizer/skills/spec/scripts/run-checks.sh",
-            "plugins/productizer/skills/spec/scripts/validate-spec.py",
             "plugins/productizer/skills/spec/templates/view.html",
-            ".github/workflows/checks.yml",
-            "plugins/productizer/skills/spec/references/ci.md"
+            "scripts/check-hygiene.sh"
           ],
           "rules_loaded": null,
-          "files_in_scope": 10,
+          "files_in_scope": 9,
           "not_examined": []
         },
         "satisfied": true,
         "reasons": []
       },
       "timed_out": false,
-      "output_tail": ".claude/productizer/checks-result.json\n.claude/productizer/spec.md\nplugins/productizer/skills/spec/references/release.md\nplugins/productizer/skills/spec/references/views.md\nplugins/productizer/skills/spec/scripts/build-view.sh\nplugins/productizer/skills/spec/scripts/run-checks.sh\nplugins/productizer/skills/spec/scripts/validate-spec.py\nplugins/productizer/skills/spec/templates/view.html\n.github/workflows/checks.yml\nplugins/productizer/skills/spec/references/ci.md\n",
+      "output_tail": ".claude/productizer/backlog.md\n.claude/productizer/checks-result.json\n.gitignore\nREADME.md\nplugins/productizer/.claude-plugin/plugin.json\nplugins/productizer/skills/spec/references/views.md\nplugins/productizer/skills/spec/scripts/build-view.sh\nplugins/productizer/skills/spec/templates/view.html\nscripts/check-hygiene.sh\n",
       "status": "pass"
     },
     {
@@ -146,7 +144,7 @@
           "covered": 2,
           "covered_items": [
             "plugins/productizer/skills/spec/scripts/build-view.sh",
-            "plugins/productizer/skills/spec/scripts/run-checks.sh"
+            "scripts/check-hygiene.sh"
           ],
           "rules_loaded": null,
           "files_in_scope": 2,
@@ -156,7 +154,7 @@
         "reasons": []
       },
       "timed_out": false,
-      "output_tail": "\n===== plugins/productizer/skills/spec/scripts/build-view.sh\n\n===== plugins/productizer/skills/spec/scripts/run-checks.sh\n",
+      "output_tail": "\n===== plugins/productizer/skills/spec/scripts/build-view.sh\n\n===== scripts/check-hygiene.sh\n",
       "status": "pass"
     },
     {

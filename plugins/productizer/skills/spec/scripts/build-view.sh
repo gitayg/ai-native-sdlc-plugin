@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# build-view.sh [repo-root] [--out FILE]
+# build-view.sh [repo-root] [--out FILE] [--stale-after SECONDS|never]
 #
 # Generates the lifecycle dashboard from a repository's real files. Nothing on
 # the page is stored here: every count, every state and every row is read from
@@ -20,6 +20,15 @@
 # is run as a subprocess and parsed. Two copies of that reasoning would disagree
 # the first time one was edited.
 #
+# --stale-after is off by default and off is the point of the default. The page
+# is a static file: served again, it re-serves the same bytes, and the numbers
+# only move when this script runs again. So instead of reloading itself, the
+# page can be told to notice its own age and print the command that re-measures
+# it. Knowing its age means embedding a wall-clock generation time, and a
+# wall-clock value makes two runs of an unchanged repo differ - which is the one
+# property this script otherwise guarantees. That trade is opt-in, never taken
+# for a reader who did not ask for it, and written down in references/views.md.
+#
 # Exit: 0 on success, 2 on a bad argument or a missing template.
 set -euo pipefail
 
@@ -28,17 +37,43 @@ SKILL="$(dirname "$HERE")"
 TEMPLATE="$SKILL/templates/view.html"
 STAGE_STATUS="$HERE/stage-status.sh"
 
+# The command the staleness notice prints has to be the command that was
+# actually run, argument for argument - a reader who generated to --out
+# somewhere.html and is handed a default invocation regenerates the wrong file.
+# So argv is captured before it is consumed, and shell-quoted as it is copied.
+SELF="$HERE/$(basename "${BASH_SOURCE[0]}")"
+REGEN_CMD="bash $(printf '%q' "$SELF")"
+for _arg in "$@"; do
+  REGEN_CMD="$REGEN_CMD $(printf '%q' "$_arg")"
+done
+
 ROOT=""
 OUT=""
+STALE_AFTER=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --out) OUT="${2:-}"; [ -n "$OUT" ] || { echo "build-view: --out needs a file" >&2; exit 2; }; shift 2 ;;
     --out=*) OUT="${1#--out=}"; shift ;;
-    -h|--help) echo "usage: build-view.sh [repo-root] [--out FILE]"; exit 0 ;;
+    # A bare --stale-after is the common case, so it takes the default rather
+    # than erroring; anything starting with - is the next option, not a value.
+    --stale-after)
+      case "${2:-}" in
+        ''|-*) STALE_AFTER=120; shift ;;
+        *)     STALE_AFTER="$2"; shift 2 ;;
+      esac ;;
+    # --stale-after= with nothing after it is still the flag with no value.
+    --stale-after=*) STALE_AFTER="${1#--stale-after=}"
+                     [ -n "$STALE_AFTER" ] || STALE_AFTER=120; shift ;;
+    -h|--help) echo "usage: build-view.sh [repo-root] [--out FILE] [--stale-after SECONDS|never]"; exit 0 ;;
     -*) echo "build-view: unknown option: $1" >&2; exit 2 ;;
     *) [ -z "$ROOT" ] || { echo "build-view: only one repo-root" >&2; exit 2; }; ROOT="$1"; shift ;;
   esac
 done
+# 0 and never are the same instruction, and both mean "do not embed a clock".
+case "$STALE_AFTER" in
+  ''|never|off|no) STALE_AFTER=0 ;;
+  *[!0-9]*) echo "build-view: --stale-after wants whole seconds or 'never': $STALE_AFTER" >&2; exit 2 ;;
+esac
 [ -n "$ROOT" ] || ROOT="."
 [ -d "$ROOT" ] || { echo "build-view: no such directory: $ROOT" >&2; exit 2; }
 ROOT="$(cd "$ROOT" && pwd)"
@@ -74,12 +109,13 @@ if git -C "$ROOT" rev-parse --git-dir >/dev/null 2>&1; then
       -- .claude/productizer/spec.md >"$TMP/spec-date" 2>/dev/null || :
 fi
 
-python3 - "$ROOT" "$TMP" "$TEMPLATE" "$OUT" <<'PYEOF'
+python3 - "$ROOT" "$TMP" "$TEMPLATE" "$OUT" "$STALE_AFTER" "$REGEN_CMD" <<'PYEOF'
 # -*- coding: utf-8 -*-
 """Render the lifecycle dashboard. Reads only; writes one HTML file."""
-import io, json, os, re, sys
+import io, json, os, re, sys, time
 
-ROOT, TMP, TEMPLATE, OUT = sys.argv[1:5]
+ROOT, TMP, TEMPLATE, OUT, STALE_AFTER, REGEN_CMD = sys.argv[1:7]
+STALE_AFTER = int(STALE_AFTER)
 
 # --------------------------------------------------------------------------
 # reading
@@ -712,14 +748,20 @@ else:
                               % (len(inf_promoted), _rej)), '', style=WIDE))
 
 # --- banners --------------------------------------------------------------
+# Every banner is a specific, named thing somebody has to act on, so every one
+# gets an id: the count in the Dashboard subtitle links to the region, and a
+# per-banner id costs one attribute and lets anything later point at one of
+# them instead of at the pile. Numbered in call order, which is document order.
 banners = []
+_bn_seq = [0]
 
 def banner(level, title, body, prompt):
-    return ('<div class="bn %s"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" '
+    _bn_seq[0] += 1
+    return ('<div class="bn %s" id="bn-%d"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" '
             'stroke="%s" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
             '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>'
             '<p><b>%s</b> %s</p>%s</div>'
-            % (level, '#da3633' if level == 'crit' else '#d29922',
+            % (level, _bn_seq[0], '#da3633' if level == 'crit' else '#d29922',
                esc(title), body, cp(prompt)))
 
 if cfg_state == 'unreadable':
@@ -771,8 +813,19 @@ if untested:
                           % (len(untested), '' if len(untested) == 1 else 's'),
                           'The acceptance table is how "do the tests assert this" is answered as a fact: %s.'
                           % esc(', '.join(untested[:10])),
-                          'Add acceptance criteria rows for these requirements in %s, naming the test or '
-                          'command and the observable that proves each one: %s'
+                          # An agent handed "add acceptance rows" will finish the job by
+                          # inventing test names, and a fabricated row turns "nobody knows"
+                          # into a confident "yes" in the one table that exists to answer
+                          # that question with a fact. So the prompt asks rather than writes.
+                          'Interrogate me about the requirements in %s that have no acceptance row, one '
+                          'at a time, starting with %s. Quote each requirement in full with its id, then '
+                          'ask me what asserts it today - a test name, a command, a manual check, or '
+                          'nothing. Write a row into the acceptance table only from an answer I give '
+                          'you: do not infer one from the code, do not read the test suite and guess, '
+                          'and do not fill a row to make the table look complete. "Nothing asserts this '
+                          'yet" is a real answer and is recorded as one, not a gap to paper over. Treat '
+                          'silence as silence - an id I do not answer gets no row. At the end, name the '
+                          'ids I left unanswered.'
                           % (SPEC_PATH, ', '.join(untested[:10]))))
 
 if constit is not None and principles == 0:
@@ -891,9 +944,15 @@ kanban = '<div class="kanban">' + ''.join(
 # --------------------------------------------------------------------------
 # panel: dashboard
 # --------------------------------------------------------------------------
+# The count is the only thing on this panel that names a number of jobs without
+# showing them, and the jobs are already on the page - directly above the tab
+# bar. So it links there. The other branch stays plain text on purpose: there is
+# no banner to jump to, and a link that lands on an empty region is worse than
+# no link.
 attention = len(banners)
-sub = ('<span class="h-sub">%d thing%s need%s you</span>'
-       % (attention, '' if attention == 1 else 's', 's' if attention == 1 else '')) \
+sub = ('<a class="h-sub" href="#banners" title="Jump to the %d banner(s) above the tabs">'
+       '%d thing%s need%s you</a>'
+       % (attention, attention, '' if attention == 1 else 's', 's' if attention == 1 else '')) \
     if attention else '<span style="text-transform:none;letter-spacing:0">nothing is waiting on you</span>'
 
 kan_note = ('' if kan_total else
@@ -1547,10 +1606,94 @@ verchip = ('<span class="verchip mono">%s <b>%s</b></span>' % (esc(PRODUCT), esc
     else ('<span class="verchip mono">%s <b title="no commit subject carries a version">'
           '—</b></span>' % esc(PRODUCT))
 
+# --------------------------------------------------------------------------
+# the staleness notice
+# --------------------------------------------------------------------------
+# Off unless --stale-after asked for it, and the default of off is deliberate:
+# everything below embeds a wall-clock generation time, which is the one value
+# on this page that differs between two runs of an unchanged repo. Byte-stable
+# output is how a reader tells a real change from a re-run, so it is only spent
+# when somebody asks for the thing it buys.
+#
+# What the notice may claim is narrower than it looks, and the wording is the
+# whole feature. The page knows exactly one thing: how long ago it was
+# generated. It does not know whether anything in the repo has changed since -
+# that needs a re-read, and a file served off disk cannot re-read anything. So
+# it says the page is OLD. It never says the page is wrong: an hour-old page
+# over an untouched repo is exactly right, and calling that stale would assert
+# a comparison nobody made. The git-derived "data updated" stamp in the bar is
+# left doing its own job beside this, because page age and data age are two
+# different facts and neither substitutes for the other.
+#
+# It does not reload. A static file re-served is the same bytes, and a page
+# that reloads itself teaches the reader that nothing changed when the truth is
+# that nothing was re-measured. What makes this genuinely live is regeneration,
+# so what the notice hands over is the command that regenerates it - the one
+# that was actually run, argument for argument, not a guess at it.
+STALE_CSS = ''
+STALE = ''
+if STALE_AFTER > 0:
+    GEN_EPOCH = int(time.time())
+    # position:fixed so it cannot push a line of the page down under a reader
+    # mid-sentence, and no autofocus anywhere - role=status/aria-live=polite
+    # announces it without taking the caret off whatever they were reading.
+    # The transition is suppressed under prefers-reduced-motion here as well as
+    # by the sheet-wide rule above it; two lines is cheaper than depending on
+    # that rule still being there.
+    STALE_CSS = (
+        '\n.stalebox{position:fixed;right:16px;bottom:16px;z-index:40;'
+        'max-width:min(460px,calc(100vw - 32px));background:var(--surface);'
+        'border:1px solid var(--warn);border-left:3px solid var(--warn);border-radius:9px;'
+        'padding:12px 14px;box-shadow:0 8px 24px #0009;display:flex;flex-direction:column;gap:9px;'
+        'opacity:0;transition:opacity .18s ease}\n'
+        '.stalebox.in{opacity:1}\n'
+        '.stalebox[hidden]{display:none}\n'
+        '.stalebox p{margin:0;font-size:12.5px;color:var(--muted)}\n'
+        '.stalebox b{color:var(--text)}\n'
+        '.stalebox code{font-family:var(--mono);font-size:11.5px;color:var(--text);'
+        'background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:7px 9px;'
+        'overflow-x:auto;white-space:pre}\n'
+        '.stalebox .srow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}\n'
+        '.stalebox .snote{font-size:11px;color:var(--muted);opacity:.85;flex:1 1 100%}\n'
+        '.stale-x{appearance:none;background:none;border:1px solid var(--line);border-radius:6px;'
+        'color:var(--muted);font-size:11px;padding:5px 11px;cursor:pointer}\n'
+        '.stale-x:hover{color:var(--text);border-color:var(--muted)}\n'
+        '@media (prefers-reduced-motion:reduce){.stalebox{transition:none}}\n')
+    STALE = (
+        '<div class="stalebox" id="stalebox" role="status" aria-live="polite" hidden>'
+        '<p><b>This page was generated <span id="staleage">a moment</span> ago and has not been '
+        're-measured since.</b> It is a file. Nothing on it has been re-read from the repository '
+        'since it was written, so what this tells you is that the page is <b>old</b> — not that '
+        'it is wrong. An old page over a repo nobody touched is still exactly right, and this notice '
+        'cannot tell you which of the two you are looking at, because knowing that would take the '
+        're-read it cannot do. To re-measure it, run the command that made it:</p>'
+        '<code>%s</code>'
+        '<div class="srow">%s'
+        '<button class="stale-x" id="stale-x">Dismiss</button>'
+        '<span class="snote">This is the age of the page. <b>data updated</b> in the header is a '
+        'different fact: when the lifecycle files last changed in git.</span></div></div>'
+        '<script>(function(){'
+        'var GEN=%d,THRESH=%d,box=document.getElementById("stalebox"),'
+        'ageEl=document.getElementById("staleage"),dismissed=false,last="";'
+        'document.getElementById("stale-x").addEventListener("click",function(){'
+        'dismissed=true;box.hidden=true;box.classList.remove("in");});'
+        'function human(s){var m,h,d;'
+        'if(s<90)return Math.round(s)+" seconds";'
+        'm=Math.round(s/60);if(m<90)return m+(m===1?" minute":" minutes");'
+        'h=Math.round(s/3600);if(h<48)return h+(h===1?" hour":" hours");'
+        'd=Math.round(s/86400);return d+(d===1?" day":" days");}'
+        'function tick(){if(dismissed)return;'
+        'var s=Date.now()/1000-GEN;'
+        'if(s<THRESH){box.hidden=true;box.classList.remove("in");return;}'
+        'var t=human(s);if(t!==last){ageEl.textContent=t;last=t;}'
+        'if(box.hidden){box.hidden=false;box.classList.add("in");}}'
+        'tick();setInterval(tick,15000);}());</script>'
+        % (esc(REGEN_CMD), cp(REGEN_CMD, 'copy command'), GEN_EPOCH, STALE_AFTER))
+
 BODY = (
     '<div class="bar"><span class="crumb"><b>%s</b> · SDLC pipeline</span>'
     '<span style="flex:1"></span>%s%s<span class="crumb mono">read-only · %s</span></div>'
-    '<div class="banners">%s%s</div>'
+    '<div class="banners" id="banners" tabindex="-1">%s%s</div>'
     '<div class="dashnote"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#3fb950" '
     'stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4"/>'
     '<path d="m16.2 7.8 2.9-2.9"/><path d="M18 12h4"/><path d="m16.2 16.2 2.9 2.9"/><path d="M12 18v4"/>'
@@ -1571,18 +1714,27 @@ BODY = (
     % (crumb, verchip, data_stamp, stamp, setup_bar, ''.join(banners), tabs,
        p_dash, p_board, p_stages, p_files, p_backlog, p_rel, p_cmds))
 
+# Appended rather than threaded through the format above: that string is
+# positional, and adding a slot to it is how a panel ends up rendering another
+# panel's content. STALE is '' unless --stale-after was passed, so the default
+# page is the same bytes it was before this existed.
+BODY = BODY + STALE
+
 DATA = ('var PROD = %s;\nvar CUR0 = %d;\nvar S = %s;\n'
         % (json.dumps(PRODUCT), CUR0,
            json.dumps(S, indent=1, sort_keys=True, ensure_ascii=False)))
 
 tpl = slurp(TEMPLATE)
-for marker in ('@@TITLE@@', '@@BODY@@', '@@DATA@@'):
+# @@STALECSS@@ sits flush against the end of the last rule in the stylesheet,
+# so replacing it with nothing leaves the sheet byte-for-byte what it was.
+for marker in ('@@TITLE@@', '@@BODY@@', '@@DATA@@', '@@STALECSS@@'):
     if marker not in tpl:
         sys.stderr.write('build-view: template has no %s\n' % marker)
         sys.exit(2)
 page = (tpl.replace('@@TITLE@@', esc('%s — SDLC pipeline' % PRODUCT))
            .replace('@@BODY@@', BODY)
-           .replace('@@DATA@@', DATA))
+           .replace('@@DATA@@', DATA)
+           .replace('@@STALECSS@@', STALE_CSS))
 
 outdir = os.path.dirname(os.path.abspath(OUT))
 if outdir and not os.path.isdir(outdir):

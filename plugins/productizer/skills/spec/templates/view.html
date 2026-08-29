@@ -324,6 +324,18 @@ padding:11px 14px;background:var(--surface)}
 /* Colour means "this needs you". Healthy is the absence of colour, not another
    colour - four accents competing is four things shouting, which is none. */
 .h-sub{color:var(--crit);text-transform:none;letter-spacing:0;font-weight:500}
+/* The count is a link to the banners above the tab bar, so it has to read as
+   one. The page's link treatment underlines on hover only, and a control that
+   reveals itself on hover is a control most readers never find - this one is
+   underlined at rest and darkens on hover. Keyboard reach is native (it is an
+   <a href>) and the ring is the global :focus-visible one. */
+a.h-sub{text-decoration:underline;text-decoration-color:#da363399;
+  text-underline-offset:3px;cursor:pointer}
+a.h-sub:hover{text-decoration-color:var(--crit)}
+/* The jump target. tabindex="-1" moves focus with the jump so a screen reader
+   lands in the banners rather than reading on from the subtitle; the ring is
+   suppressed because nobody tabbed here, they arrived. */
+.banners[tabindex="-1"]:focus{outline:none}
 .stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;
   background:var(--line);border:1px solid var(--line);border-radius:9px;overflow:hidden}
 .stat{background:var(--bg);padding:15px 16px 16px;display:flex;flex-direction:column;gap:5px;
@@ -412,7 +424,7 @@ padding:11px 14px;background:var(--surface)}
    can no longer sit over its data, so the header goes rather than sitting a
    column off - a misaligned header is read as data. */
 @media (max-width:620px){.chkrow{grid-template-columns:1fr auto;row-gap:5px}
-  .chkrow .cc{grid-column:1/3}.chkrow.hd{display:none}}
+  .chkrow .cc{grid-column:1/3}.chkrow.hd{display:none}}@@STALECSS@@
 </style>
 @@BODY@@
 <script>

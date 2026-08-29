@@ -6,3 +6,8 @@
 # decision, not one developer's local choice.
 .claude/productizer/checks.local.yaml
 .claude/productizer/checks.local.yml
+
+# Eval run artifacts. Regenerated per run, and they carry the absolute paths of
+# whoever ran them -- the same leak that shipped in v4.2.0. The numbers belong in
+# the backlog and the docs; the raw run does not belong in git.
+evals/results/

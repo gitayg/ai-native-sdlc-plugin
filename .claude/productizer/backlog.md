@@ -56,7 +56,7 @@ Highest priority first.
 | B7 | Two scripts have no option contract | `todo` | — | usage-audit, 2026-08-29 | `detect-context.sh` accepts any flag and exits 0; `scaffold.sh --help` exits 2. `import-survey.sh` had the same defect and is fixed |
 | B8 | Make suppressed stderr a declared check | `todo` | — | maintainer, 2026-08-29 | `2>/dev/null` hid three real defects in one session. A check over our own scripts would have caught each |
 | B9 | Split the requirements carrying two `shall` clauses | `todo` | — | validate-spec, 2026-08-29 | R14, R16 and R21 each state two obligations under one id, so each will be half-tested. `--strict` fails on the real spec until they are split |
-| B10 | The eval corpus has never been graded | `todo` | — | maintainer, 2026-08-29 | `claude plugin eval` is early-access gated. 26 cases load and both ablation arms configure; no case has been scored by a model, so end-to-end recall stays unmeasured |
+| B10 | The eval corpus has never been graded | `done` | — | maintainer, 2026-08-29 | Graded 2026-08-29: **16/16 recall, 0.94 precision** end to end, against **13/16** for a no-plugin baseline. The three it uniquely catches are domain entailment, an unquantified adjective against a bound, and vocabulary drift. 52 runs, $14.79. n is small and the corpus is self-authored; the harness is early-access |
 
 ## Items tracked in Jira
 
