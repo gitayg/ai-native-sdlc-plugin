@@ -322,6 +322,73 @@ link.
 The banners sit outside the tab system, so the jump changes no tab and loses no
 panel: a reader on **Files** who follows it is still on **Files** afterwards.
 
+**Everything that needs a person is a link to where that person acts.** The
+attention count was the first one; the rule is now applied everywhere the page
+draws something loud. If a thing is rendered at `att` (red) or `warn` (amber) —
+the two levels that mean *this needs you* — it is an `<a>` to the place the
+reader can do something about it, one click, no hunting. If it needs nobody it
+stays a `<div>`. **A calm tile is never a link**, and that is the point rather
+than an omission: the colour is the signal, and making the quiet things
+clickable spends it.
+
+What is linked, and where each one goes:
+
+| Drawn as | Goes to |
+|---|---|
+| Stat tile **Contradictions waiting**, red | the open-contradictions banner, and the prompt that quotes both sides |
+| Stat tile **Checks, last run** at FAIL or PARTIAL | **Stages** → the per-check table, which answers what each check examined |
+| Stat tile **Requirements with no test**, amber | the acceptance-row banner and its interrogation prompt |
+| Stat tile **Constitution** at 0, amber | the empty-constitution banner |
+| Stat tile **Inferred, awaiting promotion**, amber | the promotion queue further down the same panel |
+| Board card, open contradiction | the same banner — a ruling is the only thing that moves it |
+| Board card, check that did not pass | **Stages** → that check's own row |
+| Board card, blocked backlog item | **Backlog** → that row, where the note, the Jira key, the ordering and the start-work prompt are |
+| Board card, `REVIEW.md` waiting | **Stages** → stage 6, selected in the ring |
+| Board card, version shipped without a tag | **Releases** → that version |
+| Stage 5 row that failed or never triggered | the checks banner, which names every one of them and carries the prompt |
+
+Three things this deliberately does not do.
+
+**A link into another tab opens that tab.** A fragment that resolves to an
+element inside a `display:none` panel scrolls nowhere — a dead end wearing a
+link's clothes. So the click opens the panel first and then lets the browser
+perform its own jump, which keeps the fragment in the URL and the back button
+working. It reuses `showTab`, the same function the tab bar calls, rather than a
+second copy of the toggle; two copies disagree the first time one is edited. The
+same handler runs on `hashchange` and once at load, so a pasted deep link lands
+on the right tab too. A `#stage-N` anchor additionally selects that stage in the
+ring, through the same `pick()` the ring nodes use.
+
+**Every target is minted, never guessed.** One `anchor()` function makes every
+id on the page, reducing arbitrary text — a check id, a backlog id, a version
+string — to `[A-Za-z0-9-]` so the `href` and the `id` agree by construction; a
+fragment carrying a space is percent-encoded and then resolves to nothing.
+Banners register the id they actually got under a key, and a tile reads its
+destination out of that registry, which is why the banners are now built
+*before* the tiles: a second copy of the emit conditions would point at `bn-3`
+on the run where the config happened to parse and the numbering shifted. If the
+registry has no entry, the tile renders plain rather than pointing at an id
+nobody wrote. **A link to a missing id is worse than no link**, so the invariant
+is structural rather than a convention to remember.
+
+**Two things stay plain on purpose.** A backlog row that is blocked is not
+linked anywhere: the row *is* where that item is acted on — the note saying what
+it waits for, the Jira key, the drag ordering and the start-work prompt are all
+on it — so the link runs the other way, from the board card into the row. A link
+from a thing to the thing you just came from is a loop, not a route. And a Stage
+5 check that **passed while covering less than it declared** is drawn amber in
+its coverage cell and is still not a link: no banner names it, and nothing
+anywhere else on the page says more about it than the row already does. Sending
+a reader to a destination that is silent about what they clicked is the dead end
+this whole rule exists to remove, so it is left off and written down here
+instead of invented.
+
+The link treatment matches the attention count: underlined at rest in the colour
+of the level that made it loud, darkening on hover, keyboard-reachable because
+these are real `<a href>`s taking the sheet-wide `:focus-visible` ring, and each
+one naming its destination in the tile rather than leaving the reader to hover
+and guess.
+
 **The acceptance-row prompt interrogates; it does not fill anything in.** The
 banner for *active requirements with no acceptance row* used to hand an agent
 "add acceptance criteria rows … naming the test or command". An agent finishes

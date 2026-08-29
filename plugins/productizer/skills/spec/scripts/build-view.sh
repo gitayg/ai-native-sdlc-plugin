@@ -596,172 +596,42 @@ EXTLINK = ('<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-wi
 def cp(text, label='copy prompt'):
     return '<button class="cp" data-copy="%s">%s</button>' % (esc(text), esc(label))
 
-# --- stat tiles -----------------------------------------------------------
-# Four renderings, kept apart on purpose: a measured number, a file that was
-# never written, a file that could not be read, and a question that does not
-# apply to this repo. Collapsing any of the last three into a zero is how a
-# dashboard starts lying, so each one has its own glyph and its own reason.
-# `style` is an attribute string, not a value, and every existing caller omits
-# it - a tile that passes nothing renders exactly the bytes it rendered before.
-WIDE = ' style="grid-column:1/-1"'
+# --- in-page anchors ------------------------------------------------------
+# Anything drawn as needing a person is a link to the place that person acts,
+# and a link to an id that does not exist is worse than no link: it looks like
+# a way through and is a dead end. So every id on this page is minted here, by
+# one function, and a link is only ever written from an id this run actually
+# minted - which is why the targets are built before the things pointing at
+# them, and why `href` is threaded through the renderers instead of being
+# guessed at the call site.
+#
+# The slug is not the raw value. A check id, a backlog id or a version string
+# is arbitrary text, and a fragment carrying a space or a quote is not the
+# fragment the browser resolves - it is percent-encoded, and getElementById
+# then finds nothing. Reducing to [A-Za-z0-9-] makes href and id agree by
+# construction. Two different values can collapse to the same slug, so the
+# counter keeps them apart; it runs in generation order, which is fixed, so
+# the same repo mints the same ids every run.
+_anch_used = {}
 
-def tile_num(label, n, detail, level='', style=''):
-    """A measured value. The number is real; level is 'att', 'warn' or ''."""
-    return ('<div class="stat %s"%s><span class="stat-l">%s</span>'
-            '<span class="stat-n">%s</span><span class="stat-d">%s</span></div>'
-            % (level, style, esc(label), esc(n), detail))
+def anchor(prefix, raw):
+    body = re.sub(r'[^A-Za-z0-9]+', '-', str(raw)).strip('-') or 'x'
+    base = '%s-%s' % (prefix, body)
+    n = _anch_used.get(base, 0)
+    _anch_used[base] = n + 1
+    return base if n == 0 else '%s-%d' % (base, n + 1)
 
-def tile_absent(label, why, style=''):
-    """Never run. An em dash, and what it costs that it was never run."""
-    return ('<div class="stat"%s><span class="stat-l">%s</span>'
-            '<span class="stat-n n-absent" title="%s">—</span>'
-            '<span class="stat-d">not run · %s</span></div>'
-            % (style, esc(label), esc(why), esc(why)))
-
-def tile_unknown(label, why, style=''):
-    """Read and not understood, or not derivable. Never a zero."""
-    return ('<div class="stat unk"%s><span class="stat-l">%s</span>'
-            '<span class="stat-n n-unknown" title="%s">?</span>'
-            '<span class="stat-d">unknown · %s</span></div>'
-            % (style, esc(label), esc(why), esc(why)))
-
-def tile_na(label, why, style=''):
-    """The fourth answer: read, and the question does not apply. Not a failure
-    and not a zero - and the one a dashboard usually spends as a zero, because
-    n/a and 0 look the same until someone acts on the difference."""
-    return ('<div class="stat"%s><span class="stat-l">%s</span>'
-            '<span class="stat-n n-absent" title="%s">n/a</span>'
-            '<span class="stat-d">not applicable · %s</span></div>'
-            % (style, esc(label), esc(why), esc(why)))
-
-stats = []
-
-if spec is None:
-    stats.append(tile_absent('Contradictions waiting',
-                             'no %s; nothing has been classified' % SPEC_PATH))
-else:
-    lvl = 'att' if contra_open else ''
-    ids = ', '.join(c['id'] for c in contradictions if c['open'])
-    stats.append(tile_num('Contradictions waiting', str(contra_open),
-                          esc(ids + ' · nothing merges until ruled') if contra_open
-                          else 'none open in the concerns table', lvl))
-
-if check_state == 'absent':
-    stats.append(tile_absent('Checks, last run',
-                             'no %s; nothing has been checked' % RESULT_PATH))
-elif check_state == 'unreadable':
-    stats.append(tile_unknown('Checks, last run',
-                              '%s exists and would not parse' % RESULT_PATH))
-else:
-    # A check that was never triggered and a check that failed are different
-    # facts, and collapsing them printed a red tile with the word PASS on it -
-    # the colour saying stop and the headline saying fine. Untriggered is amber:
-    # nothing was wrong, and nothing was checked either. Only a real failure is
-    # red, and only an all-clear says PASS.
-    unrun = [c for c in bad_checks if c['status'] in ('not_triggered', 'disabled')]
-    failed = [c for c in bad_checks if c not in unrun]
-    if failed:
-        head, lvl = 'FAIL', 'att'
-        detail = '%d of %d failed' % (len(failed), len(checks))
-        if unrun:
-            detail += ' \u00b7 %d never ran' % len(unrun)
-    elif unrun:
-        head, lvl = 'PARTIAL', 'warn'
-        detail = ('%d of %d ran and passed \u00b7 %d never triggered, so %s not checked'
-                  % (len(checks) - len(unrun), len(checks), len(unrun),
-                     'it was' if len(unrun) == 1 else 'they were'))
-    else:
-        head, lvl = str(verdict or 'unstated').upper(), ''
-        detail = '%d check(s), all passing' % len(checks)
-    stats.append(tile_num('Checks, last run', head, esc(detail), lvl))
-
-if spec is None:
-    stats.append(tile_absent('Requirements with no test',
-                             'no spec; there is no acceptance table to compare'))
-else:
-    lvl = 'warn' if untested else ''
-    stats.append(tile_num('Requirements with no test', str(len(untested)),
-                          esc('of %d active · %s' % (len(spec_ids), ', '.join(untested[:6])))
-                          if untested else esc('of %d active · %d acceptance rows'
-                                               % (len(spec_ids), ac_rows)), lvl))
-
-if spec is None:
-    stats.append(tile_absent('Living spec', 'Stage 2 has nothing to merge into'))
-else:
-    stats.append(tile_num('Living spec', str(len(spec_ids)),
-                          esc('active · %d superseded, %d withdrawn of %d in the file'
-                              % (spec_super, spec_withdrawn,
-                                 len(spec_ids) + spec_super + spec_withdrawn))))
-
-if backlog is None:
-    stats.append(tile_absent('Backlog', 'intents arrive without a queue'))
-else:
-    by = {}
-    for it in items:
-        by[it['status']] = by.get(it['status'], 0) + 1
-    d = ' · '.join('%d %s' % (v, esc(k)) for k, v in sorted(by.items())) or 'no items in the table'
-    stats.append(tile_num('Backlog', str(len(items)), d))
-
-if constit is None:
-    stats.append(tile_absent('Constitution', 'intake has no prior gate'))
-else:
-    lvl = 'warn' if principles == 0 else ''
-    stats.append(tile_num('Constitution', str(principles),
-                          'principles ratified' if principles else 'file exists, nothing ratified', lvl))
-
-if not IS_GIT:
-    # Not "no releases". There is no record to read, which is a different answer.
-    stats.append(tile_unknown('Releases', 'not a git repository; there is no history to read'))
-elif not releases:
-    stats.append(tile_num('Releases', '0', 'no commit subject carries a version'))
-else:
-    stats.append(tile_num('Releases', str(len(releases)),
-                          esc('%d tagged · latest %s' % (len(releases) - len(UNTAGGED), LATEST))))
-
-if spec is None:
-    stats.append(tile_absent('Spec last changed', 'the spec has never existed'))
-elif not IS_GIT:
-    stats.append(tile_unknown('Spec last changed', 'not a git repository'))
-elif not SPEC_DATE:
-    stats.append(tile_unknown('Spec last changed', 'on disk but never committed'))
-else:
-    stats.append(tile_num('Spec last changed', SPEC_DATE, 'last commit touching the spec'))
-
-# Onboarding progress, spanning the row because it is about the whole spec
-# rather than one number in it. Amber, not red: an unpromoted requirement is not
-# blocking anything - it cannot halt Stage 2, which is exactly why nobody
-# notices it - so it belongs with "soon", beside requirements with no test.
-INF_LABEL = 'Inferred, awaiting promotion'
-if not SPEC_EXISTS:
-    stats.append(tile_absent(INF_LABEL,
-                             'no %s; an import cannot be part-way through a spec that does not exist'
-                             % SPEC_PATH, style=WIDE))
-elif spec is None:
-    stats.append(tile_unknown(INF_LABEL,
-                              '%s exists and could not be read; a queue that could not be counted is '
-                              'not an empty one' % SPEC_PATH, style=WIDE))
-elif INF_RECORDED == 0:
-    stats.append(tile_na(INF_LABEL,
-                         'no requirement in this spec was ever drafted by import, so there is no queue '
-                         'to be part-way through', style=WIDE))
-elif inf_await:
-    _weak = len([x for x in inf_await if x['weak']])
-    stats.append(tile_num(INF_LABEL, str(len(inf_await)),
-                          esc('of %d requirement(s) in the spec · %d promoted, %d rejected at import '
-                              'recorded so far · %s · promotion is a human commit, and until it '
-                              'happens none of these can halt Stage 2'
-                              % (len(spec_all_ids), len(inf_promoted), len(inf_rejected),
-                                 ', '.join(x['id'] for x in inf_await[:8])
-                                 + ('…' if len(inf_await) > 8 else '')
-                                 + ('' if not _weak else ' · %d at weak evidence' % _weak))),
-                          'warn', style=WIDE))
-else:
-    _rej = ('' if not inf_rejected
-            else ' and %d rejected at import' % len(inf_rejected))
-    stats.append(tile_num(INF_LABEL, '0',
-                          esc('a measured zero — %d promotion(s)%s recorded here and no marker left '
-                              'unconfirmed, so this import was worked through rather than never started'
-                              % (len(inf_promoted), _rej)), '', style=WIDE))
+# Every id anything on this page points at, minted once, here. A card and the
+# row it lands on read the same entry, so they cannot disagree about what the
+# id is - which is the only way "the target exists" stays true after an edit.
+# Keyed by position rather than by the id text, because two checks may carry
+# the same id string and the counter above has already told them apart.
+CHECK_ID = dict((i, anchor('chk', c['id'])) for i, c in enumerate(checks))
+BK_ID = dict((i, anchor('bk', it['id'])) for i, it in enumerate(items))
+REL_ID = dict((i, anchor('rel', r['ver'])) for i, r in enumerate(releases))
+# Two headings that are always rendered, so a link to either always resolves.
+STAGE5_ID = 'stage5'
+QUEUE_ID = 'promoqueue'
 
 # --- banners --------------------------------------------------------------
 # Every banner is a specific, named thing somebody has to act on, so every one
@@ -770,9 +640,16 @@ else:
 # them instead of at the pile. Numbered in call order, which is document order.
 banners = []
 _bn_seq = [0]
+# key -> the id that banner actually got, and only for banners this run emitted.
+# A tile reads its destination out of here rather than counting banners itself:
+# a second copy of the emit conditions would point at bn-3 on the run where the
+# config parsed and the numbering shifted.
+BN = {}
 
-def banner(level, title, body, prompt):
+def banner(level, title, body, prompt, key=None):
     _bn_seq[0] += 1
+    if key:
+        BN[key] = 'bn-%d' % _bn_seq[0]
     return ('<div class="bn %s" id="bn-%d"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" '
             'stroke="%s" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
             '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>'
@@ -801,20 +678,23 @@ if contra_open:
                           'Nothing merges into the spec until a human rules: %s.'
                           % esc(', '.join(c['id'] for c in contradictions if c['open'])),
                           'Show me the open contradictions in %s: quote both requirements in full, state '
-                          'the conflict in one sentence, and do not pick a winner.' % SPEC_PATH))
+                          'the conflict in one sentence, and do not pick a winner.' % SPEC_PATH,
+                          key='contra'))
 
 if check_state == 'unreadable':
     banners.append(banner('warn', 'The last check result will not parse.',
                           '<span class="mono">%s</span> is present and unreadable. An unreadable result is '
                           'not a passing one, and this page will not render it as one.' % esc(RESULT_PATH),
                           'The file %s will not parse as JSON. Show me why, and re-run the checks rather '
-                          'than repairing the result by hand.' % RESULT_PATH))
+                          'than repairing the result by hand.' % RESULT_PATH,
+                          key='checks-unreadable'))
 elif bad_checks:
     banners.append(banner('crit', '%d check%s not passing.' % (len(bad_checks), '' if len(bad_checks) == 1 else 's'),
                           'Stage 5 refused: %s.'
                           % esc(', '.join('%s (%s)' % (c['id'], c['status']) for c in bad_checks)),
                           'Show me why these checks did not pass in %s and what each one examined: %s'
-                          % (PRODUCT, ', '.join(c['id'] for c in bad_checks))))
+                          % (PRODUCT, ', '.join(c['id'] for c in bad_checks)),
+                          key='checks'))
 
 if spec is None and cfg_state == 'ok':
     banners.append(banner('warn', 'Bound, but not scaffolded.',
@@ -842,7 +722,8 @@ if untested:
                           'yet" is a real answer and is recorded as one, not a gap to paper over. Treat '
                           'silence as silence - an id I do not answer gets no row. At the end, name the '
                           'ids I left unanswered.'
-                          % (SPEC_PATH, ', '.join(untested[:10]))))
+                          % (SPEC_PATH, ', '.join(untested[:10])),
+                          key='untested'))
 
 if constit is not None and principles == 0:
     banners.append(banner('warn', 'The constitution has no principles.',
@@ -850,7 +731,8 @@ if constit is not None and principles == 0:
                           'intake checks every delta against an empty gate.' % esc(CONST_PATH),
                           'Draft principles for %s in %s from how this repo already works. Number them '
                           'P1 upward and do not ratify any of them without asking me.'
-                          % (PRODUCT, CONST_PATH)))
+                          % (PRODUCT, CONST_PATH),
+                          key='constitution'))
 
 # --- what a pushed tag actually starts here --------------------------------
 # This banner used to tell people to push tags "so CI builds the releases".
@@ -918,39 +800,257 @@ if IS_GIT and UNTAGGED and releases:
                           'The newest untagged one is <span class="mono">%s</span>. A version in the log with '
                           'no tag has no release page, which is where most people look.%s'
                           % (esc(UNTAGGED[0]['ver']), _tag_effect),
-                          _tag_prompt))
+                          _tag_prompt, key='untagged'))
+
+# --- stat tiles -----------------------------------------------------------
+# Four renderings, kept apart on purpose: a measured number, a file that was
+# never written, a file that could not be read, and a question that does not
+# apply to this repo. Collapsing any of the last three into a zero is how a
+# dashboard starts lying, so each one has its own glyph and its own reason.
+# `style` is an attribute string, not a value, and every existing caller omits
+# it - a tile that passes nothing renders exactly the bytes it rendered before.
+WIDE = ' style="grid-column:1/-1"'
+
+def tile_num(label, n, detail, level='', style='', href='', go=''):
+    """A measured value. The number is real; level is 'att', 'warn' or ''.
+
+    A tile at 'att' or 'warn' is drawn as something that needs a person, and a
+    thing that needs a person is a link to where that person acts - the banner
+    carrying its prompt, or the section listing the items behind the number. A
+    tile at '' is calm and stays a div: making the quiet tiles clickable spends
+    the signal the loud ones carry, which is the only thing the colour buys.
+    `go` names the destination in the tile rather than leaving the reader to
+    hover and guess, and every caller that passes neither renders exactly the
+    bytes it rendered before."""
+    if not href:
+        return ('<div class="stat %s"%s><span class="stat-l">%s</span>'
+                '<span class="stat-n">%s</span><span class="stat-d">%s</span></div>'
+                % (level, style, esc(label), esc(n), detail))
+    return ('<a class="stat lk %s"%s href="%s"><span class="stat-l">%s</span>'
+            '<span class="stat-n">%s</span><span class="stat-d">%s</span>'
+            '<span class="stat-go">%s</span></a>'
+            % (level, style, esc('#' + href), esc(label), esc(n), detail, esc(go)))
+
+def tile_absent(label, why, style=''):
+    """Never run. An em dash, and what it costs that it was never run."""
+    return ('<div class="stat"%s><span class="stat-l">%s</span>'
+            '<span class="stat-n n-absent" title="%s">—</span>'
+            '<span class="stat-d">not run · %s</span></div>'
+            % (style, esc(label), esc(why), esc(why)))
+
+def tile_unknown(label, why, style=''):
+    """Read and not understood, or not derivable. Never a zero."""
+    return ('<div class="stat unk"%s><span class="stat-l">%s</span>'
+            '<span class="stat-n n-unknown" title="%s">?</span>'
+            '<span class="stat-d">unknown · %s</span></div>'
+            % (style, esc(label), esc(why), esc(why)))
+
+def tile_na(label, why, style=''):
+    """The fourth answer: read, and the question does not apply. Not a failure
+    and not a zero - and the one a dashboard usually spends as a zero, because
+    n/a and 0 look the same until someone acts on the difference."""
+    return ('<div class="stat"%s><span class="stat-l">%s</span>'
+            '<span class="stat-n n-absent" title="%s">n/a</span>'
+            '<span class="stat-d">not applicable · %s</span></div>'
+            % (style, esc(label), esc(why), esc(why)))
+
+stats = []
+
+if spec is None:
+    stats.append(tile_absent('Contradictions waiting',
+                             'no %s; nothing has been classified' % SPEC_PATH))
+else:
+    lvl = 'att' if contra_open else ''
+    ids = ', '.join(c['id'] for c in contradictions if c['open'])
+    stats.append(tile_num('Contradictions waiting', str(contra_open),
+                          esc(ids + ' · nothing merges until ruled') if contra_open
+                          else 'none open in the concerns table', lvl,
+                          href=BN.get('contra', '') if contra_open else '',
+                          go='→ the banner, and the prompt that quotes both sides'))
+
+if check_state == 'absent':
+    stats.append(tile_absent('Checks, last run',
+                             'no %s; nothing has been checked' % RESULT_PATH))
+elif check_state == 'unreadable':
+    stats.append(tile_unknown('Checks, last run',
+                              '%s exists and would not parse' % RESULT_PATH))
+else:
+    # A check that was never triggered and a check that failed are different
+    # facts, and collapsing them printed a red tile with the word PASS on it -
+    # the colour saying stop and the headline saying fine. Untriggered is amber:
+    # nothing was wrong, and nothing was checked either. Only a real failure is
+    # red, and only an all-clear says PASS.
+    unrun = [c for c in bad_checks if c['status'] in ('not_triggered', 'disabled')]
+    failed = [c for c in bad_checks if c not in unrun]
+    if failed:
+        head, lvl = 'FAIL', 'att'
+        detail = '%d of %d failed' % (len(failed), len(checks))
+        if unrun:
+            detail += ' \u00b7 %d never ran' % len(unrun)
+    elif unrun:
+        head, lvl = 'PARTIAL', 'warn'
+        detail = ('%d of %d ran and passed \u00b7 %d never triggered, so %s not checked'
+                  % (len(checks) - len(unrun), len(checks), len(unrun),
+                     'it was' if len(unrun) == 1 else 'they were'))
+    else:
+        head, lvl = str(verdict or 'unstated').upper(), ''
+        detail = '%d check(s), all passing' % len(checks)
+    # Not the banner: the banner names which checks, and the question this
+    # tile raises is what each one examined. That is the per-check table, and
+    # it lives on another tab, so the link opens the tab as well as jumping.
+    stats.append(tile_num('Checks, last run', head, esc(detail), lvl,
+                          href=STAGE5_ID if lvl else '',
+                          go='→ Stages · the last run, per check'))
+
+if spec is None:
+    stats.append(tile_absent('Requirements with no test',
+                             'no spec; there is no acceptance table to compare'))
+else:
+    lvl = 'warn' if untested else ''
+    stats.append(tile_num('Requirements with no test', str(len(untested)),
+                          esc('of %d active · %s' % (len(spec_ids), ', '.join(untested[:6])))
+                          if untested else esc('of %d active · %d acceptance rows'
+                                               % (len(spec_ids), ac_rows)), lvl,
+                          href=BN.get('untested', '') if untested else '',
+                          go='→ the banner, and the prompt that asks you id by id'))
+
+if spec is None:
+    stats.append(tile_absent('Living spec', 'Stage 2 has nothing to merge into'))
+else:
+    stats.append(tile_num('Living spec', str(len(spec_ids)),
+                          esc('active · %d superseded, %d withdrawn of %d in the file'
+                              % (spec_super, spec_withdrawn,
+                                 len(spec_ids) + spec_super + spec_withdrawn))))
+
+if backlog is None:
+    stats.append(tile_absent('Backlog', 'intents arrive without a queue'))
+else:
+    by = {}
+    for it in items:
+        by[it['status']] = by.get(it['status'], 0) + 1
+    d = ' · '.join('%d %s' % (v, esc(k)) for k, v in sorted(by.items())) or 'no items in the table'
+    stats.append(tile_num('Backlog', str(len(items)), d))
+
+if constit is None:
+    stats.append(tile_absent('Constitution', 'intake has no prior gate'))
+else:
+    lvl = 'warn' if principles == 0 else ''
+    stats.append(tile_num('Constitution', str(principles),
+                          'principles ratified' if principles else 'file exists, nothing ratified', lvl,
+                          href=BN.get('constitution', '') if principles == 0 else '',
+                          go='→ the banner, and the prompt that drafts them'))
+
+if not IS_GIT:
+    # Not "no releases". There is no record to read, which is a different answer.
+    stats.append(tile_unknown('Releases', 'not a git repository; there is no history to read'))
+elif not releases:
+    stats.append(tile_num('Releases', '0', 'no commit subject carries a version'))
+else:
+    stats.append(tile_num('Releases', str(len(releases)),
+                          esc('%d tagged · latest %s' % (len(releases) - len(UNTAGGED), LATEST))))
+
+if spec is None:
+    stats.append(tile_absent('Spec last changed', 'the spec has never existed'))
+elif not IS_GIT:
+    stats.append(tile_unknown('Spec last changed', 'not a git repository'))
+elif not SPEC_DATE:
+    stats.append(tile_unknown('Spec last changed', 'on disk but never committed'))
+else:
+    stats.append(tile_num('Spec last changed', SPEC_DATE, 'last commit touching the spec'))
+
+# Onboarding progress, spanning the row because it is about the whole spec
+# rather than one number in it. Amber, not red: an unpromoted requirement is not
+# blocking anything - it cannot halt Stage 2, which is exactly why nobody
+# notices it - so it belongs with "soon", beside requirements with no test.
+INF_LABEL = 'Inferred, awaiting promotion'
+if not SPEC_EXISTS:
+    stats.append(tile_absent(INF_LABEL,
+                             'no %s; an import cannot be part-way through a spec that does not exist'
+                             % SPEC_PATH, style=WIDE))
+elif spec is None:
+    stats.append(tile_unknown(INF_LABEL,
+                              '%s exists and could not be read; a queue that could not be counted is '
+                              'not an empty one' % SPEC_PATH, style=WIDE))
+elif INF_RECORDED == 0:
+    stats.append(tile_na(INF_LABEL,
+                         'no requirement in this spec was ever drafted by import, so there is no queue '
+                         'to be part-way through', style=WIDE))
+elif inf_await:
+    _weak = len([x for x in inf_await if x['weak']])
+    stats.append(tile_num(INF_LABEL, str(len(inf_await)),
+                          esc('of %d requirement(s) in the spec · %d promoted, %d rejected at import '
+                              'recorded so far · %s · promotion is a human commit, and until it '
+                              'happens none of these can halt Stage 2'
+                              % (len(spec_all_ids), len(inf_promoted), len(inf_rejected),
+                                 ', '.join(x['id'] for x in inf_await[:8])
+                                 + ('…' if len(inf_await) > 8 else '')
+                                 + ('' if not _weak else ' · %d at weak evidence' % _weak))),
+                          'warn', style=WIDE, href=QUEUE_ID,
+                          go='→ the queue below, one row per sentence waiting on you'))
+else:
+    _rej = ('' if not inf_rejected
+            else ' and %d rejected at import' % len(inf_rejected))
+    stats.append(tile_num(INF_LABEL, '0',
+                          esc('a measured zero — %d promotion(s)%s recorded here and no marker left '
+                              'unconfirmed, so this import was worked through rather than never started'
+                              % (len(inf_promoted), _rej)), '', style=WIDE))
 
 # --- kanban ---------------------------------------------------------------
-def card(cid, title, note='', level=''):
+def card(cid, title, note='', level='', href='', go=''):
+    """A card in a board column. A card at 'att' or 'warn' is something holding
+    work, so it is a link off the board to the thing that unholds it - the
+    ruling, the check that failed, the row with the action on it. A card at ''
+    is just where a piece of work sits and stays a div."""
     n = '<span class="kc-n">%s</span>' % esc(note) if note else ''
-    return ('<div class="kc %s"><span class="kc-id mono">%s</span>'
-            '<span class="kc-t">%s</span>%s</div>' % (level, esc(cid), esc(title), n))
+    if not href:
+        return ('<div class="kc %s"><span class="kc-id mono">%s</span>'
+                '<span class="kc-t">%s</span>%s</div>' % (level, esc(cid), esc(title), n))
+    return ('<a class="kc lk %s" href="%s"><span class="kc-id mono">%s</span>'
+            '<span class="kc-t">%s</span>%s<span class="kc-go">%s</span></a>'
+            % (level, esc('#' + href), esc(cid), esc(title), n, esc(go)))
 
 cols = [('Backlog', []), ('Intake · 2', []), ('Build · 3', []),
         ('Check · 5', []), ('Review · 6', []), ('Gated · 8', [])]
 
-for it in items:
+# A blocked card goes to its Backlog row, which is where the note explaining the
+# block, the Jira key, the ordering and the start-work prompt all are. The row
+# itself is not linked back here: it is already the place the work is done, and
+# a link from a thing to the thing you just came from is a loop, not a route.
+for i, it in enumerate(items):
     st = it['status'].lower()
     if st in ('done',):
         continue
     if st in ('in-progress', 'in progress'):
         cols[1][1].append(card(it['id'], it['what'], it['note'] or 'at intake'))
     elif st == 'blocked':
-        cols[0][1].append(card(it['id'], it['what'], it['note'] or 'blocked', 'att'))
+        cols[0][1].append(card(it['id'], it['what'], it['note'] or 'blocked', 'att',
+                               href=BK_ID[i], go='→ Backlog · the row, and what it is waiting on'))
     else:
         cols[0][1].append(card(it['id'], it['what'], it['note']))
 for c in contradictions:
     if c['open']:
-        cols[1][1].append(card(c['id'], c['what'] or 'contradiction', 'waiting on a ruling', 'att'))
+        cols[1][1].append(card(c['id'], c['what'] or 'contradiction', 'waiting on a ruling', 'att',
+                               href=BN.get('contra', ''), go='→ the banner · rule it'))
 if os.path.exists(rel('plan.md')):
     cols[2][1].append(card('plan.md', 'A build plan is committed', stage('3')['detail']))
+# The index is the check's position in `checks`, not its position in bad_checks -
+# CHECK_ID is keyed by the row the Stage 5 table will actually draw.
+_check_pos = dict((id(c), i) for i, c in enumerate(checks))
 for c in bad_checks:
-    cols[3][1].append(card(c['id'], c['why'][:90] or c['id'], c['status'], 'att'))
+    cols[3][1].append(card(c['id'], c['why'][:90] or c['id'], c['status'], 'att',
+                           href=CHECK_ID[_check_pos[id(c)]],
+                           go='→ Stages · what this check examined'))
 if os.path.exists(rel('REVIEW.md')):
-    cols[4][1].append(card('REVIEW.md', 'A review policy is in the tree', stage('6')['detail'],
-                           'warn' if stage('6')['state'] == 'waiting' else ''))
-for r in UNTAGGED[:3]:
-    cols[5][1].append(card(r['ver'], r['title'], 'shipped, never tagged — you press publish', 'warn'))
+    _s6 = stage('6')
+    cols[4][1].append(card('REVIEW.md', 'A review policy is in the tree', _s6['detail'],
+                           'warn' if _s6['state'] == 'waiting' else '',
+                           href='stage-6' if _s6['state'] == 'waiting' else '',
+                           go='→ Stages · stage 6, and what it is holding'))
+for i, r in enumerate(releases):
+    if r['tag'] or len([x for x in releases[:i] if not x['tag']]) >= 3:
+        continue
+    cols[5][1].append(card(r['ver'], r['title'], 'shipped, never tagged — you press publish', 'warn',
+                           href=REL_ID[i], go='→ Releases · this version'))
 
 kan_total = sum(len(c[1]) for c in cols)
 kanban = '<div class="kanban">' + ''.join(
@@ -985,7 +1085,8 @@ kan_note = ('' if kan_total else
 # spec" and "every one has been promoted" are both quiet screens, and a
 # dashboard that draws them the same way tells the reader an unread import is
 # finished work.
-QH = '<div class="h" style="margin-top:26px">Inferred requirements — the promotion queue</div>'
+QH = ('<div class="h" id="%s" style="margin-top:26px">Inferred requirements — '
+      'the promotion queue</div>' % QUEUE_ID)
 
 QPROV = (
     '<p class="provenance">Read from <span class="mono">%s</span>: a requirement is in this queue while '
@@ -1388,12 +1489,12 @@ else:
         else:
             j = '<span class="bk-nojira">—</span>'
         lis.append(
-            '<li class="bk" draggable="true" data-id="%s" data-rank="%d" data-st="%d">'
+            '<li class="bk" id="%s" draggable="true" data-id="%s" data-rank="%d" data-st="%d">'
             '<span class="bk-grip" aria-hidden="true">⋮⋮</span>'
             '<span class="bk-id mono">%s</span><span class="bk-what">%s</span>'
             '<span class="bk-st %s" data-src="%s">%s</span><span class="bk-j">%s</span>'
             '<span class="bk-note">%s</span>%s</li>'
-            % (esc(it['id']), rank, it['rank'], esc(it['id']), esc(it['what']), esc(cls),
+            % (BK_ID[rank], esc(it['id']), rank, it['rank'], esc(it['id']), esc(it['what']), esc(cls),
                'jira' if it['jira'] else 'local', esc(it['status']), j, esc(it['note']),
                '<button class="bk-act" data-copy="%s">start work</button>'
                % esc(START % (it['id'], it['what']))))
@@ -1436,7 +1537,7 @@ elif not releases:
              'nothing to show rather than something invented.</p></div>' % len(commits))
 else:
     parts = []
-    for r in releases:
+    for _ri, r in enumerate(releases):
         tag = ('<span class="rtag">tagged %s</span>' % esc(r['tag'])) if r['tag'] \
             else '<span class="rtag warn">no tag</span>'
         sha = ('<a class="relsha mono" href="https://github.com/%s/commit/%s" target="_blank" '
@@ -1448,11 +1549,11 @@ else:
                   'nothing to list.</li>')
         dot = 'muted' if r['tag'] else 'warn'
         parts.append(
-            '<div class="rel"><div class="relside"><span class="relv mono">%s</span>'
+            '<div class="rel" id="%s"><div class="relside"><span class="relv mono">%s</span>'
             '<span class="reldot %s"></span></div><div class="relbody"><div class="relhead">'
             '<h3>%s</h3><span class="rkind %s">%s</span>%s<span style="flex:1"></span>%s'
             '<span class="reldate mono">%s</span></div><ul class="rlist">%s</ul></div></div>'
-            % (esc(r['ver']), dot, esc(r['title']), '', esc(r['kind']), tag, sha,
+            % (REL_ID[_ri], esc(r['ver']), dot, esc(r['title']), '', esc(r['kind']), tag, sha,
                esc(r['date']), bl))
     p_rel = ('<div class="h">Release history — newest first</div>'
              '<div class="relnote"><b>%d of these %d carry a git tag.</b> A version in the log with no tag '
@@ -1514,7 +1615,7 @@ ARCS = ['M 314.1 79.0 A 196 196 0 0 1 359.0 95.4', 'M 426.5 152.0 A 196 196 0 0 
 
 if checks:
     crows = ['<div class="chkrow hd"><span>Check</span><span>Status</span><span>Coverage</span></div>']
-    for c in checks:
+    for _ci, c in enumerate(checks):
         bad = c['status'] not in ('pass', 'skipped')
         unk = c['status'] == 'unknown'
         if c['covered'] is None:
@@ -1528,20 +1629,44 @@ if checks:
                 esc(c['covered']), esc(c['from'] or 'source not stated'))
         if c['satisfied'] is False:
             cov += '<span style="color:var(--warn)"> · below what it declared</span>'
-        crows.append('<div class="chkrow r"><span class="ci">%s</span>'
-                     '<span class="cs %s">%s</span><span class="cc">%s</span></div>'
-                     % (esc(c['id']), 'unk' if unk else ('bad' if bad else ''), esc(c['status']), cov))
-    checks_block = ('<div class="h" style="margin-top:26px">Stage 5 — the last check run, per check</div>'
+        # A row that did not pass is a row somebody has to act on, and the
+        # thing that carries the action is the banner: it names every one of
+        # them and hands over the prompt that asks what each examined. It is
+        # emitted exactly when bad_checks is non-empty, which is exactly when
+        # a row here is bad - so the link is minted from BN rather than
+        # assumed, and a row is left plain if the banner was not written.
+        #
+        # A check that passed while covering less than it declared is drawn
+        # amber in the coverage cell and is NOT linked: no banner names it,
+        # and nowhere else on this page says more about it than this row
+        # already does. A link that lands somewhere silent about the thing the
+        # reader clicked is the dead end this whole change exists to remove,
+        # so it is left off and written down instead of invented.
+        _href = BN.get('checks', '') if bad else ''
+        _cls = 'unk' if unk else ('bad' if bad else '')
+        if _href:
+            crows.append('<a class="chkrow r lk" id="%s" href="%s"><span class="ci">%s</span>'
+                         '<span class="cs %s">%s</span><span class="cc">%s</span></a>'
+                         % (CHECK_ID[_ci], esc('#' + _href), esc(c['id']), _cls,
+                            esc(c['status']), cov))
+        else:
+            crows.append('<div class="chkrow r" id="%s"><span class="ci">%s</span>'
+                         '<span class="cs %s">%s</span><span class="cc">%s</span></div>'
+                         % (CHECK_ID[_ci], esc(c['id']), _cls, esc(c['status']), cov))
+    checks_block = ('<div class="h" id="' + STAGE5_ID + '" style="margin-top:26px">Stage 5 — '
+                    'the last check run, per check</div>'
                     '<div class="chk">%s</div>'
                     '<p class="provenance">Read from <span class="mono">%s</span>. Coverage is what each '
                     'check reported it examined; a check with no coverage recorded is shown as unknown, '
                     'never as nothing examined.</p>' % (''.join(crows), esc(RESULT_PATH)))
 elif check_state == 'unreadable':
-    checks_block = ('<div class="h" style="margin-top:26px">Stage 5</div><div class="empty">'
+    checks_block = ('<div class="h" id="' + STAGE5_ID + '" style="margin-top:26px">Stage 5</div>'
+                    '<div class="empty">'
                     '<b>The result file would not parse.</b><p><span class="mono">%s</span> exists and is '
                     'not readable JSON. An unreadable result is not a passing one.</p></div>' % esc(RESULT_PATH))
 else:
-    checks_block = ('<div class="h" style="margin-top:26px">Stage 5</div><div class="empty">'
+    checks_block = ('<div class="h" id="' + STAGE5_ID + '" style="margin-top:26px">Stage 5</div>'
+                    '<div class="empty">'
                     '<b>Nothing has been checked.</b><p>There is no <span class="mono">%s</span>, so this '
                     'repo has no last check run — which is different from a run that found nothing.'
                     '</p></div>' % esc(RESULT_PATH))

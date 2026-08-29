@@ -6,11 +6,11 @@
   "root_source": "the git work tree holding the config",
   "change": {
     "files": [
-      ".claude/productizer/checks-result.json",
-      ".claude/productizer/checks.yaml",
       "README.md",
       "plugins/productizer/.claude-plugin/plugin.json",
-      "plugins/productizer/skills/spec/scripts/build-view.sh"
+      "plugins/productizer/skills/spec/references/views.md",
+      "plugins/productizer/skills/spec/scripts/build-view.sh",
+      "plugins/productizer/skills/spec/templates/view.html"
     ],
     "file_count": 5,
     "tags": []
@@ -76,11 +76,11 @@
         "observed": {
           "covered": 5,
           "covered_items": [
-            ".claude/productizer/checks-result.json",
-            ".claude/productizer/checks.yaml",
             "README.md",
             "plugins/productizer/.claude-plugin/plugin.json",
-            "plugins/productizer/skills/spec/scripts/build-view.sh"
+            "plugins/productizer/skills/spec/references/views.md",
+            "plugins/productizer/skills/spec/scripts/build-view.sh",
+            "plugins/productizer/skills/spec/templates/view.html"
           ],
           "rules_loaded": null,
           "files_in_scope": 5,
@@ -90,7 +90,7 @@
         "reasons": []
       },
       "timed_out": false,
-      "output_tail": ".claude/productizer/checks-result.json\n.claude/productizer/checks.yaml\nREADME.md\nplugins/productizer/.claude-plugin/plugin.json\nplugins/productizer/skills/spec/scripts/build-view.sh\n",
+      "output_tail": "README.md\nplugins/productizer/.claude-plugin/plugin.json\nplugins/productizer/skills/spec/references/views.md\nplugins/productizer/skills/spec/scripts/build-view.sh\nplugins/productizer/skills/spec/templates/view.html\n",
       "status": "pass"
     },
     {

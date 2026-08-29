@@ -424,7 +424,31 @@ a.h-sub:hover{text-decoration-color:var(--crit)}
    can no longer sit over its data, so the header goes rather than sitting a
    column off - a misaligned header is read as data. */
 @media (max-width:620px){.chkrow{grid-template-columns:1fr auto;row-gap:5px}
-  .chkrow .cc{grid-column:1/3}.chkrow.hd{display:none}}@@STALECSS@@
+  .chkrow .cc{grid-column:1/3}.chkrow.hd{display:none}}
+
+/* Anything drawn as needing a person is a link to where that person acts, and
+   it has to read as one at rest. The page's default link treatment underlines
+   on hover only, and a control that appears on hover is a control most readers
+   never find - the same reasoning a.h-sub above is written from, so these get
+   the same answer: underlined at rest, in the colour of the level that made
+   them loud, darkening to the level's own colour on hover. Keyboard reach is
+   native (they are <a href>) and the ring is the global :focus-visible one.
+   Nothing calm is a link, so nothing calm picks any of this up. */
+a.stat.lk,a.kc.lk,a.chkrow.r.lk{text-decoration:none;color:inherit;cursor:pointer}
+a.stat.lk .stat-l,a.kc.lk .kc-t,a.chkrow.r.lk .ci{text-decoration:underline;
+  text-decoration-color:#8b949e66;text-underline-offset:3px}
+a.stat.att .stat-l,a.kc.att .kc-t{text-decoration-color:#da363399}
+a.stat.warn .stat-l,a.kc.warn .kc-t{text-decoration-color:#d2992299}
+a.stat.lk:hover .stat-l,a.kc.lk:hover .kc-t,a.chkrow.r.lk:hover .ci{text-decoration-color:currentColor}
+a.kc.lk:hover,a.chkrow.r.lk:hover{border-color:var(--accent)}
+/* Where it goes, said in the tile rather than left to a hover and a guess. */
+.stat-go,.kc-go{font-family:var(--mono);font-size:9.5px;letter-spacing:.03em;
+  color:var(--muted);opacity:.7;line-height:1.45;margin-top:1px}
+a.stat.lk:hover .stat-go,a.kc.lk:hover .kc-go{color:var(--accent);opacity:1}
+/* The arrival, for a jump that crossed a tab. Brief, and gone. */
+:target{scroll-margin-top:14px}
+.bn:target,.rel:target,.bk:target,.chkrow.r:target,.stat:target{
+  box-shadow:0 0 0 2px var(--accent)}@@STALECSS@@
 </style>
 @@BODY@@
 <script>
@@ -435,7 +459,10 @@ function nodes(){
   var POS = [{"x": 270.0, "y": 74.0}, {"x": 396.0, "y": 119.9}, {"x": 463.0, "y": 236.0}, {"x": 439.7, "y": 368.0}, {"x": 337.0, "y": 454.2}, {"x": 203.0, "y": 454.2}, {"x": 100.3, "y": 368.0}, {"x": 77.0, "y": 236.0}, {"x": 144.0, "y": 119.9}];
   var h="";
   for (var i=0;i<S.length;i++){ var s=S[i], p=POS[i];
+    // id="stage-N" so a card elsewhere on the page can name a stage. The ring
+    // is drawn from S, so the id exists for every stage S has, always.
     h += '<button class="rnode '+s.actor+(s.live?" live":"")+'" data-i="'+i+'" '
+      +  'id="stage-'+s.n+'" '
       +  'style="left:'+(p.x/540*100)+'%;top:'+(p.y/540*100)+'%">'
       +  '<span class="rn">'+s.n+'</span><span class="rt">'+s.name+'</span>'
       +  '<span class="ract">'+(s.actor==="human"?"you":"agent")+'</span></button>';
@@ -496,11 +523,36 @@ nodes(); pick(CUR0,0);
 document.getElementById("dmod").addEventListener("change",function(e){
   CURM=+e.target.value; paintMod(S[CUR].mods[CURM]);
 });
+// Factored out of the tab click because an in-page link whose target sits in a
+// hidden panel has to open that panel first - a fragment that resolves to a
+// display:none element scrolls nowhere, which is a dead end wearing a link's
+// clothes. A second copy of this toggle is how the two drift apart, so there
+// is one.
+function showTab(pid){
+  document.querySelectorAll(".tab").forEach(function(x){x.classList.toggle("on",x.dataset.p===pid);});
+  document.querySelectorAll(".panel").forEach(function(p){p.classList.toggle("on",p.id==="p-"+pid);});
+}
 document.getElementById("tabs").addEventListener("click",function(e){
   var t=e.target.closest(".tab"); if(!t) return;
-  document.querySelectorAll(".tab").forEach(function(x){x.classList.toggle("on",x===t);});
-  document.querySelectorAll(".panel").forEach(function(p){p.classList.toggle("on",p.id==="p-"+t.dataset.p);});
+  showTab(t.dataset.p);
 });
+// Open whatever panel the target lives in, then let the browser do its own
+// jump - so the URL still carries the fragment and the back button still
+// works. getElementById rather than querySelector: the ids are minted from
+// arbitrary text and a selector would need escaping that a fragment does not.
+// A stage anchor also selects that stage in the ring, through the same pick()
+// the ring nodes use.
+function openAnchor(hash){
+  if(!hash||hash.charAt(0)!=="#") return;
+  var el=document.getElementById(hash.slice(1)); if(!el) return;
+  var panel=el.closest(".panel");
+  if(panel) showTab(panel.id.replace(/^p-/,""));
+  if(el.classList.contains("rnode")) pick(+el.dataset.i,0);
+}
+document.addEventListener("click",function(e){
+  var a=e.target.closest('a[href^="#"]'); if(a) openAnchor(a.getAttribute("href"));
+},true);
+window.addEventListener("hashchange",function(){openAnchor(location.hash);});
 document.addEventListener("click",function(e){
   var n=e.target.closest(".rnode"); if(n){pick(+n.dataset.i,0); return;}
   var b=e.target.closest(".cp, .bk-act"); if(!b) return;
@@ -592,6 +644,9 @@ document.addEventListener("keydown",function(e){
     rs.forEach(function(r){body.appendChild(r);});
   });
 })();
+// Last, so the ring nodes and every panel exist before a pasted deep link is
+// resolved against them.
+openAnchor(location.hash);
 function fb(txt,cb){var ta=document.createElement("textarea");ta.value=txt;
   document.body.appendChild(ta);ta.select();try{document.execCommand("copy");cb();}catch(err){}ta.remove();}
 </script>
