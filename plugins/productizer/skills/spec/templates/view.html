@@ -93,6 +93,22 @@ color:#D29922;font-variant-numeric:tabular-nums}
 .hubwhat{font-size:11.5px;color:var(--muted);line-height:1.45;margin-top:5px;max-width:15ch}
 .hubback{font-family:var(--mono);font-size:9px;letter-spacing:.08em;color:var(--muted);
 opacity:.75;margin-top:6px}
+/* The waiting-on-you list. Rows read as rows, not as cards: this is a list of
+   what is stuck, and giving each entry a box would make thirteen small things
+   look like thirteen large ones. */
+.hl{list-style:none;margin:0;padding:0}
+.hl li{margin:0 0 1px}
+.hl-row{display:grid;grid-template-columns:64px minmax(0,1fr) minmax(0,1.1fr) auto;
+gap:12px;align-items:baseline;padding:8px 10px;border-radius:5px;text-decoration:none}
+a.hl-row:hover{background:var(--raised)}
+.hl-id{font-size:11.5px;color:var(--accent)}
+.hl-what{font-size:12.5px;color:var(--text)}
+.hl-why{font-size:11.5px;color:var(--muted);line-height:1.5}
+.hl-go{font-family:var(--mono);font-size:10px;color:var(--muted);opacity:.75;white-space:nowrap}
+.hl-lede{font-size:12px;color:var(--muted);line-height:1.6;margin:0 0 10px;max-width:86ch}
+.hl-none{font-size:12.5px;color:var(--muted);line-height:1.6;max-width:70ch}
+@media(max-width:760px){.hl-row{grid-template-columns:1fr;gap:3px}.hl-go{display:none}}
+
 
 .rnode.human{border-color:#D29922}
 .rnode.human .rsn{color:#D29922}
@@ -521,7 +537,51 @@ function hubHuman(){
     + '<span class="hubbig' + (HUMAN ? '' : ' zero') + '">' + esc(HUMAN) + '</span>'
     + '<span class="hubwhat">' + (HUMAN
         ? 'thing' + (HUMAN === 1 ? '' : 's') + ' only a person can move'
-        : 'nothing is held on a person') + '</span>';
+        : 'nothing is held on a person') + '</span>'
+    + (HUMAN ? '<span class="hubback">CLICK TO SEE THEM</span>' : '');
+}
+
+// A number naming a quantity of work without showing the work is the defect
+// this page fixed on the dashboard tile by linking it to the banners. Same fix:
+// the count opens into the list, in the detail pane that is already here, and
+// every row is a link to the place that thing is actually acted on.
+function humanList(){
+  var d = document.getElementById("dwhat");
+  if (!d) return;
+  document.querySelectorAll(".rnode").forEach(function(n){ n.classList.remove("on"); });
+  document.querySelectorAll(".arc").forEach(function(a){ a.classList.remove("lit"); });
+  document.getElementById("dnum").textContent = "";
+  document.getElementById("dname").textContent = HUMAN
+    ? "Waiting on you" : "Nothing is waiting on you";
+  document.getElementById("dbadge").textContent = "";
+  document.getElementById("dbadge").className = "badge";
+  var a = document.getElementById("dactor"); if (a) a.innerHTML = "";
+  var st = document.getElementById("dstate"); if (st) st.innerHTML = "";
+  var fl = document.getElementById("dfiles"); if (fl) fl.innerHTML = "";
+  var ac = document.getElementById("dacts"); if (ac) ac.innerHTML = "";
+  var cm = document.getElementById("dcmp"); if (cm) cm.innerHTML = "";
+  var ms = document.getElementById("dmod"); if (ms) ms.innerHTML = "";
+
+  if (!HUMANL.length){
+    d.innerHTML = '<p class="hl-none">Nothing here is held on a person. That is the '
+      + 'normal state, not an achievement \u2014 it means every card on the board is '
+      + 'somewhere an agent can move it.</p>';
+    return;
+  }
+  var h = '<p class="hl-lede">Each of these is stopped until a person does something. '
+        + 'They are the same cards the <b>Board</b> draws, counted by what is holding '
+        + 'them rather than by where they will go next.</p><ul class="hl">';
+  for (var i=0;i<HUMANL.length;i++){
+    var it = HUMANL[i];
+    var inner = '<span class="hl-id mono">' + esc(it.id) + '</span>'
+              + '<span class="hl-what">' + esc(it.what) + '</span>'
+              + '<span class="hl-why">' + esc(it.why) + '</span>';
+    h += it.href
+       ? '<li><a class="hl-row lk" href="#' + esc(it.href) + '">' + inner
+         + '<span class="hl-go">\u2192 ' + esc(it.go) + '</span></a></li>'
+       : '<li><span class="hl-row">' + inner + '</span></li>';
+  }
+  document.getElementById("dwhat").innerHTML = h + '</ul>';
 }
 function pick(i,m){
   var s=S[i]; CUR=i; CURM = (m==null?0:m);
@@ -580,7 +640,7 @@ nodes(); pick(CUR0,0); hubHuman();
 // and getting it wrong shows a stage where the person should be.
 (function(){ var h=document.getElementById("hub");
   if(h){ h.style.cursor="pointer"; h.title="what is waiting on a person";
-         h.addEventListener("click", hubHuman); } })();
+         h.addEventListener("click", function(){ hubHuman(); humanList(); }); } })();
 document.getElementById("dmod").addEventListener("change",function(e){
   CURM=+e.target.value; paintMod(S[CUR].mods[CURM]);
 });

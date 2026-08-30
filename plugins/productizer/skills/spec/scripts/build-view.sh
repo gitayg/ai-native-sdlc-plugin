@@ -1316,6 +1316,36 @@ for _ci, _cs in enumerate(COL_STAGE):
 # can unhold.
 HUMAN_ITEMS = len(cols[0][1]) + contra_open + len(CHK_ACT) + len(cols[5][1])
 
+# The same things, itemised, so the count can be opened. `href` is an id this
+# run actually minted - the page mints every id in one place precisely so a link
+# here cannot point at a dead end. An entry with no href is still listed: it is
+# a real thing waiting on a person even when there is nowhere better to send
+# them, and dropping it would make the list shorter than the number above it.
+HUMAN_LIST = []
+for _i, _it in enumerate(items):
+    _st = _it['status'].strip().strip('`').lower()
+    if _st in ('done', 'in-progress', 'in progress'):
+        continue
+    HUMAN_LIST.append({'id': _it['id'], 'what': _it['what'],
+                       'why': 'in the queue, waiting for you to pick it up'
+                              if _st != 'blocked' else 'blocked - it names what it is waiting on',
+                       'href': BK_ID[_i], 'go': 'Backlog'})
+for _c in contradictions:
+    if _c['open']:
+        HUMAN_LIST.append({'id': _c['id'], 'what': _c['what'] or 'contradiction',
+                           'why': 'nothing merges until you rule it',
+                           'href': BN.get('contra', ''), 'go': 'the banner'})
+for _c in CHK_ACT:
+    HUMAN_LIST.append({'id': _c['id'], 'what': short(_c['why'] or _c['id'], 70),
+                       'why': 'a declared check reported %s' % _c['status'],
+                       'href': CHECK_ID[_check_pos[id(_c)]], 'go': 'Stages'})
+for _i, _r in enumerate(releases):
+    if _r['tag'] or len([x for x in releases[:_i] if not x['tag']]) >= 3:
+        continue
+    HUMAN_LIST.append({'id': _r['ver'], 'what': short(_r['title'], 70),
+                       'why': 'shipped and never announced - you press publish',
+                       'href': REL_ID[_i], 'go': 'Releases'})
+
 kan_total = sum(len(c[1]) for c in cols)
 kanban = '<div class="kanban">' + ''.join(
     '<div class="kcol"><div class="kcol-h"><span>%s</span><span class="kcol-c">%d</span></div>%s</div>'
@@ -2392,8 +2422,9 @@ BODY = (
 # rides along in the bar's existing slot rather than claiming a new one.
 BODY = BODY + DL + STALE
 
-DATA = ('var PROD = %s;\nvar CUR0 = %d;\nvar HUMAN = %d;\nvar S = %s;\n'
+DATA = ('var PROD = %s;\nvar CUR0 = %d;\nvar HUMAN = %d;\nvar HUMANL = %s;\nvar S = %s;\n'
         % (json.dumps(PRODUCT), CUR0, HUMAN_ITEMS,
+           json.dumps(HUMAN_LIST, ensure_ascii=False),
            json.dumps(S, indent=1, sort_keys=True, ensure_ascii=False)))
 
 tpl = slurp(TEMPLATE)
