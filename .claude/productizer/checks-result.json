@@ -8,55 +8,21 @@
     "files": [
       ".claude/productizer/backlog.md",
       ".claude/productizer/checks-result.json",
-      ".claude/productizer/checks.yaml",
-      ".claude/productizer/config.json",
-      ".claude/productizer/spec.md",
-      ".gitignore",
-      "GUIDE.md",
-      "README.md",
-      "plugins/productizer/.claude-plugin/plugin.json",
-      "plugins/productizer/skills/spec/SKILL.md",
-      "plugins/productizer/skills/spec/references/checks.md",
-      "plugins/productizer/skills/spec/references/delegation.md",
-      "plugins/productizer/skills/spec/references/release.md",
-      "plugins/productizer/skills/spec/references/views.md",
-      "plugins/productizer/skills/spec/scripts/build-view.sh",
-      "plugins/productizer/skills/spec/scripts/detect-context.sh",
-      "plugins/productizer/skills/spec/scripts/graduate.sh",
-      "plugins/productizer/skills/spec/scripts/scaffold.sh",
-      "plugins/productizer/skills/spec/templates/checks.yaml",
-      "plugins/productizer/skills/spec/templates/constitution.md",
-      "plugins/productizer/skills/spec/templates/session-start.sh",
-      "plugins/productizer/skills/spec/templates/spec.md",
-      "scripts/check-hygiene.sh",
-      "plugins/productizer/skills/spec/references/learnings.md",
-      "plugins/productizer/skills/spec/scripts/check-frontmatter.py",
-      "plugins/productizer/skills/spec/scripts/check-hygiene.sh",
-      "plugins/productizer/skills/spec/scripts/check-ruling-requested.sh",
-      "plugins/productizer/skills/spec/scripts/check-spec-home.sh",
-      "plugins/productizer/skills/spec/scripts/check-stderr.sh",
-      "plugins/productizer/skills/spec/scripts/learnings.sh",
-      "plugins/productizer/skills/spec/scripts/pending-rulings.sh",
-      "plugins/productizer/skills/spec/scripts/request-ruling.sh",
-      "plugins/productizer/skills/spec/scripts/run-runner.sh",
-      "plugins/productizer/skills/spec/templates/graduate/ci-gate.yaml",
-      "plugins/productizer/skills/spec/templates/graduate/ci-gate-header.yaml",
-      "plugins/productizer/skills/spec/templates/graduate/hook.sh",
-      "plugins/productizer/skills/spec/templates/learnings.md"
+      ".claude/productizer/spec.md"
     ],
-    "file_count": 37,
+    "file_count": 3,
     "tags": []
   },
   "verdict": "pass",
   "exit_code": 0,
   "counts": {
     "declared": 7,
-    "triggered": 7,
-    "passed": 6,
+    "triggered": 5,
+    "passed": 5,
     "blocking_failures": 0,
-    "advisory_failures": 1,
+    "advisory_failures": 0,
     "disabled": 0,
-    "not_triggered": 0,
+    "not_triggered": 2,
     "spec_units_unsatisfied": null
   },
   "spec_coverage": {
@@ -87,7 +53,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 37,
+      "files_in_scope": 3,
       "enabled": true,
       "tool": {
         "command": [
@@ -107,55 +73,21 @@
           "min_rules": 0
         },
         "observed": {
-          "covered": 37,
+          "covered": 3,
           "covered_items": [
             ".claude/productizer/backlog.md",
             ".claude/productizer/checks-result.json",
-            ".claude/productizer/checks.yaml",
-            ".claude/productizer/config.json",
-            ".claude/productizer/spec.md",
-            ".gitignore",
-            "GUIDE.md",
-            "README.md",
-            "plugins/productizer/.claude-plugin/plugin.json",
-            "plugins/productizer/skills/spec/SKILL.md",
-            "plugins/productizer/skills/spec/references/checks.md",
-            "plugins/productizer/skills/spec/references/delegation.md",
-            "plugins/productizer/skills/spec/references/release.md",
-            "plugins/productizer/skills/spec/references/views.md",
-            "plugins/productizer/skills/spec/scripts/build-view.sh",
-            "plugins/productizer/skills/spec/scripts/detect-context.sh",
-            "plugins/productizer/skills/spec/scripts/graduate.sh",
-            "plugins/productizer/skills/spec/scripts/scaffold.sh",
-            "plugins/productizer/skills/spec/templates/checks.yaml",
-            "plugins/productizer/skills/spec/templates/constitution.md",
-            "plugins/productizer/skills/spec/templates/session-start.sh",
-            "plugins/productizer/skills/spec/templates/spec.md",
-            "scripts/check-hygiene.sh",
-            "plugins/productizer/skills/spec/references/learnings.md",
-            "plugins/productizer/skills/spec/scripts/check-frontmatter.py",
-            "plugins/productizer/skills/spec/scripts/check-hygiene.sh",
-            "plugins/productizer/skills/spec/scripts/check-ruling-requested.sh",
-            "plugins/productizer/skills/spec/scripts/check-spec-home.sh",
-            "plugins/productizer/skills/spec/scripts/check-stderr.sh",
-            "plugins/productizer/skills/spec/scripts/learnings.sh",
-            "plugins/productizer/skills/spec/scripts/pending-rulings.sh",
-            "plugins/productizer/skills/spec/scripts/request-ruling.sh",
-            "plugins/productizer/skills/spec/scripts/run-runner.sh",
-            "plugins/productizer/skills/spec/templates/graduate/ci-gate.yaml",
-            "plugins/productizer/skills/spec/templates/graduate/ci-gate-header.yaml",
-            "plugins/productizer/skills/spec/templates/graduate/hook.sh",
-            "plugins/productizer/skills/spec/templates/learnings.md"
+            ".claude/productizer/spec.md"
           ],
           "rules_loaded": null,
-          "files_in_scope": 37,
+          "files_in_scope": 3,
           "not_examined": []
         },
         "satisfied": true,
         "reasons": []
       },
       "timed_out": false,
-      "output_tail": ".claude/productizer/backlog.md\n.claude/productizer/checks-result.json\n.claude/productizer/checks.yaml\n.claude/productizer/config.json\n.claude/productizer/spec.md\n.gitignore\nGUIDE.md\nREADME.md\nplugins/productizer/.claude-plugin/plugin.json\nplugins/productizer/skills/spec/SKILL.md\nplugins/productizer/skills/spec/references/checks.md\nplugins/productizer/skills/spec/references/delegation.md\nplugins/productizer/skills/spec/references/release.md\nplugins/productizer/skills/spec/references/views.md\nplugins/productizer/skills/spec/scripts/build-view.sh\nplugins/productizer/skills/spec/scripts/detect-context.sh\nplugins/productizer/skills/spec/scripts/graduate.sh\nplugins/productizer/skills/spec/scripts/scaffold.sh\nplugins/productizer/skills/spec/templates/checks.yaml\nplugins/productizer/skills/spec/templates/constitution.md\nplugins/productizer/skills/spec/templates/session-start.sh\nplugins/productizer/skills/spec/templates/spec.md\nscripts/check-hygiene.sh\nplugins/productizer/skills/spec/references/learnings.md\nplugins/productizer/skills/spec/scripts/check-frontmatter.py\nplugins/productizer/skills/spec/scripts/check-hygiene.sh\nplugins/productizer/skills/spec/scripts/check-ruling-requested.sh\nplugins/productizer/skills/spec/scripts/check-spec-home.sh\nplugins/productizer/skills/spec/scripts/check-stderr.sh\nplugins/productizer/skills/spec/scripts/learnings.sh\nplugins/productizer/skills/spec/scripts/pending-rulings.sh\nplugins/productizer/skills/spec/scripts/request-ruling.sh\nplugins/productizer/skills/spec/scripts/run-runner.sh\nplugins/productizer/skills/spec/templates/graduate/ci-gate.yaml\nplugins/productizer/skills/spec/templates/graduate/ci-gate-header.yaml\nplugins/productizer/skills/spec/templates/graduate/hook.sh\nplugins/productizer/skills/spec/templates/learnings.md\n",
+      "output_tail": ".claude/productizer/backlog.md\n.claude/productizer/checks-result.json\n.claude/productizer/spec.md\n",
       "status": "pass"
     },
     {
@@ -165,68 +97,17 @@
       "blocking": true,
       "mode": "per_file",
       "command": [
-        "npx",
-        "--yes",
         "shellcheck",
         "--severity=warning",
         "--format=gcc",
         "{file}"
       ],
       "trigger_scope": "scoped",
-      "triggered": true,
-      "triggered_by": [
-        "path:**/*.sh"
-      ],
-      "files_in_scope": 15,
+      "triggered": false,
+      "triggered_by": [],
+      "files_in_scope": 0,
       "enabled": true,
-      "tool": {
-        "command": [
-          "npx",
-          "--yes",
-          "shellcheck",
-          "--version"
-        ],
-        "version": "ShellCheck - shell script analysis tool version: 0.11.0 license: GNU General Public License, version 3 website: https://www.shellcheck.net",
-        "exit_code": 0
-      },
-      "exit_code": 0,
-      "duration_seconds": 15,
-      "coverage": {
-        "from": "per_file_exit",
-        "required": {
-          "min_covered": 1,
-          "must_cover": "all_triggering",
-          "min_rules": 0
-        },
-        "observed": {
-          "covered": 15,
-          "covered_items": [
-            "plugins/productizer/skills/spec/scripts/build-view.sh",
-            "plugins/productizer/skills/spec/scripts/detect-context.sh",
-            "plugins/productizer/skills/spec/scripts/graduate.sh",
-            "plugins/productizer/skills/spec/scripts/scaffold.sh",
-            "plugins/productizer/skills/spec/templates/session-start.sh",
-            "scripts/check-hygiene.sh",
-            "plugins/productizer/skills/spec/scripts/check-hygiene.sh",
-            "plugins/productizer/skills/spec/scripts/check-ruling-requested.sh",
-            "plugins/productizer/skills/spec/scripts/check-spec-home.sh",
-            "plugins/productizer/skills/spec/scripts/check-stderr.sh",
-            "plugins/productizer/skills/spec/scripts/learnings.sh",
-            "plugins/productizer/skills/spec/scripts/pending-rulings.sh",
-            "plugins/productizer/skills/spec/scripts/request-ruling.sh",
-            "plugins/productizer/skills/spec/scripts/run-runner.sh",
-            "plugins/productizer/skills/spec/templates/graduate/hook.sh"
-          ],
-          "rules_loaded": null,
-          "files_in_scope": 15,
-          "not_examined": []
-        },
-        "satisfied": true,
-        "reasons": []
-      },
-      "timed_out": false,
-      "output_tail": "\n===== plugins/productizer/skills/spec/scripts/build-view.sh\n\n===== plugins/productizer/skills/spec/scripts/detect-context.sh\n\n===== plugins/productizer/skills/spec/scripts/graduate.sh\n\n===== plugins/productizer/skills/spec/scripts/scaffold.sh\n\n===== plugins/productizer/skills/spec/templates/session-start.sh\n\n===== scripts/check-hygiene.sh\n\n===== plugins/productizer/skills/spec/scripts/check-hygiene.sh\n\n===== plugins/productizer/skills/spec/scripts/check-ruling-requested.sh\n\n===== plugins/productizer/skills/spec/scripts/check-spec-home.sh\n\n===== plugins/productizer/skills/spec/scripts/check-stderr.sh\n\n===== plugins/productizer/skills/spec/scripts/learnings.sh\n\n===== plugins/productizer/skills/spec/scripts/pending-rulings.sh\n\n===== plugins/productizer/skills/spec/scripts/request-ruling.sh\n\n===== plugins/productizer/skills/spec/scripts/run-runner.sh\n\n===== plugins/productizer/skills/spec/templates/graduate/hook.sh\n",
-      "status": "pass"
+      "status": "not_triggered"
     },
     {
       "id": "solver-corpus",
@@ -244,7 +125,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 37,
+      "files_in_scope": 3,
       "enabled": true,
       "tool": {
         "command": [
@@ -267,7 +148,7 @@
           "covered": 7,
           "covered_items": [],
           "rules_loaded": null,
-          "files_in_scope": 37,
+          "files_in_scope": 3,
           "not_examined": []
         },
         "satisfied": true,
@@ -280,8 +161,8 @@
     {
       "id": "stderr-suppression",
       "why": "an error and a genuine no-match look identical once stderr is discarded, and this repo has already shipped three defects that hid in exactly that gap",
-      "severity": "advise",
-      "blocking": false,
+      "severity": "block",
+      "blocking": true,
       "mode": "per_file",
       "command": [
         "./plugins/productizer/skills/spec/scripts/check-stderr.sh",
@@ -296,59 +177,11 @@
         "{file}"
       ],
       "trigger_scope": "scoped",
-      "triggered": true,
-      "triggered_by": [
-        "path:**/*.sh"
-      ],
-      "files_in_scope": 15,
+      "triggered": false,
+      "triggered_by": [],
+      "files_in_scope": 0,
       "enabled": true,
-      "tool": {
-        "command": [
-          "./plugins/productizer/skills/spec/scripts/check-stderr.sh",
-          "--version"
-        ],
-        "version": "check-stderr 1.0",
-        "exit_code": 0
-      },
-      "exit_code": 1,
-      "duration_seconds": 15,
-      "coverage": {
-        "from": "per_file_exit",
-        "required": {
-          "min_covered": 1,
-          "must_cover": "all_triggering",
-          "min_rules": 0
-        },
-        "observed": {
-          "covered": 15,
-          "covered_items": [
-            "plugins/productizer/skills/spec/scripts/build-view.sh",
-            "plugins/productizer/skills/spec/scripts/detect-context.sh",
-            "plugins/productizer/skills/spec/scripts/graduate.sh",
-            "plugins/productizer/skills/spec/scripts/scaffold.sh",
-            "plugins/productizer/skills/spec/templates/session-start.sh",
-            "scripts/check-hygiene.sh",
-            "plugins/productizer/skills/spec/scripts/check-hygiene.sh",
-            "plugins/productizer/skills/spec/scripts/check-ruling-requested.sh",
-            "plugins/productizer/skills/spec/scripts/check-spec-home.sh",
-            "plugins/productizer/skills/spec/scripts/check-stderr.sh",
-            "plugins/productizer/skills/spec/scripts/learnings.sh",
-            "plugins/productizer/skills/spec/scripts/pending-rulings.sh",
-            "plugins/productizer/skills/spec/scripts/request-ruling.sh",
-            "plugins/productizer/skills/spec/scripts/run-runner.sh",
-            "plugins/productizer/skills/spec/templates/graduate/hook.sh"
-          ],
-          "rules_loaded": null,
-          "files_in_scope": 15,
-          "not_examined": []
-        },
-        "satisfied": true,
-        "reasons": []
-      },
-      "timed_out": false,
-      "output_tail": "ng the redirection and giving a reason.\n    plugins/productizer/skills/spec/templates/session-start.sh:173: stderr suppressed. An error and a genuine no-match are now indistinguishable. Remove it, or add a same-line `# stderr-ok: <reason>`, or an --allow entry quoting the redirection and giving a reason.\n    plugins/productizer/skills/spec/templates/session-start.sh:175: stderr suppressed. An error and a genuine no-match are now indistinguishable. Remove it, or add a same-line `# stderr-ok: <reason>`, or an --allow entry quoting the redirection and giving a reason.\n    plugins/productizer/skills/spec/templates/session-start.sh:178: stderr suppressed. An error and a genuine no-match are now indistinguishable. Remove it, or add a same-line `# stderr-ok: <reason>`, or an --allow entry quoting the redirection and giving a reason.\n\n===== scripts/check-hygiene.sh\nscripts/check-hygiene.sh\n\n===== plugins/productizer/skills/spec/scripts/check-hygiene.sh\nplugins/productizer/skills/spec/scripts/check-hygiene.sh\n\n===== plugins/productizer/skills/spec/scripts/check-ruling-requested.sh\nplugins/productizer/skills/spec/scripts/check-ruling-requested.sh\n\n===== plugins/productizer/skills/spec/scripts/check-spec-home.sh\nplugins/productizer/skills/spec/scripts/check-spec-home.sh\n\n===== plugins/productizer/skills/spec/scripts/check-stderr.sh\nplugins/productizer/skills/spec/scripts/check-stderr.sh\n\n===== plugins/productizer/skills/spec/scripts/learnings.sh\nplugins/productizer/skills/spec/scripts/learnings.sh\n\n===== plugins/productizer/skills/spec/scripts/pending-rulings.sh\nplugins/productizer/skills/spec/scripts/pending-rulings.sh\n\n===== plugins/productizer/skills/spec/scripts/request-ruling.sh\nplugins/productizer/skills/spec/scripts/request-ruling.sh\n\n===== plugins/productizer/skills/spec/scripts/run-runner.sh\nplugins/productizer/skills/spec/scripts/run-runner.sh\n\n===== plugins/productizer/skills/spec/templates/graduate/hook.sh\nplugins/productizer/skills/spec/templates/graduate/hook.sh\n",
-      "status": "fail",
-      "detail": "the check reported findings."
+      "status": "not_triggered"
     },
     {
       "id": "spec-home",
@@ -366,7 +199,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 37,
+      "files_in_scope": 3,
       "enabled": true,
       "tool": {
         "command": [
@@ -389,7 +222,7 @@
           "covered": 1,
           "covered_items": [],
           "rules_loaded": null,
-          "files_in_scope": 37,
+          "files_in_scope": 3,
           "not_examined": []
         },
         "satisfied": true,
@@ -413,7 +246,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 37,
+      "files_in_scope": 3,
       "enabled": true,
       "tool": {
         "command": [
@@ -438,7 +271,7 @@
             ".claude/productizer/spec.md"
           ],
           "rules_loaded": null,
-          "files_in_scope": 37,
+          "files_in_scope": 3,
           "not_examined": []
         },
         "satisfied": true,
@@ -463,7 +296,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 37,
+      "files_in_scope": 3,
       "enabled": true,
       "tool": {
         "command": [
@@ -487,7 +320,7 @@
           "covered": 2,
           "covered_items": [],
           "rules_loaded": null,
-          "files_in_scope": 37,
+          "files_in_scope": 3,
           "not_examined": []
         },
         "satisfied": true,
