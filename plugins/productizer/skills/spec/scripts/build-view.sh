@@ -41,10 +41,36 @@ STAGE_STATUS="$HERE/stage-status.sh"
 # actually run, argument for argument - a reader who generated to --out
 # somewhere.html and is handed a default invocation regenerates the wrong file.
 # So argv is captured before it is consumed, and shell-quoted as it is copied.
+#
+# Reproducing argv is not the same as reproducing the run, and this line got it
+# wrong twice in opposite directions. Omitting the root reproduced a command
+# that only worked from inside the repo, and regenerated an almost-empty page
+# anywhere else. Echoing the root back verbatim then wrote an absolute path -
+# somebody's home directory - into a page that gets published, which is the
+# leak that shipped in v4.2.0. Both come from treating the literal invocation
+# as the thing to reproduce. What has to survive is the MEANING: any path that
+# is the work tree is emitted as the expression that finds the work tree, so
+# the command carries no home directory and runs from any directory.
+TOPLEVEL_EXPR='"$(git rev-parse --show-toplevel)"'
+_quote_arg() {
+  # The work tree itself, and anything under it, are emitted relative to the
+  # expression that finds the work tree. Everything else - an --out under
+  # /tmp, a flag, a number - is quoted literally, because rewriting a path
+  # that is NOT in the repo would point the command somewhere it never ran.
+  if [ -z "${GIT_TOPLEVEL:-}" ]; then printf '%q' "$1"; return; fi
+  case "$1" in
+    "$GIT_TOPLEVEL")   printf '%s' "$TOPLEVEL_EXPR" ;;
+    "$GIT_TOPLEVEL"/*) printf '%s/%s' "$TOPLEVEL_EXPR" "${1#"$GIT_TOPLEVEL"/}" ;;
+    *)                 printf '%q' "$1" ;;
+  esac
+}
+GIT_TOPLEVEL="$(git rev-parse --show-toplevel 2>&1)" || GIT_TOPLEVEL=""
+case "$GIT_TOPLEVEL" in /*) ;; *) GIT_TOPLEVEL="" ;; esac
+
 SELF="$HERE/$(basename "${BASH_SOURCE[0]}")"
-REGEN_CMD="bash $(printf '%q' "$SELF")"
+REGEN_CMD="bash $(_quote_arg "$SELF")"
 for _arg in "$@"; do
-  REGEN_CMD="$REGEN_CMD $(printf '%q' "$_arg")"
+  REGEN_CMD="$REGEN_CMD $(_quote_arg "$_arg")"
 done
 
 ROOT=""
@@ -209,6 +235,83 @@ if raw:
         obj, deref, name = parts
         tag_of[deref or obj] = name
 
+# Commit subjects and bodies are the one thing on this page that is NOT read
+# from a file someone can edit. They come out of git, they are permanent, and
+# they are rendered verbatim as release notes - so a name that was scrubbed from
+# every file still reaches a published artifact through the log. That happened:
+# the files and the release notes were cleaned, the commit messages were not,
+# and the page put them back.
+#
+# So git-derived text is redacted before it is displayed. This is a DISPLAY
+# rule, not a gate: check-hygiene.sh keeps its own hardcoded list precisely
+# because a gate that reads its patterns from an editable config can be
+# switched off by editing the config. Under-redacting here is a leak; the gate
+# is what stops the commit being made in the first place.
+#
+# A pattern list that cannot be read is reported ON THE PAGE, never silently
+# skipped - unredacted output that looks redacted is worse than no redaction.
+REDACT_PATTERNS = []
+REDACT_STATE = 'none declared'
+
+
+def _patterns_from(text):
+    """Two shapes, because the two sources are different kinds of file.
+
+    A shell check declares its list on one `PATTERNS='a|b|c'` line. A private
+    list is one regex per line with # comments. Read as DATA either way - the
+    shell one is a script, and running it is exactly what P4 forbids.
+    """
+    m = re.search(r"^PATTERNS='([^']*)'", text, re.M)
+    if m:
+        return [p for p in m.group(1).split('|') if p]
+    out = []
+    for ln in text.split('\n'):
+        ln = ln.strip()
+        if ln and not ln.startswith('#'):
+            out.append(ln)
+    return out
+
+
+_rf = dig(cfg, 'views', 'redact_from')
+if isinstance(_rf, str) and _rf:
+    _rf = [_rf]
+if isinstance(_rf, list) and _rf:
+    # Sources are unioned, and each one's failure is named separately. A public
+    # generic list plus a private local list is the shipped arrangement, and
+    # the private one is gitignored - so it is ABSENT in CI and in a fresh
+    # clone. Absent is reported, never treated as "nothing to redact".
+    _good, _bad, _notes = [], 0, []
+    for _one in _rf:
+        if not isinstance(_one, str) or not _one:
+            _notes.append('an unusable entry'); continue
+        try:
+            with io.open(os.path.join(ROOT, _one), encoding='utf-8', errors='replace') as _fh:
+                _src = _fh.read()
+        except (IOError, OSError):
+            _notes.append('%s absent or unreadable' % _one); continue
+        _n = 0
+        for _p in _patterns_from(_src):
+            try:
+                _good.append(re.compile(_p, re.I)); _n += 1
+            except re.error:
+                _bad += 1
+        _notes.append('%d from %s' % (_n, _one))
+    REDACT_PATTERNS = _good
+    REDACT_STATE = '; '.join(_notes) if _notes else 'nothing readable'
+    if _bad:
+        REDACT_STATE += '; %d unusable and NOT applied' % _bad
+    if not _good:
+        REDACT_STATE += ' - NOTHING was redacted'
+
+
+def _redact(text):
+    if not text or not REDACT_PATTERNS:
+        return text
+    for _pat in REDACT_PATTERNS:
+        text = _pat.sub('[redacted]', text)
+    return text
+
+
 # commits
 commits = []
 raw = tmpf('log')
@@ -221,7 +324,8 @@ if raw:
         if len(f) < 4:
             continue
         commits.append({'sha': f[0], 'short': f[1], 'date': f[2],
-                        'subject': f[3], 'body': f[4] if len(f) > 4 else ''})
+                        'subject': _redact(f[3]),
+                        'body': _redact(f[4]) if len(f) > 4 else ''})
 
 # --------------------------------------------------------------------------
 # stage state, parsed out of stage-status.sh rather than re-derived
@@ -257,6 +361,19 @@ def stage(sid):
 RE_ACTIVE  = re.compile(r'^(?:[-*]\s+)?\*\*(R[0-9]+)\*\*')
 RE_SUPER   = re.compile(r'^\s*Superseded by R[0-9]+')
 RE_WITHDRW = re.compile(r'^\s*Withdrawn\.')
+
+# A markdown table cell may hold a pipe by escaping it as `\|`. Splitting on a
+# bare '|' tears such a row into extra cells and silently shifts every column
+# after it - B6's note quotes a spec row, and this view rendered that note as a
+# stray backtick for as long as the note existed. Split on unescaped pipes only,
+# then put the real character back.
+RE_MD_PIPE = re.compile(r'(?<!\\)\|')
+
+
+def md_cells(row):
+    return [c.strip().replace('\\|', '|') for c in RE_MD_PIPE.split(row)]
+
+
 RE_CONTRA  = re.compile(r'^\|\s*(C[0-9]+)\s*\|(.*)$', re.M)
 
 spec_ids, spec_super, spec_withdrawn = [], 0, 0
@@ -291,7 +408,7 @@ if spec is not None:
         else:
             spec_ids.append(mm.group(1))
     for cid, rest in RE_CONTRA.findall(spec):
-        cells = [c.strip() for c in rest.split('|')]
+        cells = md_cells(rest)
         status = cells[-2] if len(cells) >= 2 else (cells[-1] if cells else '')
         is_open = bool(re.search(r'open|unruled|waiting', status, re.I))
         contradictions.append({'id': cid, 'what': cells[0] if cells else '',
@@ -429,11 +546,11 @@ if backlog is not None:
     header, lines = None, backlog.split('\n')
     for line in lines:
         if re.match(r'^\|', line) and re.search(r'\bId\b', line) and re.search(r'Status', line):
-            header = [c.strip().lower() for c in line.strip().strip('|').split('|')]
+            header = [c.lower() for c in md_cells(line.strip().strip('|'))]
         mm = re.match(r'^\|\s*(B[0-9]+)\s*\|', line)
         if not mm:
             continue
-        cells = [c.strip() for c in line.strip().strip('|').split('|')]
+        cells = md_cells(line.strip().strip('|'))
         cols = header or ['id', 'what is wanted', 'status', 'jira', 'notes']
         row = {}
         for i, name in enumerate(cols):
@@ -484,6 +601,46 @@ if result_raw is not None:
         check_state = 'unreadable'
 
 bad_checks = [c for c in checks if c['status'] not in ('pass', 'skipped')]
+
+# One classification, and everything that draws a check reads it -----------
+# The tile learned to tell an `always` check that did not run - a gap - from a
+# path-scoped check that did not match, which is not applicable to this change.
+# The banner never learned it, and went on counting every non-pass as a
+# failure. So one run printed `PASS - 2 check(s), all passing - 1 not
+# applicable` in the tile and `1 check not passing` in a banner directly above
+# it, from the same file, and the banner's prompt sent a maintainer to
+# investigate a check that had behaved exactly as configured. It cost them a
+# question.
+#
+# Two places deriving the same fact disagree the first time one is edited, and
+# this pair had already disagreed. So the three answers are derived once, here,
+# and the tile, the banner, the board card and the Stage 5 row all read them:
+#
+#   CHK_FAILED  it ran, or it could not run, and neither is a pass
+#   CHK_UNRUN   declared `always` and did not run - nothing was wrong, and
+#               nothing was checked either
+#   CHK_NA      scoped, and this change did not match it: never in the running
+#
+# CHK_ACT is the union that needs a person. A scoped miss is in none of it, so
+# a run whose only non-pass is a scoped miss fires no banner at all - which is
+# what the tile was already saying on its own.
+CHK_UNRUN = [c for c in bad_checks
+             if c['status'] in ('not_triggered', 'disabled')
+             and c['trigger_scope'] == 'always']
+CHK_NA = [c for c in bad_checks
+          if c['status'] == 'not_triggered'
+          and c['trigger_scope'] != 'always']
+# Membership by identity, not by value: two checks may carry equal dicts, and
+# `in` on a list of dicts compares them field by field.
+_CHK_UNRUN_IDS = set(id(c) for c in CHK_UNRUN)
+_CHK_NA_IDS = set(id(c) for c in CHK_NA)
+CHK_FAILED = [c for c in bad_checks
+              if id(c) not in _CHK_UNRUN_IDS and id(c) not in _CHK_NA_IDS]
+_CHK_FAILED_IDS = set(id(c) for c in CHK_FAILED)
+_CHK_ACT_IDS = _CHK_FAILED_IDS | _CHK_UNRUN_IDS
+# In the order the Stage 5 table draws them, so the banner names them in the
+# order the reader will meet them.
+CHK_ACT = [c for c in checks if id(c) in _CHK_ACT_IDS]
 
 # --------------------------------------------------------------------------
 # releases, from the commit subjects that carry a version
@@ -693,12 +850,42 @@ if check_state == 'unreadable':
                           'The file %s will not parse as JSON. Show me why, and re-run the checks rather '
                           'than repairing the result by hand.' % RESULT_PATH,
                           key='checks-unreadable'))
-elif bad_checks:
-    banners.append(banner('crit', '%d check%s not passing.' % (len(bad_checks), '' if len(bad_checks) == 1 else 's'),
-                          'Stage 5 refused: %s.'
-                          % esc(', '.join('%s (%s)' % (c['id'], c['status']) for c in bad_checks)),
-                          'Show me why these checks did not pass in %s and what each one examined: %s'
-                          % (PRODUCT, ', '.join(c['id'] for c in bad_checks)),
+elif CHK_ACT:
+    # Membership, level and wording all come from the one classification above,
+    # so this banner and the Checks tile cannot describe the same run
+    # differently. A gap and a failure are different things to do next, so the
+    # title says which of the two it is rather than calling both `not passing`.
+    _n = len(CHK_ACT)
+    _s1 = '' if _n == 1 else 's'
+    if CHK_FAILED and CHK_UNRUN:
+        _lvl, _title = 'crit', '%d check%s did not pass.' % (_n, _s1)
+        _lead = 'Some failed and some never ran'
+        _ask = 'Show me why these checks did not pass in %s and what each one examined: %s'
+    elif CHK_FAILED:
+        _lvl, _title = 'crit', '%d check%s failed.' % (_n, _s1)
+        _lead = 'Stage 5 refused'
+        _ask = 'Show me why these checks failed in %s and what each one examined: %s'
+    else:
+        # Amber, because the tile is amber for exactly this run. A red banner
+        # over an amber tile is the same disagreement one colour further on.
+        _lvl, _title = 'warn', '%d check%s never ran.' % (_n, _s1)
+        _lead = ('Declared always and not triggered, so nothing about %s was measured'
+                 % ('it' if _n == 1 else 'them'))
+        _ask = ('These checks in %s are declared always and did not run. Show me why each one was '
+                'not triggered and what it would have examined: %s')
+    _body = '%s: %s.' % (esc(_lead),
+                         esc(', '.join('%s (%s)' % (c['id'], c['status']) for c in CHK_ACT)))
+    if CHK_NA:
+        # Named, and named as not counted. Leaving them out entirely is how a
+        # reader ends up wondering whether the scoped ones were forgotten; the
+        # prompt still does not mention them, because there is nothing to ask.
+        _body += (' %d scoped check%s did not match the files in this change and %s not counted '
+                  'above: %s.'
+                  % (len(CHK_NA), '' if len(CHK_NA) == 1 else 's',
+                     'is' if len(CHK_NA) == 1 else 'are',
+                     esc(', '.join(c['id'] for c in CHK_NA))))
+    banners.append(banner(_lvl, _title, _body,
+                          _ask % (PRODUCT, ', '.join(c['id'] for c in CHK_ACT)),
                           key='checks'))
 
 if spec is None and cfg_state == 'ok':
@@ -889,18 +1076,21 @@ else:
     # check that did not match is not applicable to this change, and counting
     # it turned the tile amber on every commit that touched no shell script -
     # which is how an amber signal stops meaning anything.
-    unrun = [c for c in bad_checks
-             if c['status'] in ('not_triggered', 'disabled')
-             and c.get('trigger_scope', 'scoped') == 'always']
-    na = [c for c in bad_checks
-          if c['status'] == 'not_triggered'
-          and c.get('trigger_scope', 'scoped') != 'always']
-    failed = [c for c in bad_checks if c not in unrun and c not in na]
+    #
+    # These are the three lists the banner above was built from, derived once
+    # beside `bad_checks`. They are read here rather than recomputed: the
+    # recomputation was the bug, not the arithmetic.
+    unrun, na, failed = CHK_UNRUN, CHK_NA, CHK_FAILED
     if failed:
         head, lvl = 'FAIL', 'att'
-        detail = '%d of %d failed' % (len(failed), len(checks))
+        # The denominator drops the not-applicable here too. `1 of 3 failed` of
+        # a run where one of the three never applied is a fraction of a set the
+        # check was never in.
+        detail = '%d of %d failed' % (len(failed), len(checks) - len(na))
         if unrun:
             detail += ' \u00b7 %d never ran' % len(unrun)
+        if na:
+            detail += ' \u00b7 %d not applicable to this change' % len(na)
     elif unrun:
         head, lvl = 'PARTIAL', 'warn'
         # Neither the gaps nor the not-applicable ones ran, so neither counts
@@ -1060,10 +1250,14 @@ for c in contradictions:
                                href=BN.get('contra', ''), go='→ the banner · rule it'))
 if os.path.exists(rel('plan.md')):
     cols[2][1].append(card('plan.md', 'A build plan is committed', stage('3')['detail']))
-# The index is the check's position in `checks`, not its position in bad_checks -
+# The index is the check's position in `checks`, not its position in CHK_ACT -
 # CHECK_ID is keyed by the row the Stage 5 table will actually draw.
+#
+# CHK_ACT, not bad_checks: a scoped check that did not match this change is not
+# work in flight, and a red card for it put the same false claim on the board
+# that the banner was putting above it.
 _check_pos = dict((id(c), i) for i, c in enumerate(checks))
-for c in bad_checks:
+for c in CHK_ACT:
     cols[3][1].append(card(c['id'], c['why'][:90] or c['id'], c['status'], 'att',
                            href=CHECK_ID[_check_pos[id(c)]],
                            go='→ Stages · what this check examined'))
@@ -1480,9 +1674,17 @@ else:
 # --------------------------------------------------------------------------
 # panel: backlog
 # --------------------------------------------------------------------------
-START = ('Start work on backlog item %s: "%s". Open it as an intent at Stage 1, classify it against '
-         'the whole living spec before anything is planned, record the issue number in its Notes and '
-         'set it in-progress. If it contradicts an agreed requirement, stop and tell me - do not merge it.')
+START = ('Start work on backlog item %s: "%s".\n\n'
+         'Open it as an intent at Stage 1. Classify it against the whole living spec, including '
+         'the constitution, before anything is planned.\n\n'
+         'Then write the result into the files, in this order, and do not wait for me between '
+         'steps: set its status to `in-progress`, and record the classification and what it was '
+         'checked against in its Notes.\n\n'
+         'Leave the Jira column as `-` unless this repo already has a tracker configured. If '
+         'recording a ticket or issue number would mean creating one, do not create it - land '
+         'everything else first, then ask me at the end as a separate question.\n\n'
+         'The one thing that stops you: if it contradicts an agreed requirement, stop before '
+         'changing any file, tell me which requirement, and merge nothing.')
 
 if backlog is None:
     p_backlog = ('<div class="h">Backlog — the queue in front of the lifecycle</div>'
@@ -1643,7 +1845,6 @@ ARCS = ['M 314.1 79.0 A 196 196 0 0 1 359.0 95.4', 'M 426.5 152.0 A 196 196 0 0 
 if checks:
     crows = ['<div class="chkrow hd"><span>Check</span><span>Status</span><span>Coverage</span></div>']
     for _ci, c in enumerate(checks):
-        bad = c['status'] not in ('pass', 'skipped')
         unk = c['status'] == 'unknown'
         if c['covered'] is None:
             cov = '<span title="the result file records no coverage for this check">coverage unknown</span>'
@@ -1669,8 +1870,15 @@ if checks:
         # already does. A link that lands somewhere silent about the thing the
         # reader clicked is the dead end this whole change exists to remove,
         # so it is left off and written down instead of invented.
-        _href = BN.get('checks', '') if bad else ''
-        _cls = 'unk' if unk else ('bad' if bad else '')
+        #
+        # Which of the three a row is comes from the one classification, so the
+        # row cannot be red while the tile says the check does not apply. A
+        # scoped miss is neither linked nor coloured: no banner names it, and
+        # a link into a banner silent about the thing clicked is the dead end
+        # this rule exists to remove.
+        _href = BN.get('checks', '') if id(c) in _CHK_ACT_IDS else ''
+        _cls = ('unk' if (unk or id(c) in _CHK_UNRUN_IDS)
+                else ('bad' if id(c) in _CHK_FAILED_IDS else ''))
         if _href:
             crows.append('<a class="chkrow r lk" id="%s" href="%s"><span class="ci">%s</span>'
                          '<span class="cs %s">%s</span><span class="cc">%s</span></a>'
@@ -1858,6 +2066,136 @@ if STALE_AFTER > 0:
         'tick();setInterval(tick,15000);}());</script>'
         % (esc(REGEN_CMD), cp(REGEN_CMD, 'copy command'), GEN_EPOCH, STALE_AFTER))
 
+# --------------------------------------------------------------------------
+# the evidence, as a file the reader can save
+# --------------------------------------------------------------------------
+# A published view may be granted the `downloads` capability, which is still
+# output: the page hands the viewer a file it generated, reads nothing and
+# writes nothing back. What a view must never be granted is `artifact` - a page
+# that publishes new versions of itself is a second source of truth that can
+# disagree with the repo, and the provenance line under every panel stops being
+# true the moment it can. Views are output only. This is the one affordance
+# that could have blurred that, so it is written down here as well as in
+# references/views.md.
+#
+# The file is built from the same lists the panels are drawn from, so it cannot
+# report a different repo than the page it came off. It carries no clock: it is
+# part of the page's own bytes, and a wall-clock stamp inside it would cost the
+# byte-identical guarantee that --stale-after is opt-in precisely to protect.
+
+
+def _cell(v):
+    """One markdown table cell. A pipe inside a value splits the row."""
+    return str(v).replace('|', '\\|').replace('\n', ' ').strip()
+
+
+def _js(t):
+    """A JavaScript string literal. `<` is escaped so nothing in the payload
+    can close the script element early."""
+    return json.dumps(t, ensure_ascii=True).replace('<', '\\u003c')
+
+
+_ev = ['# %s \u2014 the evidence behind the SDLC pipeline view' % PRODUCT, '',
+       'Read from the repository at generation time, from the same values the page shows. This '
+       'is a copy of that reading, not a second source of truth: the files under '
+       '`.claude/productizer/` stay the only place any of it is edited.', '']
+_ev.append('- Source: `%s`' % (SPEC_REPO or GH or ROOT))
+if IS_GIT and HEAD_SHA:
+    _ev.append('- Generated from commit `%s` (%s)' % (HEAD_SHA, HEAD_DATE or 'undated'))
+else:
+    _ev.append('- Generated from the directory; there was no readable git history')
+_ev.append('- Regenerate with: `%s`' % REGEN_CMD)
+# Say what was hidden, and say when nothing was. A page that redacted nothing
+# looks exactly like a page with nothing to redact, and only one of those is safe
+# to publish.
+_ev.append('- Commit subjects and bodies come from `git log`, which no file edit can '
+           'correct, so they are redacted for display before rendering: %s. The gate that '
+           'stops the commit being made keeps its own list.' % REDACT_STATE)
+_ev += ['', '## Stage 5 \u2014 the last check run', '']
+if check_state == 'absent':
+    _ev.append('There is no `%s`. Nothing has been checked, which is not the same as a run that '
+               'found nothing.' % RESULT_PATH)
+elif check_state == 'unreadable':
+    _ev.append('`%s` is present and would not parse. An unreadable result is not a passing one, '
+               'and no row is invented for it.' % RESULT_PATH)
+elif not checks:
+    _ev.append('`%s` parsed and lists no checks. A measured zero, not an absent file.'
+               % RESULT_PATH)
+else:
+    _ev.append('Verdict: `%s`' % (verdict or 'unstated'))
+    _ev += ['', '| Check | Status | Counts as | Coverage |', '|---|---|---|---|']
+    for c in checks:
+        if id(c) in _CHK_FAILED_IDS:
+            kind = 'failed'
+        elif id(c) in _CHK_UNRUN_IDS:
+            kind = 'never ran, and is declared always'
+        elif id(c) in _CHK_NA_IDS:
+            kind = 'not applicable to this change'
+        else:
+            kind = 'passing'
+        if c['covered'] is None:
+            cv = 'not recorded'
+        elif c['from'] in ('stdout_paths', 'per_file_exit') and c['scope'] is not None:
+            cv = '%s of %s file(s) in scope' % (c['covered'], c['scope'])
+        else:
+            cv = '%s counted, from %s' % (c['covered'], c['from'] or 'a source it did not state')
+        if c['satisfied'] is False:
+            cv += ' (below what it declared)'
+        _ev.append('| %s | %s | %s | %s |'
+                   % (_cell(c['id']), _cell(c['status']), kind, _cell(cv)))
+_ev += ['', '## Requirements and acceptance', '']
+if spec is None:
+    _ev.append('There is no `%s`, so there is no acceptance table to compare anything against.'
+               % SPEC_PATH)
+elif not spec_ids:
+    _ev.append('`%s` was read and holds no active requirement.' % SPEC_PATH)
+else:
+    _ev.append('%d active, %d superseded, %d withdrawn; %d acceptance row(s) in the table.'
+               % (len(spec_ids), spec_super, spec_withdrawn, ac_rows))
+    _ev += ['', '| Requirement | Acceptance row |', '|---|---|']
+    for r in spec_ids:
+        _ev.append('| %s | %s |'
+                   % (_cell(r), 'yes' if r in ac_ids
+                      else 'none - nothing on this page claims one exists'))
+_ev += ['', '## Backlog', '']
+if backlog is None:
+    _ev.append('There is no `%s`. Intents arrive without a queue.' % BACKLOG_PATH)
+elif not items:
+    _ev.append('`%s` was read and its Items table is empty.' % BACKLOG_PATH)
+else:
+    _ev += ['| Id | What is wanted | Status | Jira | Notes |', '|---|---|---|---|---|']
+    for it in items:
+        _ev.append('| %s | %s | %s | %s | %s |'
+                   % (_cell(it['id']), _cell(it['what']), _cell(it['status']),
+                      _cell(it['jira']), _cell(it['note'])))
+EVIDENCE = '\n'.join(_ev) + '\n'
+EV_NAME = (re.sub(r'[^A-Za-z0-9._-]+', '-', PRODUCT).strip('-.') or 'pipeline') + '-evidence.md'
+
+# Hidden in the markup, revealed only once the capability has actually
+# resolved. `claude.use` answering null is by design indistinguishable from
+# "not served" and from "not granted", and all three mean the same thing here:
+# there is nothing to hand over, so nothing is offered. A button that says
+# `saved` while saving nothing is the failure the copy buttons on this page are
+# already wired to avoid, and it fails the same way - silently, and later.
+dl_btn = '<button class="cp" id="dl-ev" hidden>download the evidence</button>'
+DL = ('<script>(function(){'
+      'var b=document.getElementById("dl-ev");'
+      'if(!b||!window.claude||!window.claude.use)return;'
+      'var NAME=%s,DATA=%s;'
+      'window.claude.use("downloads").then(function(d){'
+      'if(!d)return;'
+      'b.hidden=false;'
+      'b.addEventListener("click",function(){'
+      'b.disabled=true;b.classList.remove("done");b.textContent="saving\\u2026";'
+      'd.save({filename:NAME,data:DATA}).then(function(){'
+      'b.textContent="saved";b.classList.add("done");},function(e){'
+      # Declining is the viewer's answer, not an error to report as one: the
+      # button goes back to offering the file rather than accusing them.
+      'b.textContent=(e&&e.code==="declined")?"download the evidence":"not available here";'
+      '}).then(function(){b.disabled=false;});});'
+      '},function(){});}());</script>' % (_js(EV_NAME), _js(EVIDENCE)))
+
+
 # The refresh button copies a prompt, not a click-to-reload. This page is a
 # snapshot: reloading it re-serves the same bytes, and only build-view.sh moves
 # the numbers. So the button hands over the exact command - rebuilt from the
@@ -1894,14 +2232,16 @@ BODY = (
     '<section class="panel" id="p-rel">%s</section>'
     '<section class="panel" id="p-cmds">%s</section>'
     '</div>'
-    % (crumb, verchip, data_stamp, refresh_btn, stamp, setup_bar, ''.join(banners), tabs,
+    % (crumb, verchip, data_stamp, refresh_btn + dl_btn, stamp, setup_bar, ''.join(banners), tabs,
        p_dash, p_board, p_stages, p_files, p_backlog, p_rel, p_cmds))
 
 # Appended rather than threaded through the format above: that string is
 # positional, and adding a slot to it is how a panel ends up rendering another
 # panel's content. STALE is '' unless --stale-after was passed, so the default
-# page is the same bytes it was before this existed.
-BODY = BODY + STALE
+# page is the same bytes it was before this existed. DL is always emitted and
+# holds no clock, so it costs the byte-identical guarantee nothing; its button
+# rides along in the bar's existing slot rather than claiming a new one.
+BODY = BODY + DL + STALE
 
 DATA = ('var PROD = %s;\nvar CUR0 = %d;\nvar S = %s;\n'
         % (json.dumps(PRODUCT), CUR0,

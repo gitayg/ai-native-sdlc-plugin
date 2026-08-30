@@ -241,6 +241,40 @@ Commands are argv lists, never shell strings. The file is committed, so a string
 would let anyone who lands a commit choose what runs on the machine of whoever
 pulls it.
 
+### The hygiene check is two checks
+
+The one that ships carries **generic** rules only — credential shapes, personal
+filesystem paths, machine hostnames, private key headers. Everything any repo
+needs, and nothing that identifies anyone.
+
+Names you cannot publish go in a **local list** the shipped check reads at
+runtime: `--patterns FILE`, else `$PRODUCTIZER_HYGIENE_PATTERNS`, else
+`.claude/productizer/hygiene-local.txt`, which you gitignore.
+
+The split exists because a single list has to spell the private names in order
+to catch them — so in a public repo the gate publishes exactly which names its
+author is hiding. A deny list is a map of what someone is protecting.
+
+If the local list is named and unreadable the check exits 2, never 0. A
+configured private list that quietly fell back to generic-only would report
+clean while checking none of the names you cared about.
+
+### A contradiction now writes the question down
+
+Classifying an intent as *contradict* stops the work, and a stop nobody was
+asked to answer is indistinguishable from a stop that was abandoned. So the
+ruling is drafted **before** the question is asked out loud: `request-ruling.sh`
+allocates the ids, writes both requirements verbatim, fills both columns of the
+cost table, adds the concern row, and prints the path to name in the message.
+Ask first and write after, and the session can end before anything exists.
+
+`pending-rulings.sh` reports what is waiting — keeping *never raised one*,
+*cannot read the directory* and *genuinely none* as three different answers,
+because only the third one is zero. The `ruling-requested` check fails when a
+concern is open with no ruling behind it, when a pending ruling is cited by
+nothing, and when a pending ruling is still wearing the template. A ruling that
+still reads like the template is a file, not an ask.
+
 ## Docs and go-to-market, per release
 
 Two stages run once per **release**, not once per intent.

@@ -11,3 +11,11 @@
 # whoever ran them -- the same leak that shipped in v4.2.0. The numbers belong in
 # the backlog and the docs; the raw run does not belong in git.
 evals/results/
+
+# The private half of the hygiene deny list: an employer and several private
+# project names. It is read at runtime and never committed - a deny list in a
+# public repo is a map of exactly which names its author is hiding, which
+# defeats the point of hiding them. The shipped check carries generic rules
+# only (credentials, personal paths, private keys) and loads this if present.
+# The canonical copy lives outside every repository, under the home directory.
+.claude/productizer/hygiene-local.txt

@@ -1,43 +1,56 @@
 #!/usr/bin/env bash
-# check-hygiene.sh [--version] <file>...
+# scripts/check-hygiene.sh — this repo's hygiene gate.
 #
-# Refuses content that must never reach a public repo: the maintainer's
-# employer, private repo names, personal filesystem paths, the machine's
-# hostname, and anything shaped like a credential.
+# A thin wrapper. All the logic lives in the shipped check at
+# `plugins/productizer/skills/spec/scripts/check-hygiene.sh`, which carries
+# GENERIC rules only: credential shapes, personal filesystem paths, machine
+# hostnames, private key headers. Everything a user of this plugin needs, and
+# nothing that identifies anyone.
+#
+# The private half - an employer and several private project names - lives in
+# `.claude/productizer/hygiene-local.txt`, which is gitignored, with the
+# canonical copy outside every repository under the home directory. It is
+# loaded at runtime and never committed.
+#
+# WHY THE SPLIT. A single list has to spell the private names in order to catch
+# them, and this repo is public, so the gate published exactly which names its
+# author was hiding. A deny list is a map of what someone is protecting. A
+# security review flagged it directly: the list enumerated an employer plus
+# seven private projects to anyone who cloned the plugin. Splitting keeps the
+# catching without the publishing, and lets every other project reuse the same
+# private list.
+#
+# If the local list is absent this still runs, with generic rules only. That is
+# correct for a fresh clone or for CI, which has no private list and does not
+# need one - but it is announced, never silent, because a run that checked
+# fewer rules than the reader thinks is worse than one that refused.
 #
 # Exit: 0 clean · 1 findings · 2 could not run
 set -euo pipefail
 
-[ "${1:-}" = "--version" ] && { echo "check-hygiene 1.0"; exit 0; }
-[ $# -gt 0 ] || { echo "usage: check-hygiene.sh <file>..." >&2; exit 2; }
+ROOT="$(git rev-parse --show-toplevel)" || {
+  echo "check-hygiene: not inside a git work tree" >&2; exit 2; }
 
-# Each pattern is a thing that has actually leaked into this repo before, or
-# would be a credential. Added to only with a reason.
-PATTERNS='opswat|deployhub|appCrane|agentclub|raisemehost|nanoai|LMmOS-[A-Z0-9]+|/Users/[a-z.]+|ghp_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|-----BEGIN [A-Z ]*PRIVATE KEY|beads|gascity|gastownhall'
+SHIPPED="$ROOT/plugins/productizer/skills/spec/scripts/check-hygiene.sh"
+LOCAL="$ROOT/.claude/productizer/hygiene-local.txt"
 
-found=0
-for f in "$@"; do
-  [ -f "$f" ] || continue
-  # This file is checked like every other. Skipping it made the checker exempt
-  # from its own rule AND made the run hollow - it never named the file, so
-  # coverage saw it as unexamined. The only genuine false positive is the line
-  # that DEFINES the pattern list, so drop exactly that line and nothing else.
-  echo "$f"                          # coverage: one line per file examined
-  # Report by LOCATION, never by quoting the match. Printing the offending line
-  # put the leaked path into run-checks' `output_tail`, which is committed in
-  # checks-result.json - so finding a leak created one, and the next run found
-  # its own report. Same rule the delegated agents follow for injected text:
-  # name where it is and what class it is; the reader opens the file.
-  # -i because the real-world spelling of these names is CamelCase while the
-  # pattern list is lower case. The check was not case-folding, so a capitalised
-  # spelling walked straight past the rule that names it - and did, into a
-  # public commit. Do not write an example here: this file is checked too.
-  hits=$(grep -EnIi "$PATTERNS" "$f" | grep -v '^[0-9]*:PATTERNS=' || true)
-  if [ -n "$hits" ]; then
-    while IFS=: read -r ln _; do
-      printf '    %s:%s: matches a forbidden pattern (employer, private repo, personal path, hostname or credential) - open the file to see it\n' "$f" "$ln"
-    done <<< "$hits"
-    found=1
-  fi
-done
-exit "$found"
+[ -r "$SHIPPED" ] || {
+  echo "check-hygiene: cannot read the shipped check under plugins/ - the gate is missing, which is not the same as clean" >&2
+  exit 2; }
+
+# --version and --help answer from the shipped check so the declared
+# `version_command` records the version that actually did the work.
+case "${1:-}" in
+  --version) exec bash "$SHIPPED" --version ;;
+  -h|--help) exec bash "$SHIPPED" --help ;;
+esac
+
+if [ -e "$LOCAL" ]; then
+  # Named and present but unreadable is exit 2 inside the shipped check: a
+  # configured private list that silently fell back to generic-only would
+  # report clean while checking none of the names anyone cared about.
+  exec bash "$SHIPPED" --patterns "$LOCAL" "$@"
+fi
+
+echo "check-hygiene: no private list at .claude/productizer/hygiene-local.txt - generic rules only" >&2
+exec bash "$SHIPPED" "$@"
