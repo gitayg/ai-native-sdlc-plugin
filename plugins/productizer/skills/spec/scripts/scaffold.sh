@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# scaffold.sh [--dry-run] <template> <destination>
+# Usage: scaffold.sh [--dry-run] <template> <destination>   (see usage() below, which
+# is what `--help` actually prints — this comment is not the help text and cannot
+# drift out of it)
 #
 # Copies one of this skill's templates into a repo, with the worked examples
 # removed and without ever overwriting a file that already exists.
@@ -23,12 +25,89 @@
 #   2  usage
 set -euo pipefail
 
-DRY=0
-if [ "${1:-}" = "--dry-run" ]; then DRY=1; shift; fi
+VERSION="scaffold 1.0"
 
-[ $# -eq 2 ] || { echo "usage: scaffold.sh [--dry-run] <template> <destination>" >&2; exit 2; }
+# The help text lives in the script and is printed by the script. Before this block `--help`
+# was not a flag: it fell through to the argument-count guard, which reported it as a usage
+# ERROR and exited 2. A reader asking a program to describe itself was told their invocation
+# was wrong, and the one line they got back did not describe --dry-run, the destination rules,
+# or any of the three exit codes — all of which existed only in the header comment above,
+# which `--help` never printed. A help request is not a usage error.
+usage() {
+  cat <<'USAGE'
+scaffold.sh — copy one of this skill's templates into a repo, with the worked examples
+removed, never overwriting a file that already exists.
+
+Usage:
+  scaffold.sh <template> <destination>            copy template to destination
+  scaffold.sh --dry-run <template> <destination>  run every check, report, write nothing
+  scaffold.sh --help | -h                         print this and exit 0
+  scaffold.sh --version                           print the version and exit 0
+
+There are no other options. --dry-run may appear anywhere among the arguments; the two
+paths keep their order.
+
+Both arguments are required and positional:
+  <template>     path to a template file, e.g. templates/spec.md. Must exist.
+  <destination>  path to write. Must NOT exist, and must not be gitignored.
+
+Why this is a script and not `cp`:
+  The templates carry worked examples so a human can read one and see the shape. Those
+  examples are numbered — R1..R6 in the spec, P1..P5 in the constitution — and copying them
+  verbatim seeds a repo with requirements and principles nobody agreed to. An end-to-end run
+  found that a plain `cp` did exactly that. Every fenced EXAMPLE block is stripped on the way
+  in, and the count of blocks removed is reported.
+
+What it refuses, and why refusing is the correct outcome:
+  * a destination that already exists — scaffolding never replaces work
+  * a destination git says is ignored — a spec that cannot be committed is not an audit
+    trail, and .claude/ is routinely gitignored
+  * a destination git could not answer for — "cannot tell" is not "not ignored". Writing a
+    file that may never be trackable is the worse mistake, so it refuses instead.
+
+--dry-run:
+  Runs every check above and reports what would be written, and writes nothing. `init.sh
+  --dry-run` delegates to it, so a dry run exercises these refusals rather than a second
+  copy of them that can drift.
+
+Exit status:
+  0  written (under --dry-run: would be written)
+  1  refused: the destination exists, is not committable, or git could not say which
+  2  a bad invocation: an unknown option, the wrong number of arguments, or no template
+     at the given path
+USAGE
+}
+
+die_usage() {
+  printf 'scaffold: %s\n\n' "$1" >&2
+  usage >&2
+  exit 2
+}
+
+# --dry-run, then exactly two positionals. `--` ends option parsing so a path beginning with a
+# dash is still scaffoldable. Anything else starting with a dash is refused BY NAME: before
+# this guard an unknown flag was counted as one of the two positionals, so `--dry-runn` became
+# a template path and the script reported "no template at --dry-runn" — a missing-file error
+# for a flag that does not exist, which sends the reader to look for the file.
+DRY=0
+ARGS=()
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --version)  printf '%s\n' "$VERSION"; exit 0 ;;
+    -h|--help)  usage; exit 0 ;;
+    --dry-run)  DRY=1; shift ;;
+    --)         shift
+                while [ "$#" -gt 0 ]; do ARGS+=("$1"); shift; done
+                break ;;
+    -*)         die_usage "unknown option: $1" ;;
+    *)          ARGS+=("$1"); shift ;;
+  esac
+done
+set -- ${ARGS[@]+"${ARGS[@]}"}
+
+[ $# -eq 2 ] || die_usage "expected <template> <destination>, got $# argument(s)"
 src=$1; dst=$2
-[ -f "$src" ] || { echo "scaffold: no template at $src" >&2; exit 2; }
+[ -f "$src" ] || die_usage "no template at $src"
 
 if [ -e "$dst" ]; then
   echo "scaffold: $dst exists. Refusing to overwrite — scaffolding never replaces work." >&2

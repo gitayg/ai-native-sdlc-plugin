@@ -9,13 +9,13 @@ site generators, doc builds and packaging all skip that directory, so the spec
 is never rendered as a page or shipped in a release.
 
 Next requirement id
-: `R<n>` — allocate from here, then increment. This is the highest id the spec
-has ever used, not a count of the rows on screen. Ids are never reused and
-never renumbered, and stay unique across the whole repo even if this spec is
-later split into several files.
+: `R1` — allocate from here, then increment. This is one past the highest id
+the spec has ever used, not a count of the rows on screen. Ids are never
+reused and never renumbered, and stay unique across the whole repo even if
+this spec is later split into several files.
 
 Requirements
-: `<n>` active, `<n>` superseded, `<n>` withdrawn.
+: 0 active, 0 superseded, 0 withdrawn.
 
 Audit trail
 : `git log -p .claude/productizer/spec.md`. Each commit is one change, joined to the
@@ -57,21 +57,29 @@ is built from the delta this file gained, not from the intent.
 The durable boundary of this system, not of any one change.
 
 In scope
-- <capability area this system owns>
+- *One bullet per capability area this system owns. Replace this line.*
 
 Out of scope
-- <what it deliberately does not own, and which system owns it instead>
+- *One bullet per thing it deliberately does not own, naming the system that
+  owns it instead. Replace this line.*
 
 ## Requirement index
 
 Maintain this once the spec passes roughly thirty requirements — it is how the
 file stays skimmable at two hundred. One row per requirement, in id order.
+The table starts empty: add a row when you write the requirement it indexes.
 
 | Id | Area | Pattern | Status | Verified by |
 |---|---|---|---|---|
+<!-- EXAMPLE:BEGIN — a shape to copy, not agreed content.
+     Scaffolding DELETES this block: a placeholder row reads as real content,
+     and it gets cited before anyone notices it was a sample. -->
+```text
 | R1 | <area> | ubiquitous | active | `<test name>` |
 | R2 | <area> | event | superseded by R41 | — |
 | R3 | <area> | state | withdrawn | — |
+```
+<!-- EXAMPLE:END -->
 
 ## Requirements
 <!-- EXAMPLE:BEGIN — worked examples, not agreed content.
@@ -123,9 +131,15 @@ one thing keeping their ids findable.
 How the requirements are met. Components, data flow, the decisions that were
 not obvious. Anything a test cannot observe belongs here, not above. Organise
 by the same areas the requirements use, and cite the ids each note serves.
-
+Add one `###` sub-heading per area as the design grows.
+<!-- EXAMPLE:BEGIN — a shape to copy, not agreed content.
+     Scaffolding DELETES this block: a placeholder row reads as real content,
+     and it gets cited before anyone notices it was a sample. -->
+```text
 ### <area>
 <Design notes. Serves R1, R4.>
+```
+<!-- EXAMPLE:END -->
 
 ## Areas of concern
 
@@ -139,7 +153,9 @@ until a human rules on it.
 <!-- EXAMPLE:BEGIN — a shape to copy, not a live concern.
      Scaffolding DELETES this block: a placeholder row with 'open' in it reads
      as an unruled contradiction and blocks Stage 2 in a brand-new repo. -->
+```text
 | C1 | <what is unresolved or contested> | R12, R31 | <policy, owner> | <issue> | open / resolved: <ruling, date> |
+```
 <!-- EXAMPLE:END -->
 
 ## Acceptance criteria
@@ -151,7 +167,13 @@ which is what keeps this table the same length as the active set.
 
 | Requirement | Verified by | How |
 |---|---|---|
+<!-- EXAMPLE:BEGIN — a shape to copy, not agreed content.
+     Scaffolding DELETES this block: a placeholder row reads as real content,
+     and it gets cited before anyone notices it was a sample. -->
+```text
 | R1 | `<test name or command>` | <the observable that proves it> |
+```
+<!-- EXAMPLE:END -->
 
 ## Change log
 
@@ -168,7 +190,13 @@ someone edits one and not the other.
 
 | Date | Issue | Branch / PR | Added | Refined | Superseded / withdrawn | Summary |
 |---|---|---|---|---|---|---|
+<!-- EXAMPLE:BEGIN — a shape to copy, not agreed content.
+     Scaffolding DELETES this block: a placeholder row reads as real content,
+     and it gets cited before anyone notices it was a sample. -->
+```text
 | <YYYY-MM-DD> | <#123 / PROJ-123> | `<branch>` / <pr> | R41–R43 | R12 | R7 → R41 | <what changed and why> |
+```
+<!-- EXAMPLE:END -->
 
 ## Decision record
 
@@ -177,4 +205,10 @@ every contradiction ruling.
 
 | Date | Decision | Why | Who |
 |---|---|---|---|
+<!-- EXAMPLE:BEGIN — a shape to copy, not agreed content.
+     Scaffolding DELETES this block: a placeholder row reads as real content,
+     and it gets cited before anyone notices it was a sample. -->
+```text
 | <YYYY-MM-DD> | <what was decided> | <the reason, not the restatement> | <name> |
+```
+<!-- EXAMPLE:END -->

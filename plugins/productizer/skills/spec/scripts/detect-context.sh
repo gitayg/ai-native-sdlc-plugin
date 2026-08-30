@@ -1,7 +1,83 @@
 #!/bin/bash
 # Probe the current repo for everything the AI-native SDLC skill can bind
-# without asking a human. Prints JSON on stdout. Never fails the caller.
+# without asking a human. Prints JSON on stdout.
+#
+# The PROBE never fails the caller: every binding absent is a successful probe.
+# A bad INVOCATION does fail, with exit 2 — see usage() below, which is what
+# `--help` actually prints, so this comment cannot drift out of it.
+#
+# Usage: detect-context.sh [--help]
 set -uo pipefail
+
+# The help text lives in the script and is printed by the script. Before this block the option
+# parser did not exist: `detect-context.sh --zzz-not-a-real-flag` probed the repo, printed the
+# full JSON document and exited 0, and `--help` did the same. Both are the worst answer a CLI
+# can give — a confident, complete, successful-looking reply that does not address what was
+# asked. An agent that consults --help and is answered with a context probe stops looking, and
+# a typo in a flag is reported as a clean run. Refuse by name instead.
+usage() {
+  cat <<'USAGE'
+detect-context.sh — probe this repo for everything the spec skill can bind without asking
+a human. Read-only. Prints one JSON document on stdout.
+
+Usage:
+  detect-context.sh                 probe the current directory and print JSON
+  detect-context.sh --help | -h     print this and exit 0
+
+There are no other options, and it takes no positional arguments. The probe has no tunables:
+it always probes the current working directory, so callers `cd` to the tree they mean. Run it
+from the repo root.
+
+What it reads from the environment:
+  SDLC_CHECK_RUNNER   absolute path to an external check runner. Validated, then RUN with
+                      --help; the exit code decides. Unset is a normal configuration.
+                      See references/delegation.md.
+  JIRA_SITE           reported as-is under "jira"
+  JIRA_PROJECT        reported as-is under "jira"
+  JIRA_API_TOKEN      presence only decides jira.state; the value is never printed
+
+What it writes:
+  The JSON document, to stdout. Nothing else, anywhere. It never writes to the repo. It does
+  not execute anything from the repo — the one thing it executes is SDLC_CHECK_RUNNER, which
+  must be absolute and outside the work tree before it is run.
+
+What the document reports:
+  config_file, git binding (is_repo, host, repo, branch, default_branch), github_cli state
+  and account, jira state, check_runner state, repo-local template overrides, which stage
+  artifacts exist, and whether stdin is a tty.
+
+Three outcomes are kept distinct and are never collapsed:
+  a state of "absent"    nothing was configured — a normal, supported configuration
+  a state of "rejected"  something WAS configured and the probe refused to run it
+  a value that is empty  the probe ran and measured nothing there
+An unreadable probe is never reported as a probe that ran and found nothing.
+
+Exit status:
+  0  the probe ran and printed JSON (every binding absent is a successful probe, not a
+     failed one — this is why the probe itself never fails the caller)
+  2  a bad invocation: an unknown option, or a positional argument
+USAGE
+}
+
+die_usage() {
+  printf 'detect-context: %s\n\n' "$1" >&2
+  usage >&2
+  exit 2
+}
+
+# No options but --help, and no positional arguments at all. `--` is accepted so the parser is
+# not a special case among this skill's scripts, but nothing may follow it: there is no path
+# argument for a leading-dash name to be mistaken for.
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    -h|--help) usage; exit 0 ;;
+    --)        shift
+               [ "$#" -eq 0 ] || die_usage "takes no positional arguments, got: $1"
+               break ;;
+    -*)        die_usage "unknown option: $1" ;;
+    *)         die_usage "takes no positional arguments, got: $1" ;;
+  esac
+done
 
 # Every value below is attacker-adjacent: branch names, remote URLs and filenames all arrive from a
 # cloned repo. Escaping only backslash and quote let a newline in a `.git/config` URL or a template

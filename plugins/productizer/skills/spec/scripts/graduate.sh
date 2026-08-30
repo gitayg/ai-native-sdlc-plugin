@@ -12,7 +12,15 @@
 #   graduate.sh apply    --id TAG --decide accept
 #   graduate.sh undo     --id TAG
 #
-#   --root DIR         repo the guidance is promoted into. Default "."
+#   --version          print the version and exit 0
+#   --help             print this header and exit 0
+#   --root DIR         repo the guidance is promoted into. Default: the git
+#                      work tree holding the working directory - NOT the
+#                      working directory itself. Defaulting to the CWD has
+#                      produced four separate silent wrong answers here, each
+#                      of which looked like a clean run from a subdirectory.
+#                      Outside a work tree there is no default: --root is
+#                      required, because guessing is what caused those four.
 #   --work DIR         where harvest/draft/journal state lives.
 #                      Default <root>/.claude/productizer/graduation
 #   --transcripts DIR  root of Claude Code project transcripts.
@@ -33,6 +41,31 @@
 # decay as the context window fills; checks are deterministic and never tire. A
 # cluster climbs as high as its evidence justifies and no higher — the rung is
 # recommended, printed, and never silently taken.
+#
+# EACH RUNG ASSERTS A DIFFERENT PROPERTY. Not the same check three times with
+# the volume turned up — that is one check, and calling it three is how a ladder
+# reports progress that did not happen.
+#
+#   prose    a line in CLAUDE.md. Asserts nothing. It is read, or it is not.
+#   skill    a file under .claude/productizer/graduated/. Asserts nothing
+#            either, and says so in its own body; it buys detail and a place to
+#            put the evidence, not enforcement.
+#   hook     ONE PROPOSED ACTION, judged from the tool payload BEFORE it runs.
+#            Reaches text that never becomes a file — a Bash command line is
+#            judged here and by nothing else. It never opens a file in the
+#            repository and has no denominator.
+#   ci-gate  EVERY TRIGGERING FILE IN THE TREE, after the fact, with a declared
+#            coverage denominator. Sees the violation the hook never could: one
+#            already on disk, edited outside the agent, arriving in a merge, or
+#            made by a tool the hook is not registered on. A run that failed to
+#            open a file it should have read is a refusal, not a pass — which
+#            is the verdict a hook cannot express.
+#
+# A RUNG IS ONLY OFFERED IF A RULE FOR IT IS WRITTEN. See RULES below. A cluster
+# with no rule caps at skill; a cluster whose rule has no `gate` caps at hook.
+# The previous version of this file emitted a hook whose body was `exit 0` and a
+# checks.yaml entry whose command was the empty string, which is the same defect
+# as recording an unmeasured value as a zero.
 #
 # Clustering is a lexicon, not a model. Every grouping decision is a named
 # regex you can read in `graduate.sh lexicon`. A correction that matches no
@@ -63,6 +96,8 @@ set -euo pipefail
 export TZ=UTC
 export LC_ALL=C
 
+VERSION="graduate 1.1"
+
 THRESHOLD_CONVERSATIONS=3
 RUNG_SCORE_SKILL=12
 RUNG_SCORE_HOOK=36
@@ -70,15 +105,26 @@ RUNG_SCORE_GATE=72
 
 die_usage() { printf 'graduate: %s\n' "$1" >&2; exit 2; }
 
+# The header IS the help, and it used to be printed as a hard-coded line range.
+# A range goes stale the first time anyone edits the header, and it did. Print
+# from line 2 to the line before `set -euo pipefail` instead, so the two cannot
+# drift apart.
+show_help() { sed -n '2,/^set -euo pipefail/p' "$0" | sed '$d'; }
+
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DETECT="$HERE/detect-context.sh"
+# The rung templates ship with this script, not with the repo being examined.
+# P4: a repository under examination never chooses what runs, and it does not
+# choose what gets written into it either.
+TMPL_DIR="$HERE/../templates/graduate"
 
 [ $# -gt 0 ] || die_usage "no subcommand. One of: lexicon, harvest, present, excerpts, apply, undo."
 
 CMD=""
 case "$1" in
   lexicon|harvest|present|excerpts|apply|undo) CMD="$1"; shift ;;
-  -h|--help) sed -n '2,58p' "$0"; exit 0 ;;
+  -h|--help) show_help; exit 0 ;;
+  --version) printf '%s\n' "$VERSION"; exit 0 ;;
   -*) die_usage "unknown option before the subcommand: $1" ;;
   *)  die_usage "unknown subcommand: $1" ;;
 esac
@@ -105,16 +151,28 @@ while [ $# -gt 0 ]; do
     --decide)       [ $# -ge 2 ] || die_usage "--decide needs a decision";      DECIDE="$2"; shift 2 ;;
     --decide=*)     DECIDE="${1#--decide=}"; shift ;;
     --refresh-context) REFRESH=1; shift ;;
-    -h|--help)      sed -n '2,58p' "$0"; exit 0 ;;
+    -h|--help)      show_help; exit 0 ;;
+    --version)      printf '%s\n' "$VERSION"; exit 0 ;;
     -*)             die_usage "unknown option: $1" ;;
     *)              die_usage "unexpected argument: $1" ;;
   esac
 done
 
-command -v python3 >/dev/null 2>&1 ||
+# No 2>&1 here. This repo greps its own shell for a suppressed stderr, and a
+# `command -v` that hides its own errors is the pattern the grep is looking
+# for. Binning stdout alone says nothing about errors.
+command -v python3 >/dev/null ||
   die_usage "python3 is not on PATH. Refusing rather than half-parsing transcripts with awk."
 
-[ -n "$ROOT" ] || ROOT="."
+# NOT the working directory. `.` made every answer depend on which directory the
+# operator happened to be standing in, and a wrong root here writes guidance
+# into the wrong repo. git speaks for itself on stderr when there is no work
+# tree, so nothing here needs to paraphrase it.
+if [ -z "$ROOT" ]; then
+  if ! ROOT="$(git rev-parse --show-toplevel)"; then
+    die_usage "no --root given and this is not a git work tree, so there is no root to default to. Pass --root DIR."
+  fi
+fi
 [ -d "$ROOT" ] || die_usage "no such directory: $ROOT"
 ROOT="$(cd "$ROOT" && pwd)"
 
@@ -146,31 +204,91 @@ CUES = [
     ("omission",     r"\b(you forgot|you missed|you didn\x27t|you did not|still missing|you skipped)\b"),
 ]
 
-# checkable = a deterministic check could assert this. Only checkable clusters
-# are allowed to reach the hook or ci-gate rungs; everything else caps at skill,
-# because a gate that cannot be written is not a gate, it is a promise.
+# A cluster is CHECKABLE if and only if RULES below carries a rule for it, and
+# it reaches ci-gate only if that rule carries a `gate`. The flag used to be a
+# hand-set boolean: eight clusters claimed it while this file could write zero
+# checks, so every promotion to hook or ci-gate produced a stub that asserted
+# nothing. A claim nothing can fill is the same defect as an unmeasured zero.
 TOPICS = [
-    ("run-tests",             r"\brun (the )?(unit |integration )?tests?\b|\btest suite\b|\bwithout running the tests\b", True,
+    ("run-tests",             r"\brun (the )?(unit |integration )?tests?\b|\btest suite\b|\bwithout running the tests\b",
      "asked agents to run the tests before saying a change was ready"),
-    ("no-stderr-suppression", r"2>\s*/dev/null|\bsuppress(ing|ed)? stderr\b|\bswallow(ing|ed)? (the )?errors?\b", True,
+    ("no-stderr-suppression", r"2>\s*/dev/null|\bsuppress(ing|ed)? stderr\b|\bswallow(ing|ed)? (the )?errors?\b",
      "told agents not to suppress stderr"),
-    ("absolute-paths",        r"\babsolute paths?\b|\brelative path\b", True,
+    ("absolute-paths",        r"\babsolute paths?\b|\brelative path\b",
      "asked for absolute paths"),
-    ("no-blind-staging",      r"\bgit add -A\b|\bgit add \.\b|\bstage (the )?(specific )?files by name\b", True,
+    ("no-blind-staging",      r"\bgit add -A\b|\bgit add \.\b|\bstage (the )?(specific )?files by name\b",
      "told agents to stage files by name instead of staging everything"),
-    ("version-bump",          r"\bbump (the )?version\b|\bversion (number|bump)\b|\bforgot to bump\b", True,
+    ("version-bump",          r"\bbump (the )?version\b|\bversion (number|bump)\b|\bforgot to bump\b",
      "asked for the version to be bumped before the commit"),
-    ("update-docs",           r"\breadme\b|\bchangelog\b|\bupdate (the )?docs?\b|\bdocumentation\b", True,
+    ("update-docs",           r"\breadme\b|\bchangelog\b|\bupdate (the )?docs?\b|\bdocumentation\b",
      "asked for the docs to be updated in the same change"),
-    ("no-emoji",              r"\bemoji(s)?\b", True,
+    ("no-emoji",              r"\bemoji(s)?\b",
      "asked agents not to use emoji"),
-    ("file-ownership",        r"\bdon\x27t touch\b|\boff.limits\b|\bnever (modify|edit|touch)\b|\byou own only\b", True,
+    ("file-ownership",        r"\bdon\x27t touch\b|\boff.limits\b|\bnever (modify|edit|touch)\b|\byou own only\b",
      "told agents to stay inside the files they own"),
-    ("verify-before-claiming", r"\bsee it fail\b|\bprove it\b|\bverbatim\b|\bdon\x27t (just )?(claim|assume)\b|\bevidence\b", False,
+    ("verify-before-claiming", r"\bsee it fail\b|\bprove it\b|\bverbatim\b|\bdon\x27t (just )?(claim|assume)\b|\bevidence\b",
      "asked agents to show evidence instead of asserting a result"),
-    ("scope-discipline",      r"\bout of scope\b|\bdidn\x27t ask\b|\bdid not ask\b|\bonly what (i|we) asked\b|\bstop adding\b", False,
+    ("scope-discipline",      r"\bout of scope\b|\bdidn\x27t ask\b|\bdid not ask\b|\bonly what (i|we) asked\b|\bstop adding\b",
      "asked agents not to go beyond what was asked"),
 ]
+
+# THE RULE TABLE. One entry is one property a machine can decide, written out
+# here where it can be read and argued with, exactly as the lexicons are.
+#
+#   what         the violation, in a phrase the blocked agent reads.
+#   matchers     the PreToolUse tool names whose payload the hook can read. A
+#                payload from any other tool is REFUSED, never approved: a hook
+#                registered on the wrong matcher would be reading a shape it
+#                does not understand and passing everything.
+#   hook_re      a Python regex, applied per line to the text the proposed
+#                action would introduce.
+#   skip_shell_comments  a comment cannot run anything, so for shell-shaped
+#                rules a commented line is skipped, the same way the repo-wide
+#                stderr check skips one.
+#   gate         present only when the SAME property is expressible as one
+#                POSIX ERE over file bytes. It has to be: the ci-gate rung must
+#                be argv-only and must never run anything out of the repository
+#                it is gating (P4), which leaves grep and nothing else. A
+#                property that needs a program is a hook property and stops
+#                there. That cap is real and stated, not papered over.
+#
+# The gate ERE demands a non-comment first character on the line, and it
+# deliberately does not match the way it is spelled here - a bracket follows
+# every redirection instead of a slash - so this file does not flag itself.
+RULES = {
+    "no-stderr-suppression": {
+        "what": "stderr thrown away, which makes an error and a genuine no-match identical",
+        "matchers": ["Bash", "Write", "Edit", "MultiEdit", "NotebookEdit"],
+        "hook_re": r"2[ \t]*>>?[ \t]*/dev/null|2[ \t]*>&[ \t]*-|&>>?[ \t]*/dev/null|>&[ \t]*/dev/null|1?>>?[ \t]*/dev/null[ \t]+2[ \t]*>&[ \t]*1",
+        "skip_shell_comments": True,
+        "gate": {
+            "paths": ["**/*.sh", "**/*.bash"],
+            "ere": r"^[[:space:]]*[^#[:space:]].*(2[[:space:]]*>>?[[:space:]]*/dev/null|2[[:space:]]*>&[[:space:]]*-|&>>?[[:space:]]*/dev/null|>&[[:space:]]*/dev/null|1?>>?[[:space:]]*/dev/null[[:space:]]+2[[:space:]]*>&[[:space:]]*1)",
+            "why": "a script that bins stderr reports an error and a real no-match identically, so the run is green either way and the wrong thing gets fixed",
+        },
+    },
+    "no-blind-staging": {
+        "what": "a blanket git add, which commits whatever else happened to be in the tree",
+        "matchers": ["Bash"],
+        "hook_re": r"\bgit[ \t]+([^ \t]+[ \t]+)*add[ \t]+([-]A\b|[-][-]all\b|\.([ \t]|$))",
+        "skip_shell_comments": True,
+        # No gate: staging leaves no residue in the tree to grep for. The
+        # evidence is the command, and the command is only ever in front of the
+        # hook. Reported as a cap rather than invented as a check.
+        "gate": None,
+    },
+    "no-emoji": {
+        "what": "an emoji, which this repo asked agents to keep out of its files",
+        "matchers": ["Bash", "Write", "Edit", "MultiEdit", "NotebookEdit"],
+        "hook_re": r"[\U0001F000-\U0001FAFF\u2600-\u27BF\u2B00-\u2BFF\uFE0F\U0001F1E6-\U0001F1FF]",
+        "skip_shell_comments": False,
+        # No gate: the ranges are multibyte, and a POSIX ERE handed to grep
+        # under an unknown locale cannot be relied on to mean codepoints. An
+        # ERE that matches on one machine and not the next is not a gate.
+        "gate": None,
+    },
+}
+
 '
 
 # --- shared python preamble --------------------------------------------------
@@ -206,9 +324,11 @@ print("promotion threshold: %d distinct conversations" % '"$THRESHOLD_CONVERSATI
 print("rung bands by score (signals x conversations x pain):")
 print("  score <  %d          prose" % '"$RUNG_SCORE_SKILL"')
 print("  score <  %d          skill" % '"$RUNG_SCORE_HOOK"')
-print("  score <  %d          hook      (checkable clusters only)" % '"$RUNG_SCORE_GATE"')
-print("  score >= %d          ci-gate   (checkable clusters only)" % '"$RUNG_SCORE_GATE"')
-print("  a cluster that is not checkable is capped at skill, whatever its score")
+print("  score <  %d          hook      (clusters with a hook rule only)" % '"$RUNG_SCORE_GATE"')
+print("  score >= %d          ci-gate   (clusters with a gate rule only)" % '"$RUNG_SCORE_GATE"')
+print("  a cluster is capped at the highest rung RULES can actually fill, whatever")
+print("  its score. An offered rung nothing can fill is a stub, and a stub asserts")
+print("  nothing while reporting that the ladder was climbed.")
 print("")
 print("CUE lexicon - decides whether a message is a correction")
 # The lexicon is only inspectable if it prints as the pattern it is, so the
@@ -219,9 +339,33 @@ for name, rx in CUES:
     print("  %-16s %s" % (name, show(rx)))
 print("")
 print("TOPIC lexicon - decides which cluster it joins")
-for tag, rx, checkable, summary in TOPICS:
-    print("  %-24s checkable=%-5s %s" % (tag, checkable, show(rx)))
+def ceiling(tag):
+    rule = RULES.get(tag)
+    if rule is None:
+        return "skill", "no rule is written for it"
+    if not rule.get("gate"):
+        return "hook", "hook rule only; its property is not one POSIX ERE over file bytes"
+    return "ci-gate", "hook rule and gate rule"
+
+for tag, rx, summary in TOPICS:
+    cap, why = ceiling(tag)
+    print("  %-24s highest rung: %-8s %s" % (tag, cap, show(rx)))
     print("  %-24s summary: you %s" % ("", summary))
+    print("  %-24s cap: %s" % ("", why))
+print("")
+print("RULE table - what each checkable cluster actually asserts")
+for tag in sorted(RULES):
+    rule = RULES[tag]
+    print("  %s" % tag)
+    print("    refuses      %s" % rule["what"])
+    print("    hook on      %s" % ", ".join(rule["matchers"]))
+    print("    hook regex   %s" % rule["hook_re"])
+    gate = rule.get("gate")
+    if gate:
+        print("    gate paths   %s" % ", ".join(gate["paths"]))
+        print("    gate ere     %s" % gate["ere"])
+    else:
+        print("    gate         none. Capped at hook, and that cap is the honest answer.")
 '
   ;;
 
@@ -253,7 +397,7 @@ except Exception:
     ctx = {"detect_context": "unparseable"}
 
 cue_res   = [(n, re.compile(rx, re.I)) for n, rx in CUES]
-topic_res = [(t, re.compile(rx, re.I), c, s) for t, rx, c, s in TOPICS]
+topic_res = [(t, re.compile(rx, re.I), s) for t, rx, s in TOPICS]
 
 # A brief is not a correction. The cap is a length, stated, not a judgement:
 # a 4000-character message that happens to contain "don\x27t" is a task
@@ -326,7 +470,7 @@ if "transcripts" in sources:
                         cues = sorted(n for n, rx in cue_res if rx.search(text))
                         if not cues:
                             continue
-                        tags = sorted(t for t, rx, c, s in topic_res if rx.search(text))
+                        tags = sorted(t for t, rx, s in topic_res if rx.search(text))
                         report["corrections"] += 1
                         records.append({
                             "conversation": conv,
@@ -404,9 +548,25 @@ threshold = int(sys.argv[3])
 b_skill   = int(sys.argv[4])
 b_hook    = int(sys.argv[5])
 b_gate    = int(sys.argv[6])
+tmpl_dir  = sys.argv[7]
 
 recs = load_jsonl(os.path.join(work, "corrections.jsonl"))
-meta = {t: (c, s) for t, rx, c, s in TOPICS}
+meta = {t: s for t, rx, s in TOPICS}
+
+# The rung a cluster is ALLOWED to reach, which is the highest rung RULES can
+# fill for it. Everything above that is a stub, and a stub reports a climb that
+# did not happen.
+RUNG_ORDER = ["prose", "skill", "hook", "ci-gate"]
+
+def ceiling(tag):
+    rule = RULES.get(tag)
+    if rule is None:
+        return "skill", ("no mechanical rule is written for this cluster, so nothing "
+                         "above skill could assert anything")
+    if not rule.get("gate"):
+        return "hook", ("hook rule only - this property is not expressible as one POSIX "
+                        "ERE over file bytes, which is all a gate is allowed to be")
+    return "ci-gate", None
 
 clusters = {}
 for r in recs:
@@ -429,19 +589,22 @@ for tag, cl in clusters.items():
     pain = min(3, max(per_conv.values()))
     signals = len(cues)
     score = signals * conversations * pain
-    checkable, summary = meta.get(tag, (False, None))
+    summary = meta.get(tag)
     if score < b_skill:      rung = "prose"
     elif score < b_hook:     rung = "skill"
     elif score < b_gate:     rung = "hook"
     else:                    rung = "ci-gate"
-    if not checkable and rung in ("hook", "ci-gate"):
-        rung = "skill"
+    cap_rung, cap_reason = ceiling(tag)
+    if RUNG_ORDER.index(rung) > RUNG_ORDER.index(cap_rung):
+        rung = cap_rung
         capped = True
     else:
         capped = False
+        cap_reason = None
     rows.append({"tag": tag, "conversations": conversations, "occurrences": occurrences,
                  "pain": pain, "signals": signals, "score": score, "rung": rung,
-                 "capped": capped, "checkable": checkable, "summary": summary,
+                 "capped": capped, "cap_reason": cap_reason,
+                 "checkable": tag in RULES, "summary": summary,
                  "cues": sorted(cues), "per_conv": per_conv})
 
 rows.sort(key=lambda r: (-r["score"], r["tag"]))
@@ -456,52 +619,152 @@ def read_bytes(p):
 
 GUIDE_DIR = ".claude/productizer/graduated"
 
+# --- filling a rung ----------------------------------------------------------
+# The rung bodies are templates that ship with this script, under
+# templates/graduate/. They are NOT read out of the repository being examined:
+# a repo under examination never chooses what runs (P4), and it does not choose
+# what gets written into itself either.
+def read_template(name):
+    path = os.path.join(tmpl_dir, name)
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            return fh.read()
+    except OSError as exc:
+        print("graduate: cannot read the rung template %s (%s)." % (path, exc), file=sys.stderr)
+        print("graduate: refusing to draft a rung it cannot fill. Emitting a body that",
+              file=sys.stderr)
+        print("asserts nothing is the defect this rung was rewritten to remove.", file=sys.stderr)
+        sys.exit(2)
+
+def fill(text, subs, where):
+    for k, v in subs.items():
+        text = text.replace("@@%s@@" % k, v)
+    left = sorted(set(re.findall(r"@@[A-Z_]+@@", text)))
+    if left:
+        print("graduate: the %s template left %s unfilled. Refusing: a rung with a hole"
+              % (where, ", ".join(left)), file=sys.stderr)
+        print("in it is a stub wearing a template.", file=sys.stderr)
+        sys.exit(2)
+    return text
+
+def commented(prefix, text):
+    out = []
+    for line in text.split("\n"):
+        out.append((prefix + " " + line).rstrip() if line else prefix)
+    return "\n".join(out)
+
+HOOK_ASSERTS = """WHAT THIS RUNG ASSERTS THAT THE RUNG BELOW IT DOES NOT
+
+The rung below is `skill`: a markdown file under .claude/productizer/graduated/.
+It asserts nothing at all. It is advice, it competes for a context window, and
+it is followed or it is not - which is the whole reason the ladder exists.
+
+This rung asserts a property of ONE PROPOSED ACTION, read out of the tool
+payload BEFORE the action runs, and refuses the action when the property fails.
+It therefore also reaches text that never becomes a file: a Bash command line is
+judged here and by no other rung."""
+
+GATE_ASSERTS = """WHAT THIS RUNG ASSERTS THAT THE HOOK RUNG BELOW IT DOES NOT
+
+The hook is handed one payload and answers about that payload. It has no
+denominator and no memory. A violation already on disk - written before the hook
+was installed, edited by a human outside the agent, arriving in a merge, or made
+by a tool the hook is not registered on - is invisible to it.
+
+This rung asserts the property over EVERY TRIGGERING FILE IN THE TREE, and it
+declares a coverage denominator, so a run that failed to open a file it should
+have read is a refusal rather than a pass. `covered 0/1 files` is a verdict
+about the check itself, and it is the one thing a hook can never say."""
+
+GUIDE_DIR = ".claude/productizer/graduated"
+
 def ops_for(row):
     tag = row["tag"]
     sentence = "In %d conversation%s, you %s." % (
         row["conversations"], "" if row["conversations"] == 1 else "s", row["summary"])
+    evidence = ("Evidence: %d conversations, %d occurrences, %d cue type(s), pain %d, score %d."
+                % (row["conversations"], row["occurrences"], row["signals"], row["pain"], row["score"]))
     ops = []
     if row["rung"] == "prose":
-        path = "CLAUDE.md"
-        block = "\n## Graduated corrections\n\n- **%s** — %s (evidence: %d conversations, rung prose)\n" % (
-            tag, row["summary"], row["conversations"])
-        ops.append(("update-or-create", path, block, "append"))
+        block = ("\n## Graduated corrections\n\n- **%s** - %s (evidence: %d conversations, rung prose)\n"
+                 % (tag, row["summary"], row["conversations"]))
+        # The marker makes the append idempotent. Applying twice used to write
+        # the same bullet twice, and a file that repeats itself is one nobody
+        # rereads.
+        ops.append(("update-or-create", "CLAUDE.md", block, "append", None,
+                    "- **%s** -" % tag))
     elif row["rung"] == "skill":
-        path = "%s/%s.md" % (GUIDE_DIR, tag)
-        body = ("# %s\n\n%s\n\nEvidence: %d conversations, %d occurrences, %d cue type(s), pain %d.\n"
-                "Rung: skill. Promoted by scripts/graduate.sh.\n" % (
-                    tag, sentence, row["conversations"], row["occurrences"], row["signals"], row["pain"]))
-        ops.append(("create", path, body, "whole"))
-    elif row["rung"] == "hook":
-        path = ".claude/hooks/graduated-%s.sh" % tag
-        body = ("#!/usr/bin/env bash\n# Graduated from %d conversations by scripts/graduate.sh.\n"
-                "# %s\n#\n"
-                "# THIS IS A STUB AND IT DOES NOT ASSERT ANYTHING YET. The lexicon knows the\n"
-                "# cluster is the kind of thing a check could assert; it cannot write the\n"
-                "# assertion. Replace the exit 0 below with the real test, or drop the rung\n"
-                "# back to skill. A hook that always passes is worse than no hook.\n"
-                "set -euo pipefail\nexit 0\n" % (row["conversations"], sentence))
-        ops.append(("create", path, body, "whole"))
+        body = ("# %s\n\n%s\n\n%s\nRung: skill. Promoted by scripts/graduate.sh.\n\n"
+                "THIS FILE ASSERTS NOTHING, AND THAT IS THE RUNG, NOT AN OMISSION. It is\n"
+                "read when it happens to be in context and ignored when it is not. The rung\n"
+                "above it, `hook`, refuses the action instead of describing it; the rung\n"
+                "above that, `ci-gate`, refuses the whole tree. Both need a rule written in\n"
+                "the RULES table of scripts/graduate.sh, and this cluster\n%s.\n"
+                % (tag, sentence, evidence,
+                   "has one but has not earned the score for it"
+                   if tag in RULES else
+                   "has none, which is why the ladder stops here for it"))
+        ops.append(("update-or-create", "%s/%s.md" % (GUIDE_DIR, tag), body, "whole", None, None))
     else:
-        path = ".claude/productizer/checks.yaml"
-        block = ("\n  - id: graduated-%s\n    # %s\n    # STUB: no command yet. Fill `run:` or this check asserts nothing.\n"
-                 "    run: \"\"\n    severity: blocking\n" % (tag, sentence))
-        ops.append(("update-or-create", path, block, "append"))
+        rule = RULES[tag]
+        hook_body = fill(read_template("hook.sh"), {
+            "TAG": tag,
+            "CONVERSATIONS": str(row["conversations"]),
+            "SENTENCE": sentence,
+            "WHAT": rule["what"],
+            "ASSERTS": commented("#", HOOK_ASSERTS),
+            "MATCHER_RE": "|".join(rule["matchers"]),
+            "MATCHERS": json.dumps(rule["matchers"]),
+            "PATTERN": rule["hook_re"],
+            "SKIP_COMMENTS": "True" if rule["skip_shell_comments"] else "False",
+        }, "hook")
+        ops.append(("update-or-create", ".claude/hooks/graduated-%s.sh" % tag,
+                    hook_body, "whole", None, None))
+        if row["rung"] == "ci-gate":
+            gate = rule["gate"]
+            block = fill(read_template("ci-gate.yaml"), {
+                "TAG": tag,
+                "CONVERSATIONS": str(row["conversations"]),
+                "SENTENCE": sentence,
+                "ASSERTS": commented("  #", GATE_ASSERTS),
+                "WHY": gate["why"],
+                "PATHS": "\n".join("        - \"%s\"" % g for g in gate["paths"]),
+                "ERE": gate["ere"],
+            }, "ci-gate")
+            # The hook is emitted alongside the gate, not replaced by it. They
+            # assert different properties, so a repo at ci-gate that dropped the
+            # hook would stop seeing every violation that never reaches a file.
+            ops.append(("update-or-create", ".claude/productizer/checks.yaml",
+                        block, "append", read_template("ci-gate-header.yaml") + block,
+                        "  - id: graduated-%s\n" % tag))
     return sentence, ops
 
-def resolve(op, path, payload, mode):
+def resolve(op, path, payload, mode, create_payload=None, marker=None):
     ap = os.path.join(root, path)
     exists = os.path.exists(ap)
     if op == "update-or-create":
         op = "update" if exists else "create"
     before = read_bytes(ap) if exists else b""
+    noop = False
     if op == "create":
-        after = payload.encode("utf-8")
+        # A fragment appended to a file that does not exist is not a file. A
+        # checks.yaml consisting of one check entry and no `version:` refuses to
+        # parse, and a gate that refuses to load is a gate that never ran.
+        after = (payload if create_payload is None else create_payload).encode("utf-8")
     elif op == "remove":
         after = b""
+    elif mode == "append":
+        if marker is not None and marker.encode("utf-8") in before:
+            after = before
+            noop = True
+        else:
+            after = before + payload.encode("utf-8")
     else:
-        after = before + payload.encode("utf-8") if mode == "append" else payload.encode("utf-8")
-    return {"op": op, "path": path, "exists": exists,
+        after = payload.encode("utf-8")
+    return {"op": op, "path": path, "exists": exists, "noop": noop,
+            # A hook that is not executable is a hook Claude Code cannot run,
+            # and an unrunnable hook allows everything.
+            "exec": path.startswith(".claude/hooks/"),
             "before_sha256": sha256_bytes(before) if exists else None,
             "after_sha256": sha256_bytes(after) if op != "remove" else None,
             "after_b64": None if op == "remove" else __import__("base64").b64encode(after).decode(),
@@ -513,8 +776,8 @@ for row in promoted:
     sentence, raw = ops_for(row)
     resolved = []
     bad = None
-    for op, path, payload, mode in raw:
-        r = resolve(op, path, payload, mode)
+    for op, path, payload, mode, create_payload, marker in raw:
+        r = resolve(op, path, payload, mode, create_payload, marker)
         if r["op"] == "create" and r["exists"]:
             bad = "create target already exists: %s" % path
         resolved.append(r)
@@ -537,7 +800,7 @@ if os.path.isdir(gd):
             continue
         tag = fn[:-3]
         if tag not in live:
-            prune_ops.append(resolve("remove", "%s/%s" % (GUIDE_DIR, fn), "", "whole"))
+            prune_ops.append(resolve("remove", "%s/%s" % (GUIDE_DIR, fn), "", "whole", None, None))
 if prune_ops:
     suggestions["prune"] = {"tag": "prune", "rung": "n/a",
         "sentence": "%d graduated guidance file(s) had no correction in this window." % len(prune_ops),
@@ -566,12 +829,18 @@ def card(row, sug):
     print("            score = signals x conversations x pain = %d x %d x %d = %d"
           % (row["signals"], row["conversations"], row["pain"], row["score"]))
     print("            cues: %s" % ", ".join(row["cues"]))
-    print("  rung      %s%s" % (row["rung"],
-          "   (capped at skill: this cluster is not mechanically checkable)" if row["capped"] else ""))
+    print("  rung      %s" % row["rung"])
+    if row["capped"]:
+        print("            CAPPED at %s: %s." % (row["rung"], row["cap_reason"]))
+        print("            The score justified a higher rung; nothing could fill it, and an")
+        print("            unfillable rung is a stub that reports a climb that did not happen.")
     print("  ladder    prose -> skill -> hook -> ci-gate   (recommended, not taken)")
+    print("            each rung asserts a different property: see graduate.sh --help")
     print("")
     for r in sug["ops"]:
-        print("  %s %s" % (MARK[r["op"]], r["path"]))
+        print("  %s %s%s%s" % (MARK[r["op"]], r["path"],
+                               "   (executable)" if r.get("exec") else "",
+                               "   (already present - this append is a no-op)" if r.get("noop") else ""))
     for r in sug["ops"]:
         print("")
         d = list(difflib.unified_diff(
@@ -634,7 +903,7 @@ if not promoted:
 print("%d cluster(s) reached the threshold. Nothing has been written outside %s."
       % (len(promoted), work))
 print("Apply requires you to name one and decide: --id TAG --decide accept")
-' "$WORK" "$ROOT" "$THRESHOLD_CONVERSATIONS" "$RUNG_SCORE_SKILL" "$RUNG_SCORE_HOOK" "$RUNG_SCORE_GATE"
+' "$WORK" "$ROOT" "$THRESHOLD_CONVERSATIONS" "$RUNG_SCORE_SKILL" "$RUNG_SCORE_HOOK" "$RUNG_SCORE_GATE" "$TMPL_DIR"
   ;;
 
 excerpts)
@@ -738,6 +1007,11 @@ for i, r in enumerate(sug["ops"]):
         tmp = ap + ".graduate.tmp"
         with open(tmp, "wb") as fh:
             fh.write(data)
+        if r.get("exec"):
+            # Claude Code runs a `type: command` hook through a shell, so a hook
+            # written 0644 fails to execute - and a hook that cannot run allows
+            # every action it was installed to refuse.
+            os.chmod(tmp, 0o755)
         os.replace(tmp, ap)
         after_sha = sha256_bytes(data)
     journal["ops"].append({"i": i, "op": r["op"], "path": r["path"],

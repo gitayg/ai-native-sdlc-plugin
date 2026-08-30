@@ -13,18 +13,18 @@ builds and packaging all skip that directory, so the constitution is never
 rendered as a page or shipped in a release.
 
 Next principle id
-: `P<n>` — allocate from here, then increment. Principles are numbered `P1`,
+: `P1` — allocate from here, then increment. Principles are numbered `P1`,
 `P2`, … and requirements `R1`, `R2`, …. The two id spaces never share a
 counter and never share a prefix: a plan, a test, a review finding or a PR
 title citing `P2` must resolve to a principle and nothing else. One shared
 counter makes that collision a matter of luck, and the collision is silent.
 
 Principles
-: `<n>` active, `<n>` superseded, `<n>` withdrawn.
+: 0 active, 0 superseded, 0 withdrawn.
 
 Ratified by
-: `<roles or names>` — the only people who may add, amend, supersede or
-withdraw a principle.
+: *Name the roles or people who may add, amend, supersede or withdraw a
+principle, and replace this line with them.* Nobody else may.
 
 Amendment
 : Its own act, its own commit, ratified by the people named above. Never a side
@@ -53,8 +53,8 @@ does; principles say what it may never do, whatever it is doing.
   | Status | Meaning | Recorded as |
   |---|---|---|
   | Active | Currently binding | `Active.` plus the ratification date and who ratified it |
-  | Superseded | Replaced by another principle | `Superseded by P9 <date>.` plus one line on why |
-  | Withdrawn | The bound no longer applies | `Withdrawn <date>.` plus one line on why |
+  | Superseded | Replaced by another principle | `Superseded by P9 <YYYY-MM-DD>.` plus one line on why |
+  | Withdrawn | The bound no longer applies | `Withdrawn <YYYY-MM-DD>.` plus one line on why |
 
 - **Nothing is ever deleted.** A superseded or withdrawn principle keeps its
   original text in place. Deleting it strands every requirement, review finding
@@ -191,8 +191,14 @@ pattern, instead of spread across the feature PRs that each relaxed it.
 
 | Date | Principle | Change | Prompted by | Why | Ratified by |
 |---|---|---|---|---|---|
+<!-- EXAMPLE:BEGIN — a shape to copy, not agreed content.
+     Scaffolding DELETES this block: a placeholder row reads as real content,
+     and it gets cited before anyone notices it was a sample. -->
+```text
 | 2026-06-18 | P4 | amended in place | #612 | widened to partner APIs; the original wording let partner-facing breakage through | <names> |
 | 2026-05-02 | P5 | withdrawn | #588 | EU residency required a second region; P1 already carries the residency bound | <names> |
+```
+<!-- EXAMPLE:END -->
 
 ## Open questions
 
@@ -202,4 +208,10 @@ merges against one.
 
 | # | Proposed principle | Raised by | Status |
 |---|---|---|---|
+<!-- EXAMPLE:BEGIN — a shape to copy, not agreed content.
+     Scaffolding DELETES this block: a placeholder row reads as real content,
+     and it gets cited before anyone notices it was a sample. -->
+```text
 | Q1 | <the bound being proposed> | <issue> | proposed / ratified as P<n> on <date> / rejected: <why> |
+```
+<!-- EXAMPLE:END -->

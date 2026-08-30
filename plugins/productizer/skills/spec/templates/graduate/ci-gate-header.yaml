@@ -1,0 +1,25 @@
+# .claude/productizer/checks.yaml — the checks stage, declared.
+#
+# CREATED by scripts/graduate.sh, because a cluster reached the ci-gate rung and
+# this repo declared no checks stage at all. A fragment appended to a file that
+# does not exist is not a configuration: run-checks.sh would refuse it as
+# unparseable, and a gate that refuses to load is a gate that never ran.
+#
+# Everything above `checks:` is the minimum run-checks.sh will accept. Read
+# templates/checks.yaml before adding anything else — this file was written to
+# hold ONE graduated check honestly, not to describe your repo.
+version: 1
+
+policy:
+  # A change that triggers no check at all is not a passing change.
+  empty_run: refuse
+  output: .claude/productizer/checks-result.json
+  spec: .claude/productizer/spec.md
+  spec_coverage: auto
+
+defaults:
+  timeout_seconds: 60
+  mode: batch
+  severity: block
+
+checks:
