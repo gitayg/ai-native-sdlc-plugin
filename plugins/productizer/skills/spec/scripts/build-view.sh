@@ -1939,6 +1939,93 @@ p_stages = (
     'every repo — it is the only text on this panel that is not this repo\'s own state.</p>')
 
 # --------------------------------------------------------------------------
+# panel: limitations
+# --------------------------------------------------------------------------
+# R5 makes a check declare what it must have EXAMINED. This is the dual: what
+# it could not SEE. Both belong beside the check, so both are read from
+# checks.yaml - a limitation nobody wrote down is a limitation nobody knows
+# about, which is the state this panel exists to end.
+#
+# Parsed by hand rather than with a YAML library ON PURPOSE. run-checks.sh
+# refuses without PyYAML, correctly, because it decides what EXECUTES from that
+# file. This page only displays; taking the same hard dependency would mean the
+# dashboard stops rendering wherever PyYAML is missing - which is precisely
+# what left this repo's CI red for its whole life. So: two keys, read
+# line-wise, and anything unparseable is reported as unreadable rather than as
+# nothing declared.
+checks_raw = slurp(rel(CHECKS_PATH))
+lim_by_check, lim_order, LIM_STATE = {}, [], 'read'
+if checks_raw is None:
+    LIM_STATE = 'unreadable'
+else:
+    cur, in_lims = None, False
+    for raw in checks_raw.split('\n'):
+        m = re.match(r'^  - id:\s*(\S+)\s*$', raw)
+        if m:
+            cur, in_lims = m.group(1), False
+            if cur not in lim_by_check:
+                lim_by_check[cur] = []
+                lim_order.append(cur)
+            continue
+        if cur is None:
+            continue
+        if re.match(r'^    limitations:\s*$', raw):
+            in_lims = True
+            continue
+        if in_lims:
+            mm = re.match(r'^      - (.+?)\s*$', raw)
+            if mm:
+                lim_by_check[cur].append(mm.group(1))
+                continue
+            if raw.strip():
+                in_lims = False
+
+LIM_TOTAL = sum(len(v) for v in lim_by_check.values())
+LIM_WITH = [c for c in lim_order if lim_by_check.get(c)]
+LIM_WITHOUT = [c for c in lim_order if not lim_by_check.get(c)]
+
+if LIM_STATE == 'unreadable':
+    p_lims = ('<div class="h">Limitations \u2014 what the checks cannot see</div>'
+              '<div class="empty"><b>%s could not be read.</b>'
+              '<p>That is unknown, not none declared. A page reporting zero limitations '
+              'because it could not open the file would be making the exact claim this '
+              'panel exists to stop anyone making.</p></div>' % esc(CHECKS_PATH))
+elif not lim_order:
+    p_lims = ('<div class="h">Limitations \u2014 what the checks cannot see</div>'
+              '<div class="empty"><b>No checks are declared.</b>'
+              '<p>Nothing declares a limitation because nothing declares a check. '
+              'Read from <span class="mono">%s</span>.</p></div>' % esc(CHECKS_PATH))
+else:
+    body = []
+    for cid in LIM_WITH:
+        ls = lim_by_check[cid]
+        body.append(
+            '<div class="limcard"><div class="limhead">'
+            '<span class="mono limid">%s</span><span class="limn">%d</span></div>'
+            '<ul class="limlist">%s</ul></div>'
+            % (esc(cid), len(ls), ''.join('<li>%s</li>' % esc(x) for x in ls)))
+    und = ''
+    if LIM_WITHOUT:
+        und = ('<div class="limcard limund"><div class="limhead">'
+               '<span class="mono limid">%d check(s) declare nothing</span></div>'
+               '<ul class="limlist"><li>%s</li>'
+               '<li><b>Undeclared, not none.</b> Every check on this page has something '
+               'outside its reach, so an empty list is far more often nobody looking than '
+               'nothing being there.</li></ul></div>'
+               % (len(LIM_WITHOUT), esc(', '.join(LIM_WITHOUT))))
+    p_lims = (
+        '<div class="h">Limitations \u2014 what the checks cannot see</div>'
+        '<p class="lede">Every check declares what it must have examined for its pass to '
+        'count. These are the other half: what each one is blind to. '
+        'A green run means these checks found nothing wrong \u2014 not that nothing is wrong.</p>'
+        '<div class="limsum"><b>%d</b> limitation(s) across <b>%d</b> of <b>%d</b> declared checks</div>'
+        '%s%s'
+        '<p class="provenance">Read from <span class="mono">%s</span>, beside the check each one '
+        'qualifies. A limitation is a committed claim like any other \u2014 it is reviewed in a '
+        'diff and it goes stale the way a comment does. Nothing here is measured at run time.</p>'
+        % (LIM_TOTAL, len(LIM_WITH), len(lim_order), ''.join(body), und, esc(CHECKS_PATH)))
+
+# --------------------------------------------------------------------------
 # assembly
 # --------------------------------------------------------------------------
 TABS = [('dash', 'Dashboard', ''),
@@ -1947,6 +2034,7 @@ TABS = [('dash', 'Dashboard', ''),
         ('files', 'Files', str(len(rows))),
         ('backlog', 'Backlog', str(len(items)) if backlog is not None else '—'),
         ('rel', 'Releases', str(len(releases)) if IS_GIT else '—'),
+        ('lims', 'Limitations', str(LIM_TOTAL) if LIM_STATE == 'read' else '\u2014'),
         ('cmds', 'Useful commands', '')]
 
 tabs = ''.join('<button class="tab%s" data-p="%s">%s%s</button>'
@@ -2230,10 +2318,11 @@ BODY = (
     '<section class="panel" id="p-files">%s</section>'
     '<section class="panel" id="p-backlog">%s</section>'
     '<section class="panel" id="p-rel">%s</section>'
+    '<section class="panel" id="p-lims">%s</section>'
     '<section class="panel" id="p-cmds">%s</section>'
     '</div>'
     % (crumb, verchip, data_stamp, refresh_btn + dl_btn, stamp, setup_bar, ''.join(banners), tabs,
-       p_dash, p_board, p_stages, p_files, p_backlog, p_rel, p_cmds))
+       p_dash, p_board, p_stages, p_files, p_backlog, p_rel, p_lims, p_cmds))
 
 # Appended rather than threaded through the format above: that string is
 # positional, and adding a slot to it is how a panel ends up rendering another

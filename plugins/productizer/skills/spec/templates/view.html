@@ -403,6 +403,25 @@ a.h-sub:hover{text-decoration-color:var(--crit)}
 .empty p{margin:0;color:var(--muted);font-size:12.5px;line-height:1.6;max-width:74ch}
 .empty .mono{color:var(--text)}
 .provenance{font-size:11.5px;color:var(--muted);opacity:.8;margin:16px 2px 0;line-height:1.6;max-width:90ch}
+
+/* Limitations. Deliberately NOT styled as warnings: an amber wash on twenty-two
+   honest declarations would train people to scroll past them, and these are the
+   most useful sentences on the page. Quiet, readable, and the same weight as
+   anything else that is simply true. */
+.lede{font-size:13px;color:var(--muted);line-height:1.65;max-width:88ch;margin:4px 2px 14px}
+.limsum{font-size:12px;color:var(--muted);margin:0 2px 14px;letter-spacing:.02em}
+.limsum b{color:var(--text);font-variant-numeric:tabular-nums}
+.limcard{background:var(--surface);border:1px solid var(--line);border-radius:6px;margin:0 0 10px;overflow:hidden}
+.limhead{display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--raised);border-bottom:1px solid var(--line)}
+.limid{font-size:12px;color:var(--text)}
+.limn{margin-left:auto;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.limlist{margin:0;padding:10px 12px 12px 30px;list-style:disc}
+.limlist li{font-size:12.5px;line-height:1.65;color:var(--muted);margin:0 0 7px;max-width:92ch}
+.limlist li:last-child{margin-bottom:0}
+.limlist li b{color:var(--text)}
+/* The undeclared card reads as a gap rather than a finding, because that is
+   what it is: nobody wrote anything, which is not the same as nothing existing. */
+.limund{border-style:dashed;opacity:.85}
 .provenance .mono{color:var(--text);opacity:.9}
 .ftbl .fdate.none,.ftbl .fdesc.none{color:var(--line)}
 .file .st.unk{color:var(--warn);border:1px dashed #d2992255;background:none}

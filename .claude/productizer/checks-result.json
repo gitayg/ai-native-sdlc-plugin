@@ -8,21 +8,26 @@
     "files": [
       ".claude/productizer/backlog.md",
       ".claude/productizer/checks-result.json",
-      ".claude/productizer/spec.md"
+      ".claude/productizer/checks.yaml",
+      "README.md",
+      "plugins/productizer/.claude-plugin/plugin.json",
+      "plugins/productizer/skills/spec/scripts/build-view.sh",
+      "plugins/productizer/skills/spec/templates/checks.yaml",
+      "plugins/productizer/skills/spec/templates/view.html"
     ],
-    "file_count": 3,
+    "file_count": 8,
     "tags": []
   },
   "verdict": "pass",
   "exit_code": 0,
   "counts": {
-    "declared": 7,
-    "triggered": 5,
-    "passed": 5,
+    "declared": 15,
+    "triggered": 15,
+    "passed": 15,
     "blocking_failures": 0,
     "advisory_failures": 0,
     "disabled": 0,
-    "not_triggered": 2,
+    "not_triggered": 0,
     "spec_units_unsatisfied": null
   },
   "spec_coverage": {
@@ -53,7 +58,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 3,
+      "files_in_scope": 8,
       "enabled": true,
       "tool": {
         "command": [
@@ -73,21 +78,26 @@
           "min_rules": 0
         },
         "observed": {
-          "covered": 3,
+          "covered": 8,
           "covered_items": [
             ".claude/productizer/backlog.md",
             ".claude/productizer/checks-result.json",
-            ".claude/productizer/spec.md"
+            ".claude/productizer/checks.yaml",
+            "README.md",
+            "plugins/productizer/.claude-plugin/plugin.json",
+            "plugins/productizer/skills/spec/scripts/build-view.sh",
+            "plugins/productizer/skills/spec/templates/checks.yaml",
+            "plugins/productizer/skills/spec/templates/view.html"
           ],
           "rules_loaded": null,
-          "files_in_scope": 3,
+          "files_in_scope": 8,
           "not_examined": []
         },
         "satisfied": true,
         "reasons": []
       },
       "timed_out": false,
-      "output_tail": ".claude/productizer/backlog.md\n.claude/productizer/checks-result.json\n.claude/productizer/spec.md\n",
+      "output_tail": ".claude/productizer/backlog.md\n.claude/productizer/checks-result.json\n.claude/productizer/checks.yaml\nREADME.md\nplugins/productizer/.claude-plugin/plugin.json\nplugins/productizer/skills/spec/scripts/build-view.sh\nplugins/productizer/skills/spec/templates/checks.yaml\nplugins/productizer/skills/spec/templates/view.html\n",
       "status": "pass"
     },
     {
@@ -103,11 +113,44 @@
         "{file}"
       ],
       "trigger_scope": "scoped",
-      "triggered": false,
-      "triggered_by": [],
-      "files_in_scope": 0,
+      "triggered": true,
+      "triggered_by": [
+        "path:**/*.sh"
+      ],
+      "files_in_scope": 1,
       "enabled": true,
-      "status": "not_triggered"
+      "tool": {
+        "command": [
+          "shellcheck",
+          "--version"
+        ],
+        "version": "ShellCheck - shell script analysis tool version: 0.11.0 license: GNU General Public License, version 3 website: https://www.shellcheck.net",
+        "exit_code": 0
+      },
+      "exit_code": 0,
+      "duration_seconds": 1,
+      "coverage": {
+        "from": "per_file_exit",
+        "required": {
+          "min_covered": 1,
+          "must_cover": "all_triggering",
+          "min_rules": 0
+        },
+        "observed": {
+          "covered": 1,
+          "covered_items": [
+            "plugins/productizer/skills/spec/scripts/build-view.sh"
+          ],
+          "rules_loaded": null,
+          "files_in_scope": 1,
+          "not_examined": []
+        },
+        "satisfied": true,
+        "reasons": []
+      },
+      "timed_out": false,
+      "output_tail": "\n===== plugins/productizer/skills/spec/scripts/build-view.sh\n",
+      "status": "pass"
     },
     {
       "id": "solver-corpus",
@@ -125,7 +168,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 3,
+      "files_in_scope": 8,
       "enabled": true,
       "tool": {
         "command": [
@@ -148,7 +191,7 @@
           "covered": 7,
           "covered_items": [],
           "rules_loaded": null,
-          "files_in_scope": 3,
+          "files_in_scope": 8,
           "not_examined": []
         },
         "satisfied": true,
@@ -177,11 +220,44 @@
         "{file}"
       ],
       "trigger_scope": "scoped",
-      "triggered": false,
-      "triggered_by": [],
-      "files_in_scope": 0,
+      "triggered": true,
+      "triggered_by": [
+        "path:**/*.sh"
+      ],
+      "files_in_scope": 1,
       "enabled": true,
-      "status": "not_triggered"
+      "tool": {
+        "command": [
+          "./plugins/productizer/skills/spec/scripts/check-stderr.sh",
+          "--version"
+        ],
+        "version": "check-stderr 1.0",
+        "exit_code": 0
+      },
+      "exit_code": 0,
+      "duration_seconds": 1,
+      "coverage": {
+        "from": "per_file_exit",
+        "required": {
+          "min_covered": 1,
+          "must_cover": "all_triggering",
+          "min_rules": 0
+        },
+        "observed": {
+          "covered": 1,
+          "covered_items": [
+            "plugins/productizer/skills/spec/scripts/build-view.sh"
+          ],
+          "rules_loaded": null,
+          "files_in_scope": 1,
+          "not_examined": []
+        },
+        "satisfied": true,
+        "reasons": []
+      },
+      "timed_out": false,
+      "output_tail": "\n===== plugins/productizer/skills/spec/scripts/build-view.sh\nplugins/productizer/skills/spec/scripts/build-view.sh\n",
+      "status": "pass"
     },
     {
       "id": "spec-home",
@@ -199,7 +275,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 3,
+      "files_in_scope": 8,
       "enabled": true,
       "tool": {
         "command": [
@@ -222,7 +298,7 @@
           "covered": 1,
           "covered_items": [],
           "rules_loaded": null,
-          "files_in_scope": 3,
+          "files_in_scope": 8,
           "not_examined": []
         },
         "satisfied": true,
@@ -246,7 +322,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 3,
+      "files_in_scope": 8,
       "enabled": true,
       "tool": {
         "command": [
@@ -271,7 +347,7 @@
             ".claude/productizer/spec.md"
           ],
           "rules_loaded": null,
-          "files_in_scope": 3,
+          "files_in_scope": 8,
           "not_examined": []
         },
         "satisfied": true,
@@ -296,7 +372,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 3,
+      "files_in_scope": 8,
       "enabled": true,
       "tool": {
         "command": [
@@ -320,7 +396,7 @@
           "covered": 2,
           "covered_items": [],
           "rules_loaded": null,
-          "files_in_scope": 3,
+          "files_in_scope": 8,
           "not_examined": []
         },
         "satisfied": true,
@@ -328,6 +404,600 @@
       },
       "timed_out": false,
       "output_tail": "ok   plugins/productizer/skills/spec/templates/agent-verifier.md\nok   plugins/productizer/skills/spec/templates/agent-reviewer.md\ncheck-frontmatter: 2 file(s) checked, no findings.\n",
+      "status": "pass"
+    },
+    {
+      "id": "guide-current",
+      "why": "two releases shipped from a hand-edited guide, and a guide describing behaviour the spec never agreed to reads exactly like one that does",
+      "severity": "block",
+      "blocking": true,
+      "mode": "batch",
+      "command": [
+        "./plugins/productizer/skills/spec/scripts/build-guide.sh",
+        "--check"
+      ],
+      "trigger_scope": "always",
+      "triggered": true,
+      "triggered_by": [
+        "always"
+      ],
+      "files_in_scope": 8,
+      "enabled": true,
+      "tool": {
+        "command": [
+          "./plugins/productizer/skills/spec/scripts/build-guide.sh",
+          "--version"
+        ],
+        "version": "build-guide 1.0",
+        "exit_code": 0
+      },
+      "exit_code": 0,
+      "duration_seconds": 1,
+      "coverage": {
+        "from": "stdout_count",
+        "required": {
+          "min_covered": 1,
+          "must_cover": "none",
+          "min_rules": 0
+        },
+        "observed": {
+          "covered": 25,
+          "covered_items": [],
+          "rules_loaded": null,
+          "files_in_scope": 8,
+          "not_examined": []
+        },
+        "satisfied": true,
+        "reasons": []
+      },
+      "timed_out": false,
+      "output_tail": ".claude/productizer/spec.md\nGUIDE.md\n2 file(s) read, 25 active requirement(s) rendered\nGUIDE.md is up to date with the spec.\n",
+      "status": "pass"
+    },
+    {
+      "id": "view-read-only",
+      "why": "a view that writes into the repo, or a page that can save new versions of itself, makes the provenance line under every panel false - the page becomes a second source of truth that can disagree with the repo",
+      "severity": "block",
+      "blocking": true,
+      "mode": "batch",
+      "command": [
+        "./plugins/productizer/skills/spec/scripts/check-view-readonly.sh"
+      ],
+      "trigger_scope": "always",
+      "triggered": true,
+      "triggered_by": [
+        "always"
+      ],
+      "files_in_scope": 8,
+      "enabled": true,
+      "tool": {
+        "command": [
+          "./plugins/productizer/skills/spec/scripts/check-view-readonly.sh",
+          "--version"
+        ],
+        "version": "check-view-readonly 1.0",
+        "exit_code": 0
+      },
+      "exit_code": 0,
+      "duration_seconds": 1,
+      "coverage": {
+        "from": "stdout_paths",
+        "required": {
+          "min_covered": 1,
+          "must_cover": "none",
+          "min_rules": 0
+        },
+        "observed": {
+          "covered": 336,
+          "covered_items": [
+            ".claude-plugin/marketplace.json",
+            ".claude/hooks/publish-gate.sh",
+            ".claude/productizer/backlog.md",
+            ".claude/productizer/checks-result.json",
+            ".claude/productizer/checks.yaml",
+            ".claude/productizer/config.json",
+            ".claude/productizer/constitution.md",
+            ".claude/productizer/hygiene-local.txt",
+            ".claude/productizer/spec.md",
+            ".claude/settings.json",
+            ".github/ISSUE_TEMPLATE/bug.yml",
+            ".github/ISSUE_TEMPLATE/config.yml",
+            ".github/ISSUE_TEMPLATE/intent.yml",
+            ".github/workflows/checks.yml",
+            ".gitignore",
+            "CONTRIBUTING.md",
+            "GUIDE.md",
+            "KNOWN_LIMITATIONS.md",
+            "LICENSE",
+            "README.md",
+            "evals/cases/N01-extend-data-portability/graders/01-no-false-halt.md",
+            "evals/cases/N01-extend-data-portability/graders/02-correct-class.md",
+            "evals/cases/N01-extend-data-portability/graders/03-ids-cited.md",
+            "evals/cases/N01-extend-data-portability/graders/04-reasoning-sound.md",
+            "evals/cases/N01-extend-data-portability/graders/99-skill-fired.md",
+            "evals/cases/N01-extend-data-portability/prompt.md",
+            "evals/cases/N02-refine-tighten-latency-bound/graders/01-no-false-halt.md",
+            "evals/cases/N02-refine-tighten-latency-bound/graders/02-correct-class.md",
+            "evals/cases/N02-refine-tighten-latency-bound/graders/03-ids-cited.md",
+            "evals/cases/N02-refine-tighten-latency-bound/graders/04-reasoning-sound.md",
+            "evals/cases/N02-refine-tighten-latency-bound/graders/99-skill-fired.md",
+            "evals/cases/N02-refine-tighten-latency-bound/prompt.md",
+            "evals/cases/N03-duplicate-cancel-stops-billing/graders/01-no-false-halt.md",
+            "evals/cases/N03-duplicate-cancel-stops-billing/graders/02-correct-class.md",
+            "evals/cases/N03-duplicate-cancel-stops-billing/graders/03-ids-cited.md",
+            "evals/cases/N03-duplicate-cancel-stops-billing/graders/04-reasoning-sound.md",
+            "evals/cases/N03-duplicate-cancel-stops-billing/graders/99-skill-fired.md",
+            "evals/cases/N03-duplicate-cancel-stops-billing/prompt.md",
+            "evals/cases/N04-near-miss-different-trigger/graders/01-no-false-halt.md",
+            "evals/cases/N04-near-miss-different-trigger/graders/02-correct-class.md",
+            "evals/cases/N04-near-miss-different-trigger/graders/03-ids-cited.md",
+            "evals/cases/N04-near-miss-different-trigger/graders/04-reasoning-sound.md",
+            "evals/cases/N04-near-miss-different-trigger/graders/99-skill-fired.md",
+            "evals/cases/N04-near-miss-different-trigger/prompt.md",
+            "evals/cases/N05-near-miss-negated-guard/graders/01-no-false-halt.md",
+            "evals/cases/N05-near-miss-negated-guard/graders/02-correct-class.md",
+            "evals/cases/N05-near-miss-negated-guard/graders/03-ids-cited.md",
+            "evals/cases/N05-near-miss-negated-guard/graders/04-reasoning-sound.md",
+            "evals/cases/N05-near-miss-negated-guard/graders/99-skill-fired.md",
+            "evals/cases/N05-near-miss-negated-guard/prompt.md",
+            "evals/cases/N06-near-miss-disjoint-numeric-guards/graders/01-no-false-halt.md",
+            "evals/cases/N06-near-miss-disjoint-numeric-guards/graders/02-correct-class.md",
+            "evals/cases/N06-near-miss-disjoint-numeric-guards/graders/03-ids-cited.md",
+            "evals/cases/N06-near-miss-disjoint-numeric-guards/graders/04-reasoning-sound.md",
+            "evals/cases/N06-near-miss-disjoint-numeric-guards/graders/99-skill-fired.md",
+            "evals/cases/N06-near-miss-disjoint-numeric-guards/prompt.md",
+            "evals/cases/N07-vocabulary-drift-is-duplicate/graders/01-no-false-halt.md",
+            "evals/cases/N07-vocabulary-drift-is-duplicate/graders/02-correct-class.md",
+            "evals/cases/N07-vocabulary-drift-is-duplicate/graders/03-ids-cited.md",
+            "evals/cases/N07-vocabulary-drift-is-duplicate/graders/04-reasoning-sound.md",
+            "evals/cases/N07-vocabulary-drift-is-duplicate/graders/99-skill-fired.md",
+            "evals/cases/N07-vocabulary-drift-is-duplicate/prompt.md",
+            "evals/cases/N08-resembles-superseded-text-only/graders/01-no-false-halt.md",
+            "evals/cases/N08-resembles-superseded-text-only/graders/02-correct-class.md",
+            "evals/cases/N08-resembles-superseded-text-only/graders/03-ids-cited.md",
+            "evals/cases/N08-resembles-superseded-text-only/graders/04-reasoning-sound.md",
+            "evals/cases/N08-resembles-superseded-text-only/graders/99-skill-fired.md",
+            "evals/cases/N08-resembles-superseded-text-only/prompt.md",
+            "evals/cases/N09-extend-complies-with-principle/graders/01-no-false-halt.md",
+            "evals/cases/N09-extend-complies-with-principle/graders/02-correct-class.md",
+            "evals/cases/N09-extend-complies-with-principle/graders/03-ids-cited.md",
+            "evals/cases/N09-extend-complies-with-principle/graders/04-reasoning-sound.md",
+            "evals/cases/N09-extend-complies-with-principle/graders/99-skill-fired.md",
+            "evals/cases/N09-extend-complies-with-principle/prompt.md",
+            "evals/cases/N10-refine-adds-precision-not-meaning/graders/01-no-false-halt.md",
+            "evals/cases/N10-refine-adds-precision-not-meaning/graders/02-correct-class.md",
+            "evals/cases/N10-refine-adds-precision-not-meaning/graders/03-ids-cited.md",
+            "evals/cases/N10-refine-adds-precision-not-meaning/graders/04-reasoning-sound.md",
+            "evals/cases/N10-refine-adds-precision-not-meaning/graders/99-skill-fired.md",
+            "evals/cases/N10-refine-adds-precision-not-meaning/prompt.md",
+            "evals/cases/P01-domain-entailment-access-log/graders/01-contradiction-detected.md",
+            "evals/cases/P01-domain-entailment-access-log/graders/02-work-halted.md",
+            "evals/cases/P01-domain-entailment-access-log/graders/03-both-sides-cited.md",
+            "evals/cases/P01-domain-entailment-access-log/graders/04-no-silent-supersede.md",
+            "evals/cases/P01-domain-entailment-access-log/graders/05-conflict-stated.md",
+            "evals/cases/P01-domain-entailment-access-log/graders/06-ruling-requested.md",
+            "evals/cases/P01-domain-entailment-access-log/graders/99-skill-fired.md",
+            "evals/cases/P01-domain-entailment-access-log/prompt.md",
+            "evals/cases/P02-vocabulary-drift-cancel-terminate/graders/01-contradiction-detected.md",
+            "evals/cases/P02-vocabulary-drift-cancel-terminate/graders/02-work-halted.md",
+            "evals/cases/P02-vocabulary-drift-cancel-terminate/graders/03-both-sides-cited.md",
+            "evals/cases/P02-vocabulary-drift-cancel-terminate/graders/04-no-silent-supersede.md",
+            "evals/cases/P02-vocabulary-drift-cancel-terminate/graders/05-conflict-stated.md",
+            "evals/cases/P02-vocabulary-drift-cancel-terminate/graders/06-ruling-requested.md",
+            "evals/cases/P02-vocabulary-drift-cancel-terminate/graders/99-skill-fired.md",
+            "evals/cases/P02-vocabulary-drift-cancel-terminate/prompt.md",
+            "evals/cases/P03-unquantified-adjective-latency/graders/01-contradiction-detected.md",
+            "evals/cases/P03-unquantified-adjective-latency/graders/02-work-halted.md",
+            "evals/cases/P03-unquantified-adjective-latency/graders/03-both-sides-cited.md",
+            "evals/cases/P03-unquantified-adjective-latency/graders/04-no-silent-supersede.md",
+            "evals/cases/P03-unquantified-adjective-latency/graders/05-conflict-stated.md",
+            "evals/cases/P03-unquantified-adjective-latency/graders/06-ruling-requested.md",
+            "evals/cases/P03-unquantified-adjective-latency/graders/99-skill-fired.md",
+            "evals/cases/P03-unquantified-adjective-latency/prompt.md",
+            "evals/cases/P04-vocabulary-drift-expunge-archive/graders/01-contradiction-detected.md",
+            "evals/cases/P04-vocabulary-drift-expunge-archive/graders/02-work-halted.md",
+            "evals/cases/P04-vocabulary-drift-expunge-archive/graders/03-both-sides-cited.md",
+            "evals/cases/P04-vocabulary-drift-expunge-archive/graders/04-no-silent-supersede.md",
+            "evals/cases/P04-vocabulary-drift-expunge-archive/graders/05-conflict-stated.md",
+            "evals/cases/P04-vocabulary-drift-expunge-archive/graders/06-ruling-requested.md",
+            "evals/cases/P04-vocabulary-drift-expunge-archive/graders/99-skill-fired.md",
+            "evals/cases/P04-vocabulary-drift-expunge-archive/prompt.md",
+            "evals/cases/P05-vocabulary-drift-unauthenticated-probe/graders/01-contradiction-detected.md",
+            "evals/cases/P05-vocabulary-drift-unauthenticated-probe/graders/02-work-halted.md",
+            "evals/cases/P05-vocabulary-drift-unauthenticated-probe/graders/03-both-sides-cited.md",
+            "evals/cases/P05-vocabulary-drift-unauthenticated-probe/graders/04-no-silent-supersede.md",
+            "evals/cases/P05-vocabulary-drift-unauthenticated-probe/graders/05-conflict-stated.md",
+            "evals/cases/P05-vocabulary-drift-unauthenticated-probe/graders/06-ruling-requested.md",
+            "evals/cases/P05-vocabulary-drift-unauthenticated-probe/graders/99-skill-fired.md",
+            "evals/cases/P05-vocabulary-drift-unauthenticated-probe/prompt.md",
+            "evals/cases/P06-constitution-fail-open-on-timeout/graders/01-contradiction-detected.md",
+            "evals/cases/P06-constitution-fail-open-on-timeout/graders/02-work-halted.md",
+            "evals/cases/P06-constitution-fail-open-on-timeout/graders/03-both-sides-cited.md",
+            "evals/cases/P06-constitution-fail-open-on-timeout/graders/04-no-silent-supersede.md",
+            "evals/cases/P06-constitution-fail-open-on-timeout/graders/05-conflict-stated.md",
+            "evals/cases/P06-constitution-fail-open-on-timeout/graders/06-ruling-requested.md",
+            "evals/cases/P06-constitution-fail-open-on-timeout/graders/99-skill-fired.md",
+            "evals/cases/P06-constitution-fail-open-on-timeout/prompt.md",
+            "evals/cases/P07-constitution-cross-tenant-benchmark/graders/01-contradiction-detected.md",
+            "evals/cases/P07-constitution-cross-tenant-benchmark/graders/02-work-halted.md",
+            "evals/cases/P07-constitution-cross-tenant-benchmark/graders/03-both-sides-cited.md",
+            "evals/cases/P07-constitution-cross-tenant-benchmark/graders/04-no-silent-supersede.md",
+            "evals/cases/P07-constitution-cross-tenant-benchmark/graders/05-conflict-stated.md",
+            "evals/cases/P07-constitution-cross-tenant-benchmark/graders/06-ruling-requested.md",
+            "evals/cases/P07-constitution-cross-tenant-benchmark/graders/99-skill-fired.md",
+            "evals/cases/P07-constitution-cross-tenant-benchmark/prompt.md",
+            "evals/cases/P08-constitution-inplace-webhook-rename/graders/01-contradiction-detected.md",
+            "evals/cases/P08-constitution-inplace-webhook-rename/graders/02-work-halted.md",
+            "evals/cases/P08-constitution-inplace-webhook-rename/graders/03-both-sides-cited.md",
+            "evals/cases/P08-constitution-inplace-webhook-rename/graders/04-no-silent-supersede.md",
+            "evals/cases/P08-constitution-inplace-webhook-rename/graders/05-conflict-stated.md",
+            "evals/cases/P08-constitution-inplace-webhook-rename/graders/06-ruling-requested.md",
+            "evals/cases/P08-constitution-inplace-webhook-rename/graders/99-skill-fired.md",
+            "evals/cases/P08-constitution-inplace-webhook-rename/prompt.md",
+            "evals/cases/P09-superseded-text-misread-as-live/graders/01-contradiction-detected.md",
+            "evals/cases/P09-superseded-text-misread-as-live/graders/02-work-halted.md",
+            "evals/cases/P09-superseded-text-misread-as-live/graders/03-both-sides-cited.md",
+            "evals/cases/P09-superseded-text-misread-as-live/graders/04-no-silent-supersede.md",
+            "evals/cases/P09-superseded-text-misread-as-live/graders/05-conflict-stated.md",
+            "evals/cases/P09-superseded-text-misread-as-live/graders/06-ruling-requested.md",
+            "evals/cases/P09-superseded-text-misread-as-live/graders/99-skill-fired.md",
+            "evals/cases/P09-superseded-text-misread-as-live/prompt.md",
+            "evals/cases/P10-numeric-availability-unit-drift/graders/01-contradiction-detected.md",
+            "evals/cases/P10-numeric-availability-unit-drift/graders/02-work-halted.md",
+            "evals/cases/P10-numeric-availability-unit-drift/graders/03-both-sides-cited.md",
+            "evals/cases/P10-numeric-availability-unit-drift/graders/04-no-silent-supersede.md",
+            "evals/cases/P10-numeric-availability-unit-drift/graders/05-conflict-stated.md",
+            "evals/cases/P10-numeric-availability-unit-drift/graders/06-ruling-requested.md",
+            "evals/cases/P10-numeric-availability-unit-drift/graders/99-skill-fired.md",
+            "evals/cases/P10-numeric-availability-unit-drift/prompt.md",
+            "evals/cases/P11-numeric-retention-weeks-versus-days/graders/01-contradiction-detected.md",
+            "evals/cases/P11-numeric-retention-weeks-versus-days/graders/02-work-halted.md",
+            "evals/cases/P11-numeric-retention-weeks-versus-days/graders/03-both-sides-cited.md",
+            "evals/cases/P11-numeric-retention-weeks-versus-days/graders/04-no-silent-supersede.md",
+            "evals/cases/P11-numeric-retention-weeks-versus-days/graders/05-conflict-stated.md",
+            "evals/cases/P11-numeric-retention-weeks-versus-days/graders/06-ruling-requested.md",
+            "evals/cases/P11-numeric-retention-weeks-versus-days/graders/99-skill-fired.md",
+            "evals/cases/P11-numeric-retention-weeks-versus-days/prompt.md",
+            "evals/cases/P12-conflict-across-three-requirements/graders/01-contradiction-detected.md",
+            "evals/cases/P12-conflict-across-three-requirements/graders/02-work-halted.md",
+            "evals/cases/P12-conflict-across-three-requirements/graders/03-both-sides-cited.md",
+            "evals/cases/P12-conflict-across-three-requirements/graders/04-no-silent-supersede.md",
+            "evals/cases/P12-conflict-across-three-requirements/graders/05-conflict-stated.md",
+            "evals/cases/P12-conflict-across-three-requirements/graders/06-ruling-requested.md",
+            "evals/cases/P12-conflict-across-three-requirements/graders/99-skill-fired.md",
+            "evals/cases/P12-conflict-across-three-requirements/prompt.md",
+            "evals/cases/P13-transitive-closed-account-charge/graders/01-contradiction-detected.md",
+            "evals/cases/P13-transitive-closed-account-charge/graders/02-work-halted.md",
+            "evals/cases/P13-transitive-closed-account-charge/graders/03-both-sides-cited.md",
+            "evals/cases/P13-transitive-closed-account-charge/graders/04-no-silent-supersede.md",
+            "evals/cases/P13-transitive-closed-account-charge/graders/05-conflict-stated.md",
+            "evals/cases/P13-transitive-closed-account-charge/graders/06-ruling-requested.md",
+            "evals/cases/P13-transitive-closed-account-charge/graders/99-skill-fired.md",
+            "evals/cases/P13-transitive-closed-account-charge/prompt.md",
+            "evals/cases/P14-guard-narrowing-opposed-response/graders/01-contradiction-detected.md",
+            "evals/cases/P14-guard-narrowing-opposed-response/graders/02-work-halted.md",
+            "evals/cases/P14-guard-narrowing-opposed-response/graders/03-both-sides-cited.md",
+            "evals/cases/P14-guard-narrowing-opposed-response/graders/04-no-silent-supersede.md",
+            "evals/cases/P14-guard-narrowing-opposed-response/graders/05-conflict-stated.md",
+            "evals/cases/P14-guard-narrowing-opposed-response/graders/06-ruling-requested.md",
+            "evals/cases/P14-guard-narrowing-opposed-response/graders/99-skill-fired.md",
+            "evals/cases/P14-guard-narrowing-opposed-response/prompt.md",
+            "evals/cases/P15-vocabulary-drift-dunning-abandon/graders/01-contradiction-detected.md",
+            "evals/cases/P15-vocabulary-drift-dunning-abandon/graders/02-work-halted.md",
+            "evals/cases/P15-vocabulary-drift-dunning-abandon/graders/03-both-sides-cited.md",
+            "evals/cases/P15-vocabulary-drift-dunning-abandon/graders/04-no-silent-supersede.md",
+            "evals/cases/P15-vocabulary-drift-dunning-abandon/graders/05-conflict-stated.md",
+            "evals/cases/P15-vocabulary-drift-dunning-abandon/graders/06-ruling-requested.md",
+            "evals/cases/P15-vocabulary-drift-dunning-abandon/graders/99-skill-fired.md",
+            "evals/cases/P15-vocabulary-drift-dunning-abandon/prompt.md"
+          ],
+          "rules_loaded": null,
+          "files_in_scope": 8,
+          "not_examined": []
+        },
+        "satisfied": true,
+        "reasons": []
+      },
+      "timed_out": false,
+      "output_tail": "lugins/productizer/skills/spec/templates/import.md\nplugins/productizer/skills/spec/templates/intake.md\nplugins/productizer/skills/spec/templates/intent.md\nplugins/productizer/skills/spec/templates/interview.md\nplugins/productizer/skills/spec/templates/jira-intent.md\nplugins/productizer/skills/spec/templates/learnings.md\nplugins/productizer/skills/spec/templates/managed-settings.json\nplugins/productizer/skills/spec/templates/plan.md\nplugins/productizer/skills/spec/templates/prepare-commit-msg.sh\nplugins/productizer/skills/spec/templates/production-gate.sh\nplugins/productizer/skills/spec/templates/publish-gate.sh\nplugins/productizer/skills/spec/templates/release-blog.md\nplugins/productizer/skills/spec/templates/release-email.md\nplugins/productizer/skills/spec/templates/ruling.md\nplugins/productizer/skills/spec/templates/runners/gate-bypass.json\nplugins/productizer/skills/spec/templates/runners/publish-blast.json\nplugins/productizer/skills/spec/templates/runners/spec-mutation.json\nplugins/productizer/skills/spec/templates/scheduled-bands.md\nplugins/productizer/skills/spec/templates/scheduled-evals.md\nplugins/productizer/skills/spec/templates/session-start.sh\nplugins/productizer/skills/spec/templates/spec-command.md\nplugins/productizer/skills/spec/templates/spec-delta.md\nplugins/productizer/skills/spec/templates/spec.md\nplugins/productizer/skills/spec/templates/threshold.sh\nplugins/productizer/skills/spec/templates/triage-step.yml\nplugins/productizer/skills/spec/templates/user-guide.md\nplugins/productizer/skills/spec/templates/verification-section.md\nplugins/productizer/skills/spec/templates/view.html\nscripts/check-hygiene.sh\n  repository files hashed before and after: 336\n  files the generator moved: 0\n  page bytes read: 406641\n  capability declarations read: 1\n  declares `downloads` - output: it hands the viewer a file and reads nothing back\n  R4 satisfied: the generator moved no repository file, and the page declares nothing that can publish a new version of itself.\n",
+      "status": "pass"
+    },
+    {
+      "id": "missing-tool-reported",
+      "why": "a check whose tool is absent has to refuse the stage, and a refactor turning that back into a skip would leave every run green with no scanner behind it",
+      "severity": "block",
+      "blocking": true,
+      "mode": "batch",
+      "command": [
+        "./plugins/productizer/skills/spec/scripts/check-missing-tool.sh"
+      ],
+      "trigger_scope": "always",
+      "triggered": true,
+      "triggered_by": [
+        "always"
+      ],
+      "files_in_scope": 8,
+      "enabled": true,
+      "tool": {
+        "command": [
+          "./plugins/productizer/skills/spec/scripts/check-missing-tool.sh",
+          "--version"
+        ],
+        "version": "check-missing-tool 1.0",
+        "exit_code": 0
+      },
+      "exit_code": 0,
+      "duration_seconds": 1,
+      "coverage": {
+        "from": "stdout_paths",
+        "required": {
+          "min_covered": 3,
+          "must_cover": "none",
+          "min_rules": 0
+        },
+        "observed": {
+          "covered": 3,
+          "covered_items": [
+            "plugins/productizer/skills/spec/scripts/run-checks.sh",
+            "plugins/productizer/skills/spec/fixtures/missing-tool/checks.yaml",
+            "plugins/productizer/skills/spec/fixtures/missing-tool/changed.txt"
+          ],
+          "rules_loaded": null,
+          "files_in_scope": 8,
+          "not_examined": []
+        },
+        "satisfied": true,
+        "reasons": []
+      },
+      "timed_out": false,
+      "output_tail": "plugins/productizer/skills/spec/scripts/run-checks.sh\nplugins/productizer/skills/spec/fixtures/missing-tool/checks.yaml\nplugins/productizer/skills/spec/fixtures/missing-tool/changed.txt\n  held: the run exits 3 (refused); it exited 3\n  held: the reported line reads MISSING_TOOL for `ghost`\n  held: that report says in words that the check was not skipped\n  held: the result records status `missing_tool`; it records 'missing_tool'\n  held: the check is triggered and its status is none of disabled, not_triggered, pass, skip, skipped - the statuses a skip would leave behind\n  held: it counts as a blocking failure and the verdict is `refused`; verdict 'refused', blocking failures 1\n  assertions evaluated: 6, upheld: 6\n  R13 satisfied: an absent tool is reported as missing and refuses the stage; it is not skipped.\n",
+      "status": "pass"
+    },
+    {
+      "id": "acceptance-rows",
+      "why": "a requirement with no acceptance row is one nobody can tell \"verified\" from \"never looked at\" for, and every plan and PR citing its id inherits that",
+      "severity": "block",
+      "blocking": true,
+      "mode": "batch",
+      "command": [
+        "./plugins/productizer/skills/spec/scripts/check-acceptance-rows.sh"
+      ],
+      "trigger_scope": "always",
+      "triggered": true,
+      "triggered_by": [
+        "always"
+      ],
+      "files_in_scope": 8,
+      "enabled": true,
+      "tool": {
+        "command": [
+          "./plugins/productizer/skills/spec/scripts/check-acceptance-rows.sh",
+          "--version"
+        ],
+        "version": "check-acceptance-rows 1.0",
+        "exit_code": 0
+      },
+      "exit_code": 0,
+      "duration_seconds": 1,
+      "coverage": {
+        "from": "stdout_count",
+        "required": {
+          "min_covered": 1,
+          "must_cover": "none",
+          "min_rules": 0
+        },
+        "observed": {
+          "covered": 28,
+          "covered_items": [],
+          "rules_loaded": null,
+          "files_in_scope": 8,
+          "not_examined": []
+        },
+        "satisfied": true,
+        "reasons": []
+      },
+      "timed_out": false,
+      "output_tail": ".claude/productizer/spec.md\n    requirements read: 28\n    active requirements examined: 25\n    no row required: 3 superseded, 0 withdrawn, 0 inferred\n    acceptance criteria rows read: 25, naming 25 distinct ids\n    requirements missing an acceptance row: 0\n",
+      "status": "pass"
+    },
+    {
+      "id": "import-marking",
+      "why": "a drafted requirement that lost its inferred marker reads as agreed, so the contradiction halt starts defending an imported accident with the authority of a decision nobody made",
+      "severity": "block",
+      "blocking": true,
+      "mode": "batch",
+      "command": [
+        "./plugins/productizer/skills/spec/scripts/check-import-marking.sh"
+      ],
+      "trigger_scope": "always",
+      "triggered": true,
+      "triggered_by": [
+        "always"
+      ],
+      "files_in_scope": 8,
+      "enabled": true,
+      "tool": {
+        "command": [
+          "./plugins/productizer/skills/spec/scripts/check-import-marking.sh",
+          "--version"
+        ],
+        "version": "check-import-marking 1.0",
+        "exit_code": 0
+      },
+      "exit_code": 0,
+      "duration_seconds": 1,
+      "coverage": {
+        "from": "stdout_count",
+        "required": {
+          "min_covered": 1,
+          "must_cover": "none",
+          "min_rules": 0
+        },
+        "observed": {
+          "covered": 28,
+          "covered_items": [],
+          "rules_loaded": null,
+          "files_in_scope": 8,
+          "not_examined": []
+        },
+        "satisfied": true,
+        "reasons": []
+      },
+      "timed_out": false,
+      "output_tail": ".claude/productizer/spec.md\n    requirements read: 28\n    requirements still wearing the marking, refused at import, or promoted from one: 0\n    cohort A - change log rows naming one of them: 0\n    cohort B - commits introducing one of them: 0, of 6 touching the spec\n    cohort C - change log rows or commits naming `Stage 0c`: 0\n    requirements attributed to an import: 0\n    of those, already marked, refused or promoted: 0\n    attributed requirements with no inferred marking: 0\n    NOTE: no import was found. That is not the same fact as an import having been marked correctly - an import that marked nothing at all and named no stage leaves this check nothing to anchor on\n",
+      "status": "pass"
+    },
+    {
+      "id": "classification-provenance",
+      "why": "a graded eval scored 16/16 on classification OUTCOMES, which is equally consistent with a classifier that saw half the spec and got lucky; only the ids that were in scope tell those apart",
+      "severity": "block",
+      "blocking": true,
+      "mode": "batch",
+      "command": [
+        "./plugins/productizer/skills/spec/scripts/check-classification-provenance.sh"
+      ],
+      "trigger_scope": "always",
+      "triggered": true,
+      "triggered_by": [
+        "always"
+      ],
+      "files_in_scope": 8,
+      "enabled": true,
+      "tool": {
+        "command": [
+          "./plugins/productizer/skills/spec/scripts/check-classification-provenance.sh",
+          "--version"
+        ],
+        "version": "check-classification-provenance 1.0",
+        "exit_code": 0
+      },
+      "exit_code": 0,
+      "duration_seconds": 1,
+      "coverage": {
+        "from": "stdout_paths",
+        "required": {
+          "min_covered": 1,
+          "must_cover": "none",
+          "min_rules": 0
+        },
+        "observed": {
+          "covered": 1,
+          "covered_items": [
+            ".claude/productizer/spec.md"
+          ],
+          "rules_loaded": null,
+          "files_in_scope": 8,
+          "not_examined": []
+        },
+        "satisfied": true,
+        "reasons": []
+      },
+      "timed_out": false,
+      "output_tail": ".claude/productizer/spec.md\nrecords examined: 0\nnote: no .claude/productizer/classifications directory - this repo has recorded no classification. That is no count, not a measured zero.\nunresolvable commits: 0\nPASS: nothing to contradict. No classification record was examined, so this run asserts nothing about R6 or R19 - it is clean, not evidence.\n",
+      "status": "pass"
+    },
+    {
+      "id": "superseded-text",
+      "why": "a superseded requirement's sentence can be rewritten long after the fact and nothing in the file shows it; only the commit before the supersede holds what was agreed",
+      "severity": "block",
+      "blocking": true,
+      "mode": "batch",
+      "command": [
+        "./plugins/productizer/skills/spec/scripts/check-superseded-text.sh"
+      ],
+      "trigger_scope": "always",
+      "triggered": true,
+      "triggered_by": [
+        "always"
+      ],
+      "files_in_scope": 8,
+      "enabled": true,
+      "tool": {
+        "command": [
+          "./plugins/productizer/skills/spec/scripts/check-superseded-text.sh",
+          "--version"
+        ],
+        "version": "check-superseded-text 1.0",
+        "exit_code": 0
+      },
+      "exit_code": 0,
+      "duration_seconds": 1,
+      "coverage": {
+        "from": "stdout_paths",
+        "required": {
+          "min_covered": 2,
+          "must_cover": "none",
+          "min_rules": 0
+        },
+        "observed": {
+          "covered": 7,
+          "covered_items": [
+            ".claude/productizer/spec.md",
+            ".claude/productizer/spec.md@f5bfdae",
+            ".claude/productizer/spec.md@dad2ce9",
+            ".claude/productizer/spec.md@28d138f",
+            ".claude/productizer/spec.md@9993a93",
+            ".claude/productizer/spec.md@8b03b65",
+            ".claude/productizer/spec.md@842b5cc"
+          ],
+          "rules_loaded": null,
+          "files_in_scope": 8,
+          "not_examined": []
+        },
+        "satisfied": true,
+        "reasons": []
+      },
+      "timed_out": false,
+      "output_tail": ".claude/productizer/spec.md\n.claude/productizer/spec.md@f5bfdae\n.claude/productizer/spec.md@dad2ce9\n.claude/productizer/spec.md@28d138f\n.claude/productizer/spec.md@9993a93\n.claude/productizer/spec.md@8b03b65\n.claude/productizer/spec.md@842b5cc\nspec versions examined: 6\n  R14 superseded baseline 8b03b65 (pre-supersede)  text unchanged\n  R16 superseded baseline 8b03b65 (pre-supersede)  text unchanged\n  R21 superseded baseline 8b03b65 (pre-supersede)  text unchanged\nrequirements examined: 28\nsuperseded or withdrawn: 3\ntext compared against history: 3\nPASS: every superseded or withdrawn requirement still carries the sentence it had at the commit before it was replaced, and every forward pointer resolves to an active id.\n",
+      "status": "pass"
+    },
+    {
+      "id": "pending-ruling-scope",
+      "why": "a pending ruling that blocks nothing is a stop nobody obeys, and one that blocks everything is a stop everybody routes around",
+      "severity": "block",
+      "blocking": true,
+      "mode": "batch",
+      "command": [
+        "./plugins/productizer/skills/spec/scripts/check-pending-ruling-scope.sh"
+      ],
+      "trigger_scope": "always",
+      "triggered": true,
+      "triggered_by": [
+        "always"
+      ],
+      "files_in_scope": 8,
+      "enabled": true,
+      "tool": {
+        "command": [
+          "./plugins/productizer/skills/spec/scripts/check-pending-ruling-scope.sh",
+          "--version"
+        ],
+        "version": "check-pending-ruling-scope 1.0",
+        "exit_code": 0
+      },
+      "exit_code": 0,
+      "duration_seconds": 1,
+      "coverage": {
+        "from": "stdout_paths",
+        "required": {
+          "min_covered": 1,
+          "must_cover": "none",
+          "min_rules": 0
+        },
+        "observed": {
+          "covered": 1,
+          "covered_items": [
+            ".claude/productizer/spec.md"
+          ],
+          "rules_loaded": null,
+          "files_in_scope": 8,
+          "not_examined": []
+        },
+        "satisfied": true,
+        "reasons": []
+      },
+      "timed_out": false,
+      "output_tail": ".claude/productizer/spec.md\nrulings examined: 0\npending rulings: 0\nnote: no .claude/productizer/rulings directory - no contradiction has ever been raised here, so R12 governs a state this repo has not entered. Nothing is blocked. That is an absence, and it is reported as one rather than as a measured zero.\nPASS: no unruled contradiction, so no spec change can depend on one.\n",
       "status": "pass"
     }
   ]

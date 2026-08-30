@@ -38,6 +38,10 @@ checks:
       min_covered: 1
 
   # --- shell linting -------------------------------------------------------
+    limitations:
+      - It sees only the files handed to it. Git history, commit messages and release bodies are outside its reach, and every one of those has leaked here and had to be swept by hand.
+      - The private half of the deny list is loaded at runtime and is absent in CI and in a fresh clone, so those runs check generic rules only. The run says so rather than staying quiet.
+
   - id: shell-lint
     why: these scripts run on other people's machines, and an unquoted expansion there is their problem, not ours
     when:
@@ -59,6 +63,9 @@ checks:
       min_covered: 1
 
   # --- the solver's own corpus --------------------------------------------
+    limitations:
+      - Runs at --severity=warning, which does NOT include SC2086, unquoted expansions. That was found when a deliberate SC2086 failed to turn the gate red.
+
   - id: solver-corpus
     why: precision must stay at 1.00 - a contradiction checker that halts on a non-conflict gets switched off, and then nothing is checked
     # Was `paths: ["**/contradiction-check.py"]`, so it only ran when the
@@ -113,6 +120,10 @@ checks:
   #
   # Code you can edit does not need an entry here: put `# stderr-ok: <reason>`
   # on the offending line instead. Same rule, same minimum, next to the code.
+    limitations:
+      - It is a second opinion on numeric bounds and mutually exclusive responses. Its CONSISTENT means not decided, never cleared.
+      - Recall was 0.70 on the corpus written first and 0.12 on a harder one, so the figure tracked the corpus rather than the checker.
+
   - id: stderr-suppression
     why: an error and a genuine no-match look identical once stderr is discarded, and this repo has already shipped three defects that hid in exactly that gap
     when:
@@ -163,6 +174,9 @@ checks:
   # UNREACHABLE IS NOT ABSENT. A repo the check cannot open exits 2 - refused -
   # and is never counted as "no spec there". Counting it as absent is how a
   # two-spec product reports as a one-spec product.
+    limitations:
+      - Fourteen suppressions remain, exempted by allowlist entries with written reasons. Three rest on a measured SIGPIPE from a deliberate cap, and they exempt the whole line - a genuine error on it would still be hidden.
+
   - id: spec-home
     why: two repos both holding a living spec means two allocators both handing out R42, and nothing in this lifecycle noticed until now
     when:
@@ -203,6 +217,9 @@ checks:
   #
   # UNREADABLE IS NOT ABSENT. A rulings directory nobody can open exits 2, never
   # 0 - a directory nobody can open is exactly where an unasked question hides.
+    limitations:
+      - A repo it cannot open is refused, never counted as having no spec. But a product whose repos are not all declared is invisible to it entirely.
+
   - id: ruling-requested
     why: a contradiction that halted without a drafted ruling leaves nobody holding the question, and the spec shows nothing waiting
     when:
@@ -234,6 +251,10 @@ checks:
   #
   # `always`, because the failure does not arrive in a diff: a key stops being
   # honoured when the host changes, not when the template does.
+    limitations:
+      - It observes that a ruling was drafted, not that the question was good. A ruling can pass every field check and still ask something nobody can answer.
+      - A contradiction stopped in conversation with nothing written leaves it nothing to find.
+
   - id: template-frontmatter
     why: a mistyped frontmatter key does not fail, it falls back to a default, so a template that asked for a restricted tool set silently gets the unrestricted one
     when:
@@ -254,3 +275,390 @@ checks:
       from: stdout_count
       pattern: '([0-9]+) file\(s\) checked'
       min_covered: 1
+
+  # --- the guide the release ships with ---------------------------------------
+  #
+  # R9 says the lifecycle shall regenerate the user guide from the active
+  # requirements when a release is prepared. Nothing did, and it was not a
+  # theoretical gap: v4.8.0 and v4.8.1 both shipped from a hand-edited GUIDE.md.
+  #
+  # `--check` REGENERATES INTO MEMORY AND WRITES NOTHING, which is the only way
+  # a check may touch a file somebody edits. A check that quietly fixed the
+  # guide would report a pass on a release nobody had read the guide for.
+  #
+  # `always`, deliberately not a path trigger. Drift does arrive in a diff of
+  # either file, but a paths trigger reports `not_triggered` on every other
+  # commit, and this is the one fact worth knowing on the commit where a release
+  # is cut. It reads two files in under a tenth of a second.
+  #
+  # AN UNREADABLE SPEC IS 3, NOT 0. A guide generated from a spec nobody could
+  # open would describe a product nobody agreed to, so it refuses to render a
+  # count it could not measure - and refused is not a pass.
+    limitations:
+      - It checks the frontmatter of the agent templates only. A key the host silently ignores still reads as valid here.
+
+  - id: guide-current
+    why: two releases shipped from a hand-edited guide, and a guide describing behaviour the spec never agreed to reads exactly like one that does
+    when:
+      always: true
+    severity: block
+    requires:
+      - ./plugins/productizer/skills/spec/scripts/build-guide.sh
+      - python3
+    version_command: [./plugins/productizer/skills/spec/scripts/build-guide.sh, --version]
+    mode: batch
+    command: [./plugins/productizer/skills/spec/scripts/build-guide.sh, --check]
+    timeout_seconds: 60
+    exit_codes:
+      pass: [0]
+      fail: [1]        # the committed guide is out of date with the spec
+      refused: [2, 3]  # no markers to write between, or a spec that could not be read
+    coverage:
+      # The script's own count of active requirements it rendered. A run that
+      # rendered none never prints this line - it exits 3 - so a zero here is
+      # impossible rather than merely unlikely.
+      from: stdout_count
+      pattern: '([0-9]+) active requirement\(s\) rendered'
+      min_covered: 1
+
+  # --- a view that writes back, or a page that can republish itself ---------
+  #
+  # R4 says every published view shall be read-only WITH RESPECT TO THE SPEC.
+  # That is two obligations failing in different places, so one check asserts
+  # both: the generator writes nothing into the tree (every file hashed before
+  # and after, content AND mtime, generating into a temporary --out), and the
+  # page it produces declares no capability that can publish a new version of
+  # itself. `downloads` is output and passes. A capability name this check
+  # cannot classify also fails, because an unrecognised capability has not been
+  # shown to be output-only - failing safe is the point.
+  #
+  # `always`, because neither failure arrives in a diff: the page's capability
+  # is decided by the generator, and a stray write can come from anything it
+  # calls.
+  #
+  # A PAGE THAT COULD NOT BE BUILT IS EXIT 2, never "0 capabilities declared".
+    limitations:
+      - It compares the generated section against the spec. The hand-written prose around it can say anything, and nothing checks that.
+
+  - id: view-read-only
+    why: a view that writes into the repo, or a page that can save new versions of itself, makes the provenance line under every panel false - the page becomes a second source of truth that can disagree with the repo
+    when:
+      always: true
+    severity: block
+    requires: [./plugins/productizer/skills/spec/scripts/check-view-readonly.sh]
+    version_command: [./plugins/productizer/skills/spec/scripts/check-view-readonly.sh, --version]
+    mode: batch
+    command: [./plugins/productizer/skills/spec/scripts/check-view-readonly.sh]
+    timeout_seconds: 180
+    exit_codes:
+      pass: [0]
+      fail: [1]        # a repository file moved, or the page declared something it may not
+      refused: [2]     # no work tree, no builder, or a page that could not be generated
+    coverage:
+      # One bare path per repository file hashed. `must_cover: none` and NOT
+      # all_triggering, deliberately: this examines the whole tree rather than
+      # the change, so a commit that DELETES a file would name a path that no
+      # longer exists and the check would be called hollow for being right. The
+      # real hollowness guard is inside the check - an empty file list is exit 2.
+      from: stdout_paths
+      pattern: '^(\S+)$'
+      must_cover: none
+      min_covered: 1
+
+  # --- an absent tool must be reported missing, not skipped -----------------
+  #
+  # R13. The behaviour lives in run-checks.sh and was demonstrated by hand; a
+  # demonstration is not a test. Nothing stopped a refactor turning
+  # `missing_tool` back into a skip while every run stayed green, because a
+  # skipped check is invisible: no finding, no failure, no line anyone reads.
+  #
+  # Six things are asserted separately, and the last one is the one that
+  # matters: that it counts as a blocking failure with verdict `refused`. A
+  # status written into a file that does not change the verdict is a skip
+  # wearing a different name.
+  #
+  # The fixture's own premise is guarded: if its declared tool turns out to be
+  # installed, the case was never tested and that is exit 2 - unmeasured, not a
+  # pass.
+    limitations:
+      - It reads what the page ASKS for. A capability granted in the publish call and never used by the page leaves no trace in the file.
+      - The forbidden-name list comes from the reference doc, not the live runtime roster. An unrecognised name fails safe, but the classification is unverified.
+      - The two hashes bracket the generator's run, so anything else writing to the tree in that window is attributed to it.
+
+  - id: missing-tool-reported
+    why: a check whose tool is absent has to refuse the stage, and a refactor turning that back into a skip would leave every run green with no scanner behind it
+    when:
+      always: true
+    severity: block
+    requires: [./plugins/productizer/skills/spec/scripts/check-missing-tool.sh]
+    version_command: [./plugins/productizer/skills/spec/scripts/check-missing-tool.sh, --version]
+    mode: batch
+    command: [./plugins/productizer/skills/spec/scripts/check-missing-tool.sh]
+    timeout_seconds: 120
+    exit_codes:
+      pass: [0]
+      fail: [1]        # an absent tool is no longer reported the way R13 requires
+      refused: [2]     # no fixture, no runner, or the fixture's tool turned out to be installed
+    coverage:
+      # The three files it opened: the runner under test and the two fixture
+      # files. A run that printed fewer opened fewer, and did not run the case.
+      from: stdout_paths
+      pattern: '^(\S+)$'
+      must_cover: none
+      min_covered: 3
+
+  # --- a requirement nobody said how to prove ---------------------------------
+  #
+  # R8 says the lifecycle shall allocate the next unused id AND RECORD IT IN THE
+  # ACCEPTANCE CRITERIA TABLE. `validate-spec.py` owns the id half. Nothing owned
+  # the other clause, and its failure is silent: a requirement lands, gets cited
+  # by a plan, a branch and a PR title, and never acquires a row saying what
+  # would prove it.
+  #
+  # A ROW IS NOT DEMANDED OF SUPERSEDED, WITHDRAWN OR INFERRED REQUIREMENTS. The
+  # first two are frozen records. The third is references/import.md:70, which
+  # says an inferred requirement gets no row precisely because this comparison is
+  # what answers "do the tests assert the criteria". Demanding one is not a
+  # stricter check, it is a wrong one that goes permanently red against a correct
+  # spec.
+  #
+  # `always`, because the failure does not arrive in a diff: a row goes missing
+  # when a requirement is added elsewhere in the file, not when the acceptance
+  # table is edited. The table is the thing that did NOT change.
+  #
+  # MEASURED 2026-08-30: 25 active, 25 rows, 0 missing - so it lands blocking
+  # rather than advisory. The count prints on every run, so if it ever has to
+  # drop to `advise`, the day to promote it back is not a judgement call.
+    limitations:
+      - It exercises batch mode and the PATH-lookup branch. The executable-path branch and per_file mode are untested.
+
+  - id: acceptance-rows
+    why: a requirement with no acceptance row is one nobody can tell "verified" from "never looked at" for, and every plan and PR citing its id inherits that
+    when:
+      always: true
+    severity: block
+    requires: [./plugins/productizer/skills/spec/scripts/check-acceptance-rows.sh]
+    version_command: [./plugins/productizer/skills/spec/scripts/check-acceptance-rows.sh, --version]
+    mode: batch
+    command: [./plugins/productizer/skills/spec/scripts/check-acceptance-rows.sh]
+    timeout_seconds: 60
+    exit_codes:
+      pass: [0]
+      fail: [1]        # an active requirement with no row, named by id and line
+      refused: [2]     # a spec that could not be read or could not be parsed
+    coverage:
+      # Every requirement PARSED, not the subset that produced findings.
+      # "0 missing rows" is only a claim about a spec somebody actually parsed.
+      from: stdout_count
+      pattern: 'requirements read:\s*([0-9]+)'
+      min_covered: 1
+
+  # --- an import that reads as agreed -----------------------------------------
+  #
+  # R10. `build-view.sh` RENDERS the inferred status and nothing asserted it was
+  # ever applied - the view's own comment calls an unmarked import "the precise
+  # failure the inferred status exists to prevent". Unmarked, the audit trail
+  # records a decision nobody made, and the Stage 2 halt starts defending an
+  # imported accident with the authority of a ratification.
+  #
+  # THERE IS NO RELIABLE SIGNAL THAT AN IMPORT HAPPENED, AND THE CHECK SAYS SO ON
+  # EVERY RUN. Stage 0c writes no artifact and sets no config key. The obvious
+  # signal - the word "import" in a commit message - was built and MEASURED
+  # FIRST, and attributed six requirements to an import in a fixture where four
+  # were agreed one at a time. On THIS repo that is not hypothetical: it is a
+  # lifecycle tool WITH an import stage, so a requirement about importing carries
+  # the word while having nothing to do with a Stage 0c run. A check that fails
+  # on a correct spec gets switched off.
+  #
+  # So detection is structural: a spec holding an inferred requirement is a spec
+  # an import touched. From each MARKED requirement it reaches the batch - the
+  # change-log row naming it, and the commit that INTRODUCED it, oldest first so
+  # a later reflow is not read as the import - and demands the marking of every
+  # sibling. `Stage 0c` is the one piece of prose trusted, being a stage
+  # identifier rather than an English word.
+  #
+  # THE HOLE, STATED: an import that marked NOTHING and named no stage is
+  # invisible here, because both structural cohorts start from a marker. The run
+  # prints all three cohort tallies and says in words that no import was FOUND,
+  # which is not the same fact as an import having been marked correctly.
+  # Closing it needs an artifact Stage 0c does not write.
+  #
+  # GIT IS PART OF THE INPUT. A history that cannot be walked is exit 2 with that
+  # cohort printed as an em dash - never as 0 commits.
+    limitations:
+      - It asserts a row EXISTS, never that the row is true. A row saying nothing asserts this satisfies it exactly as well as a real verifier.
+
+  - id: import-marking
+    why: a drafted requirement that lost its inferred marker reads as agreed, so the contradiction halt starts defending an imported accident with the authority of a decision nobody made
+    when:
+      always: true
+    severity: block
+    requires: [./plugins/productizer/skills/spec/scripts/check-import-marking.sh]
+    version_command: [./plugins/productizer/skills/spec/scripts/check-import-marking.sh, --version]
+    mode: batch
+    command: [./plugins/productizer/skills/spec/scripts/check-import-marking.sh]
+    timeout_seconds: 120
+    exit_codes:
+      pass: [0]
+      fail: [1]        # a requirement attributed to an import with no marking
+      refused: [2]     # an unparseable spec, or a git history that could not be walked
+    coverage:
+      # Every requirement PARSED. Deliberately NOT the attribution count, which
+      # is legitimately 0 on a repo that was never imported and would make every
+      # honest run read as hollow.
+      from: stdout_count
+      pattern: 'requirements read:\s*([0-9]+)'
+      min_covered: 1
+
+  # --- a classification nobody can check ------------------------------------
+  #
+  # R6 says an intent is classified against the WHOLE living spec. A graded eval
+  # scored 16/16 on OUTCOMES, which is equally consistent with a classifier that
+  # read all 25 active requirements and one that read the first eight and got
+  # lucky on a small spec. Outcomes cannot separate those, and the gap widens
+  # with every requirement added. What separates them is the list of ids that
+  # were actually in front of it.
+  #
+  # R19 says an unreachable spec home is a stop, not a classification against a
+  # remembered copy. Written as a rule it is enforced by whoever remembers it.
+  # Written as a hash it is enforced by arithmetic: no readable spec home means
+  # no hash, the writer refuses to emit a record without one and creates nothing,
+  # and this check refuses a record that has none. Classifying from a remembered
+  # copy stops being forbidden and becomes impossible to RECORD.
+  #
+  # THE ONE PLACE AN EM DASH IS REFUSED. Everywhere else in this lifecycle an
+  # unmeasured value is an em dash. Here the correct answer to an unreachable
+  # spec is NO RECORD, so a record that honestly writes the gap in is a
+  # classification that should never have happened wearing the paperwork of one
+  # that did.
+  #
+  # A RECORD MADE AGAINST AN OLDER SPEC IS NOT A FINDING. The comparison is
+  # anchored to the commit the record cites, not to the spec today. The normal
+  # intake flow is classify, then merge the delta - so anchoring to today would
+  # take this red on every historical record the first time a requirement was
+  # added, and a check that is always red gets deleted.
+  #
+  # `always`, because the failure does not arrive in a diff: an intent is
+  # classified against half a spec and nothing in the repo changes.
+    limitations:
+      - An import that marked nothing at all and named no stage is invisible: both structural cohorts start from a marker. The run says no import was FOUND, which is not the same fact as an import having been marked correctly. Closing this needs an artifact Stage 0c does not write.
+
+  - id: classification-provenance
+    why: a graded eval scored 16/16 on classification OUTCOMES, which is equally consistent with a classifier that saw half the spec and got lucky; only the ids that were in scope tell those apart
+    when:
+      always: true
+    severity: block
+    requires: [./plugins/productizer/skills/spec/scripts/check-classification-provenance.sh]
+    version_command: [./plugins/productizer/skills/spec/scripts/check-classification-provenance.sh, --version]
+    mode: batch
+    command: [./plugins/productizer/skills/spec/scripts/check-classification-provenance.sh]
+    timeout_seconds: 60
+    exit_codes:
+      pass: [0]        # every record stands up, or there are none and it says so
+      fail: [1]        # a truncated scope list, a hash that does not match, a missing or placeholder hash, two records for one intent, or a fifth classification value
+      refused: [2]     # no work tree, no spec, an unreadable store or record, or a recorded commit this clone cannot resolve
+    coverage:
+      # Files actually opened, one per line. The spec is always one of them, so
+      # a run that opened nothing is a bug rather than a repo with no records.
+      # `must_cover` omitted deliberately: an `always` check taking no {files},
+      # the same shape as ruling-requested.
+      from: stdout_paths
+      pattern: '^(\S+)$'
+      min_covered: 1
+
+  # --- a replaced requirement rewritten years later --------------------------
+  #
+  # R3's marking half is readable in the file in front of you. Its TEXT half is
+  # not readable there at all: the spec always says whatever it currently says,
+  # and a superseded requirement whose sentence was quietly rewritten looks
+  # exactly like one nobody touched. The original survives only in git.
+  #
+  # This is the first check here to take GIT HISTORY as an input, and it reads
+  # what a commit USED TO SAY rather than what a commit changed. A diff-only
+  # gate sees an edit at the moment it is proposed and never again - which is
+  # how both of this repo's real leaks survived: one in a blob, one in a commit
+  # message, neither visible to any diff after the commit that made it.
+  #
+  # The baseline is chosen PER REQUIREMENT: the newest commit at which that
+  # requirement was still active. One ref cannot be that commit for every id,
+  # which is why validate-spec.py --baseline cannot answer R3.
+  #
+  # `always`. The edit that matters was merged some commits ago and is, to
+  # every diff since, simply the agreed text.
+  #
+  # min_covered: 2 is deliberate. One covered path means the spec was read and
+  # NO history was - precisely the run that answers nothing while exiting 0.
+    limitations:
+      - A classification that left no record at all is invisible. Zero recorded is not detectable as an intake that classified in conversation and wrote nothing.
+      - It proves the scope list matches the spec it names. That the named commit is the RIGHT one is established by the writer, not by this.
+
+  - id: superseded-text
+    why: a superseded requirement's sentence can be rewritten long after the fact and nothing in the file shows it; only the commit before the supersede holds what was agreed
+    when:
+      always: true
+    severity: block
+    requires:
+      - ./plugins/productizer/skills/spec/scripts/check-superseded-text.sh
+      - ./plugins/productizer/skills/spec/scripts/spec-requirements.sh
+      - git
+    version_command: [./plugins/productizer/skills/spec/scripts/check-superseded-text.sh, --version]
+    mode: batch
+    command: [./plugins/productizer/skills/spec/scripts/check-superseded-text.sh]
+    timeout_seconds: 120
+    exit_codes:
+      pass: [0]
+      fail: [1]        # text altered, marker removed, or a pointer to nothing
+      refused: [2]     # a shallow clone, an untracked spec, a spec with no requirements
+    coverage:
+      from: stdout_paths
+      pattern: '^(\S+)$'
+      min_covered: 2
+
+  # --- a spec change merged under a live contradiction ------------------------
+  #
+  # R12. The load-bearing word is DEPENDS. references/rulings.md: "A pending
+  # ruling blocks its own delta and nothing else. Unrelated intents keep
+  # flowing." A check refusing every spec change while any ruling is pending
+  # would enforce the opposite of R12 while passing for it - and would fail
+  # slowly, by teaching people to stop routing work through intake at all.
+  #
+  # Scope is derived from the ruling itself: the requirement quoted in its
+  # `## The conflict` section, plus the ids in the concern row citing it.
+  # Everything else is REPORTED as allocated and let through, on its own line,
+  # so the decision not to block is visible rather than silent.
+  #
+  # `always`, because the window a pending ruling holds open starts at the
+  # commit that raised it - older than whatever is under review now - and a
+  # ruling raised in a different PR governs this one.
+  #
+  # UNREADABLE IS NOT ABSENT. No rulings directory is clean and says so: R12
+  # governs a state this repo has never entered. A rulings directory that
+  # exists and cannot be listed is exit 2 - that is where an unruled
+  # contradiction hides.
+    limitations:
+      - A requirement that ENTERS the repo already superseded and already rewritten cannot be caught: its first commit is the only baseline there is.
+      - A shallow clone is refused rather than passed, which means CI must fetch full history for this to measure anything.
+
+  - id: pending-ruling-scope
+    why: a pending ruling that blocks nothing is a stop nobody obeys, and one that blocks everything is a stop everybody routes around
+    when:
+      always: true
+    severity: block
+    requires:
+      - ./plugins/productizer/skills/spec/scripts/check-pending-ruling-scope.sh
+      - ./plugins/productizer/skills/spec/scripts/spec-requirements.sh
+      - git
+    version_command: [./plugins/productizer/skills/spec/scripts/check-pending-ruling-scope.sh, --version]
+    mode: batch
+    command: [./plugins/productizer/skills/spec/scripts/check-pending-ruling-scope.sh]
+    timeout_seconds: 120
+    exit_codes:
+      pass: [0]
+      fail: [1]        # a spec change depending on an unruled contradiction
+      refused: [2]     # a ruling that cannot be scoped, or a window out of reach
+    coverage:
+      from: stdout_paths
+      pattern: '^(\S+)$'
+      min_covered: 1
+    limitations:
+      - The incoming behaviour merged under a sentence with a different EARS trigger than the contested requirement is not recognised. Closing it needs a similarity threshold, which starts refusing unrelated intents - the failure rulings.md names.
