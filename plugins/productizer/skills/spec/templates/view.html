@@ -59,7 +59,7 @@ border-left:3px solid var(--crit);border-radius:9px;padding:13px 15px;background
 /* ---------- circular loop ---------- */
 .ringwrap{position:relative;width:100%;max-width:540px;margin:4px auto 0;aspect-ratio:1}
 .ringsvg{position:absolute;inset:0;width:100%;height:100%;color:var(--line)}
-.arc{fill:none;stroke:var(--line);stroke-width:2;transition:stroke .25s}
+.arc{fill:none;stroke:var(--line);stroke-width:2;color:var(--line);transition:stroke .25s,color .25s}
 .arc.lit{stroke:var(--accent);color:var(--accent)}
 .ringnodes{position:absolute;inset:0}
 .rnode{position:absolute;transform:translate(-50%,-50%);width:104px;height:104px;border-radius:999px;
@@ -67,10 +67,12 @@ background:var(--surface);border:1px solid var(--line);cursor:pointer;display:fl
 align-items:center;justify-content:center;gap:2px;padding:0;
 transition:border-color .2s,transform .2s,box-shadow .2s,background .2s}
 .rnode:hover{border-color:var(--muted);transform:translate(-50%,-50%) scale(1.04)}
-.rnode .rn{font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:.08em}
+.rnode .rn{font-size:19px;font-weight:600;letter-spacing:-.02em;color:var(--text);font-variant-numeric:tabular-nums;line-height:1}
+.rnode .rn.zero{color:var(--muted);opacity:.45;font-weight:500}
+.rnode .rsn{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:.1em;margin-bottom:1px}
 .rnode .rt{font-size:14px;font-weight:600;letter-spacing:-.01em}
 .rnode.live{border-color:var(--ok)}
-.rnode.live .rn{color:var(--ok)}
+.rnode.live .rsn{color:var(--ok)}
 .rnode.on{border-color:var(--accent);background:var(--raised);box-shadow:0 0 0 4px rgba(47,129,247,.14)}
 .rnode.on .rt{color:var(--accent)}
 .hub{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:186px;height:186px;
@@ -79,8 +81,21 @@ flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:
 .hubn{font-family:var(--mono);font-size:10px;color:var(--accent);letter-spacing:.1em}
 .hubt{font-size:22px;font-weight:600;letter-spacing:-.02em}
 .hubg{font-family:var(--mono);font-size:10.5px;color:var(--muted);line-height:1.4;margin-top:4px}
+/* The hub is the one thing in the ring that is not a stage. It is the person
+   the ring runs around, and the number is what is waiting on them. Zero is
+   drawn quiet rather than green: nothing waiting is the normal state, not an
+   achievement, and a celebratory zero here would make the loud state look
+   ordinary by comparison. */
+.hubwho{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;color:var(--muted)}
+.hubbig{font-size:40px;font-weight:600;letter-spacing:-.03em;line-height:1;
+color:#D29922;font-variant-numeric:tabular-nums}
+.hubbig.zero{color:var(--muted);opacity:.5}
+.hubwhat{font-size:11.5px;color:var(--muted);line-height:1.45;margin-top:5px;max-width:15ch}
+.hubback{font-family:var(--mono);font-size:9px;letter-spacing:.08em;color:var(--muted);
+opacity:.75;margin-top:6px}
+
 .rnode.human{border-color:#D29922}
-.rnode.human .rn{color:#D29922}
+.rnode.human .rsn{color:#D29922}
 .rnode .ract{font-family:var(--mono);font-size:9px;letter-spacing:.08em;color:var(--muted);
 text-transform:uppercase;margin-top:1px}
 .rnode.human .ract{color:#D29922}
@@ -416,7 +431,12 @@ a.h-sub:hover{text-decoration-color:var(--crit)}
 .limid{font-size:12px;color:var(--text)}
 .limn{margin-left:auto;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
 .limlist{margin:0;padding:10px 12px 12px 30px;list-style:disc}
-.limlist li{font-size:12.5px;line-height:1.65;color:var(--muted);margin:0 0 7px;max-width:92ch}
+.limlist li{font-size:12.5px;line-height:1.65;color:var(--muted);margin:0 0 9px;max-width:92ch}
+.limtxt{display:block;margin-bottom:5px}
+/* The button sits under its own limitation rather than beside it: these run to
+   three lines, and a control tucked at the end of a wrapped paragraph is one
+   nobody finds. */
+.limlist .cp{font-size:10.5px;padding:3px 8px}
 .limlist li:last-child{margin-bottom:0}
 .limlist li b{color:var(--text)}
 /* The undeclared card reads as a gap rather than a finding, because that is
@@ -483,10 +503,25 @@ function nodes(){
     h += '<button class="rnode '+s.actor+(s.live?" live":"")+'" data-i="'+i+'" '
       +  'id="stage-'+s.n+'" '
       +  'style="left:'+(p.x/540*100)+'%;top:'+(p.y/540*100)+'%">'
-      +  '<span class="rn">'+s.n+'</span><span class="rt">'+s.name+'</span>'
+      +  '<span class="rsn">'+s.n+'</span>'
+      +  '<span class="rn'+(s.items?"":" zero")+'" title="cards this stage is holding, the same cards the Board draws">'+s.items+'</span>'
+      +  '<span class="rt">'+s.name+'</span>'
       +  '<span class="ract">'+(s.actor==="human"?"you":"agent")+'</span></button>';
   }
   document.getElementById("nodes").innerHTML=h;
+}
+// The hub belongs to the person, not to whichever stage was clicked last. It
+// shows what is waiting on a human and goes back to saying so, because the
+// selected stage is already named in three other places on this panel.
+function hubHuman(){
+  var el = document.getElementById("hub");
+  if (!el) return;
+  el.innerHTML =
+    '<span class="hubwho">WAITING ON YOU</span>'
+    + '<span class="hubbig' + (HUMAN ? '' : ' zero') + '">' + esc(HUMAN) + '</span>'
+    + '<span class="hubwhat">' + (HUMAN
+        ? 'thing' + (HUMAN === 1 ? '' : 's') + ' only a person can move'
+        : 'nothing is held on a person') + '</span>';
 }
 function pick(i,m){
   var s=S[i]; CUR=i; CURM = (m==null?0:m);
@@ -494,7 +529,8 @@ function pick(i,m){
   document.querySelectorAll(".arc").forEach(function(a,k){ a.classList.toggle("lit", k===i); });
   document.getElementById("hub").innerHTML =
     '<span class="hubn">STAGE '+esc(s.n)+'</span><span class="hubt">'+esc(s.name)+'</span>'
-    + '<span class="hubg">'+esc(s.gate)+'</span>';
+    + '<span class="hubg">'+esc(s.gate)+'</span>'
+    + '<span class="hubback">CLICK THE HUB FOR WHAT IS ON YOU</span>';
   document.getElementById("dnum").textContent="STAGE "+s.n;
   document.getElementById("dname").textContent=s.name;
   var b=document.getElementById("dbadge");
@@ -538,7 +574,13 @@ function paintMod(md){
   }).join("");
 }
 var CUR=CUR0, CURM=0;
-nodes(); pick(CUR0,0);
+nodes(); pick(CUR0,0); hubHuman();
+// The hub opens as the person and returns to them on click. pick() overwrites
+// it with the selected stage, so this runs AFTER pick on load - order matters,
+// and getting it wrong shows a stage where the person should be.
+(function(){ var h=document.getElementById("hub");
+  if(h){ h.style.cursor="pointer"; h.title="what is waiting on a person";
+         h.addEventListener("click", hubHuman); } })();
 document.getElementById("dmod").addEventListener("change",function(e){
   CURM=+e.target.value; paintMod(S[CUR].mods[CURM]);
 });

@@ -755,6 +755,16 @@ EXTLINK = ('<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-wi
            'stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7"/>'
            '<path d="M9 7h8v8"/></svg>')
 
+LIMPROMPT = (
+    'In %s, the declared check `%s` records this limitation:\n\n'
+    '  %s\n\n'
+    'Read the check itself and tell me three things. Is that still true? Is it '
+    'wider or narrower than the sentence says? And what would it take to close '
+    'it?\n\n'
+    'If closing it is not worth doing, say so and say why - a limitation '
+    'somebody examined and decided to keep is worth more than one nobody read. '
+    'Change no file until I answer.')
+
 def cp(text, label='copy prompt'):
     return '<button class="cp" data-copy="%s">%s</button>' % (esc(text), esc(label))
 
@@ -1213,12 +1223,31 @@ else:
                               % (len(inf_promoted), _rej)), '', style=WIDE))
 
 # --- kanban ---------------------------------------------------------------
+def short(text, cap=96):
+    """A card is a glance. Take the first sentence, and only that.
+
+    Truncation is marked with an ellipsis so a shortened note never reads as a
+    complete one - a card that silently ends early makes a partial claim look
+    whole, which is the same failure as rendering unknown as zero.
+    """
+    t = ' '.join((text or '').split())
+    if not t:
+        return ''
+    m = re.match(r'^(.{20,%d}?[.!?])\s' % cap, t)
+    if m:
+        one = m.group(1)
+        return one if len(one) <= cap else one[:cap - 1].rstrip(' ,;:-') + '\u2026'
+    if len(t) <= cap:
+        return t
+    return t[:cap - 1].rstrip(' ,;:-') + '\u2026'
+
+
 def card(cid, title, note='', level='', href='', go=''):
     """A card in a board column. A card at 'att' or 'warn' is something holding
     work, so it is a link off the board to the thing that unholds it - the
     ruling, the check that failed, the row with the action on it. A card at ''
     is just where a piece of work sits and stays a div."""
-    n = '<span class="kc-n">%s</span>' % esc(note) if note else ''
+    n = '<span class="kc-n">%s</span>' % esc(short(note)) if note else ''
     if not href:
         return ('<div class="kc %s"><span class="kc-id mono">%s</span>'
                 '<span class="kc-t">%s</span>%s</div>' % (level, esc(cid), esc(title), n))
@@ -1272,6 +1301,20 @@ for i, r in enumerate(releases):
         continue
     cols[5][1].append(card(r['ver'], r['title'], 'shipped, never tagged — you press publish', 'warn',
                            href=REL_ID[i], go='→ Releases · this version'))
+
+# Which stage each board column belongs to. The Board and the ring are the same
+# cards counted twice, so they are derived from one list rather than two.
+COL_STAGE = ['1', '2', '3', '5', '6', '8']
+STAGE_ITEMS = {}
+for _ci, _cs in enumerate(COL_STAGE):
+    STAGE_ITEMS[_cs] = STAGE_ITEMS.get(_cs, 0) + len(cols[_ci][1])
+
+# What is on the PERSON. Stage 1 is theirs by the legend's own words - the
+# intent enters there - and everything else here is a card that is HOLDING work
+# rather than moving it: a contradiction nobody ruled, a check that did not
+# pass, a version shipped and never announced. Each is a thing only a person
+# can unhold.
+HUMAN_ITEMS = len(cols[0][1]) + contra_open + len(CHK_ACT) + len(cols[5][1])
 
 kan_total = sum(len(c[1]) for c in cols)
 kanban = '<div class="kanban">' + ''.join(
@@ -1604,6 +1647,7 @@ for sid in ['1', '2', '3', '4', '5', '6', '7', '8', '9']:
                               '5': 'Check', '6': 'Deploy', '7': 'Document',
                               '8': 'Announce', '9': 'Maintain'}[sid],
         'gate': gate, 'live': r['state'] == 'ok',
+        'items': STAGE_ITEMS.get(sid, 0),
         'count': mnum.group(1) if mnum else '—',
         'unit': r['state'], 'trad': trad, 'native': native,
         'state': '%s — %s' % (r['state'], r['detail']),
@@ -1674,6 +1718,10 @@ else:
 # --------------------------------------------------------------------------
 # panel: backlog
 # --------------------------------------------------------------------------
+# Defined before the branch below: the tab count reads it whatever the backlog
+# turns out to be, and an absent backlog must hide nothing rather than be
+# undefined.
+_done_hidden = 0
 START = ('Start work on backlog item %s: "%s".\n\n'
          'Open it as an intent at Stage 1. Classify it against the whole living spec, including '
          'the constitution, before anything is planned.\n\n'
@@ -1706,7 +1754,11 @@ elif not items:
                      'that is intake\'s job.' % BACKLOG_PATH)))
 else:
     lis = []
+    _done_hidden = 0
     for rank, it in enumerate(items):
+        if it['status'].strip().strip('`').lower() == 'done':
+            _done_hidden += 1
+            continue
         cls = re.sub(r'[^a-z-]', '-', it['status'].lower())
         if JIRA_SITE and it['jira']:
             j = ('<a class="bk-jira" href="%s/browse/%s" target="_blank" rel="noopener" '
@@ -1732,7 +1784,12 @@ else:
         '<div class="relnote"><b>Nothing here is agreed.</b> These are wants, not requirements. '
         '<b>Order is the priority</b>; there is no priority field, because two orderings disagree the '
         'moment someone edits one and not the other. Drag to rearrange.</div>'
-        '<div class="bksort">Sort <button class="sb on" data-s="rank">rank</button>'
+        + (('<div class="bkhidden">%d item(s) with status <span class="mono">done</span> are not '
+            'shown. <b>They left the queue</b> - merged as a requirement, ruled a duplicate, or '
+            'refused - and the spec records which. They are still in <span class="mono">%s</span>; '
+            'this is a view of what is still in front of you, not of what was ever wanted.</div>'
+            % (_done_hidden, esc(BACKLOG_PATH))) if _done_hidden else '')
+        + '<div class="bksort">Sort <button class="sb on" data-s="rank">rank</button>'
         '<button class="sb" data-s="status">status</button>'
         '<span class="bksort-n" id="bksortnote">order is the priority — drag to change it</span></div>'
         '<div class="bkhead"><span class="bk-grip"></span><span class="bk-id">Id</span>'
@@ -2003,7 +2060,10 @@ else:
             '<div class="limcard"><div class="limhead">'
             '<span class="mono limid">%s</span><span class="limn">%d</span></div>'
             '<ul class="limlist">%s</ul></div>'
-            % (esc(cid), len(ls), ''.join('<li>%s</li>' % esc(x) for x in ls)))
+            % (esc(cid), len(ls),
+               ''.join('<li><span class="limtxt">%s</span>%s</li>'
+                       % (esc(x), cp(LIMPROMPT % (PRODUCT, cid, x), 'discuss this'))
+                       for x in ls)))
     und = ''
     if LIM_WITHOUT:
         und = ('<div class="limcard limund"><div class="limhead">'
@@ -2032,7 +2092,7 @@ TABS = [('dash', 'Dashboard', ''),
         ('board', 'Board', board_count),
         ('stages', 'Stages', str(len(S))),
         ('files', 'Files', str(len(rows))),
-        ('backlog', 'Backlog', str(len(items)) if backlog is not None else '—'),
+        ('backlog', 'Backlog', str(len(items) - _done_hidden) if backlog is not None else '—'),
         ('rel', 'Releases', str(len(releases)) if IS_GIT else '—'),
         ('lims', 'Limitations', str(LIM_TOTAL) if LIM_STATE == 'read' else '\u2014'),
         ('cmds', 'Useful commands', '')]
@@ -2332,8 +2392,8 @@ BODY = (
 # rides along in the bar's existing slot rather than claiming a new one.
 BODY = BODY + DL + STALE
 
-DATA = ('var PROD = %s;\nvar CUR0 = %d;\nvar S = %s;\n'
-        % (json.dumps(PRODUCT), CUR0,
+DATA = ('var PROD = %s;\nvar CUR0 = %d;\nvar HUMAN = %d;\nvar S = %s;\n'
+        % (json.dumps(PRODUCT), CUR0, HUMAN_ITEMS,
            json.dumps(S, indent=1, sort_keys=True, ensure_ascii=False)))
 
 tpl = slurp(TEMPLATE)

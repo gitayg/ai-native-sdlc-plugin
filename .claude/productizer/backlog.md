@@ -47,7 +47,7 @@ Highest priority first.
 
 | Id | What is wanted | Status | Jira | Raised | Notes |
 |---|---|---|---|---|---|
-| B1 | Take one intent through all nine stages on this repo, through a PR | `in-progress` | — | maintainer, 2026-08-28 | Stage 8 has no deltas or PRs to draft from until this happens. **Started 2026-08-30** with B26 as the intent, issue [#2](https://github.com/gitayg/productizer/issues/2). Chosen because it is real, security-relevant, and forces the constitution check to do actual work: P4 is under-enforced by the very requirement listed as enforcing it |
+| B1 | Take one intent through all nine stages on this repo, through a PR | `in-progress` | [#2](https://github.com/gitayg/productizer/issues/2) | maintainer, 2026-08-28 | Stage 8 has no deltas or PRs to draft from until this happens. **Started 2026-08-30** with B26 as the intent, issue [#2](https://github.com/gitayg/productizer/issues/2). Chosen because it is real, security-relevant, and forces the constitution check to do actual work: P4 is under-enforced by the very requirement listed as enforcing it |
 | B2 | The gates cannot see inside a script | `long-term` | — | security review, 2026-08-28 | `./release.sh` is judged as its own name; no command-text gate can fix this |
 | B3 | The solver misses semantic contradictions | `long-term` | — | maintainer, 2026-08-28 | 0.70 recall on the 21 cases we wrote first, **0.12 on a harder 26-case corpus** — the figure tracked the corpus, not the checker |
 | B4 | `jira.status_map` has never met a real Jira | `todo` | — | maintainer, 2026-08-28 | eleven states mapped, zero tested |

@@ -7,15 +7,10 @@
   "change": {
     "files": [
       ".claude/productizer/backlog.md",
-      ".claude/productizer/checks-result.json",
-      ".claude/productizer/checks.yaml",
-      "README.md",
-      "plugins/productizer/.claude-plugin/plugin.json",
       "plugins/productizer/skills/spec/scripts/build-view.sh",
-      "plugins/productizer/skills/spec/templates/checks.yaml",
       "plugins/productizer/skills/spec/templates/view.html"
     ],
-    "file_count": 8,
+    "file_count": 3,
     "tags": []
   },
   "verdict": "pass",
@@ -58,7 +53,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 8,
+      "files_in_scope": 3,
       "enabled": true,
       "tool": {
         "command": [
@@ -78,26 +73,21 @@
           "min_rules": 0
         },
         "observed": {
-          "covered": 8,
+          "covered": 3,
           "covered_items": [
             ".claude/productizer/backlog.md",
-            ".claude/productizer/checks-result.json",
-            ".claude/productizer/checks.yaml",
-            "README.md",
-            "plugins/productizer/.claude-plugin/plugin.json",
             "plugins/productizer/skills/spec/scripts/build-view.sh",
-            "plugins/productizer/skills/spec/templates/checks.yaml",
             "plugins/productizer/skills/spec/templates/view.html"
           ],
           "rules_loaded": null,
-          "files_in_scope": 8,
+          "files_in_scope": 3,
           "not_examined": []
         },
         "satisfied": true,
         "reasons": []
       },
       "timed_out": false,
-      "output_tail": ".claude/productizer/backlog.md\n.claude/productizer/checks-result.json\n.claude/productizer/checks.yaml\nREADME.md\nplugins/productizer/.claude-plugin/plugin.json\nplugins/productizer/skills/spec/scripts/build-view.sh\nplugins/productizer/skills/spec/templates/checks.yaml\nplugins/productizer/skills/spec/templates/view.html\n",
+      "output_tail": ".claude/productizer/backlog.md\nplugins/productizer/skills/spec/scripts/build-view.sh\nplugins/productizer/skills/spec/templates/view.html\n",
       "status": "pass"
     },
     {
@@ -168,7 +158,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 8,
+      "files_in_scope": 3,
       "enabled": true,
       "tool": {
         "command": [
@@ -191,7 +181,7 @@
           "covered": 7,
           "covered_items": [],
           "rules_loaded": null,
-          "files_in_scope": 8,
+          "files_in_scope": 3,
           "not_examined": []
         },
         "satisfied": true,
@@ -275,7 +265,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 8,
+      "files_in_scope": 3,
       "enabled": true,
       "tool": {
         "command": [
@@ -298,7 +288,7 @@
           "covered": 1,
           "covered_items": [],
           "rules_loaded": null,
-          "files_in_scope": 8,
+          "files_in_scope": 3,
           "not_examined": []
         },
         "satisfied": true,
@@ -322,7 +312,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 8,
+      "files_in_scope": 3,
       "enabled": true,
       "tool": {
         "command": [
@@ -347,7 +337,7 @@
             ".claude/productizer/spec.md"
           ],
           "rules_loaded": null,
-          "files_in_scope": 8,
+          "files_in_scope": 3,
           "not_examined": []
         },
         "satisfied": true,
@@ -372,7 +362,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 8,
+      "files_in_scope": 3,
       "enabled": true,
       "tool": {
         "command": [
@@ -396,7 +386,7 @@
           "covered": 2,
           "covered_items": [],
           "rules_loaded": null,
-          "files_in_scope": 8,
+          "files_in_scope": 3,
           "not_examined": []
         },
         "satisfied": true,
@@ -421,7 +411,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 8,
+      "files_in_scope": 3,
       "enabled": true,
       "tool": {
         "command": [
@@ -444,7 +434,7 @@
           "covered": 25,
           "covered_items": [],
           "rules_loaded": null,
-          "files_in_scope": 8,
+          "files_in_scope": 3,
           "not_examined": []
         },
         "satisfied": true,
@@ -468,7 +458,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 8,
+      "files_in_scope": 3,
       "enabled": true,
       "tool": {
         "command": [
@@ -692,14 +682,14 @@
             "evals/cases/P15-vocabulary-drift-dunning-abandon/prompt.md"
           ],
           "rules_loaded": null,
-          "files_in_scope": 8,
+          "files_in_scope": 3,
           "not_examined": []
         },
         "satisfied": true,
         "reasons": []
       },
       "timed_out": false,
-      "output_tail": "lugins/productizer/skills/spec/templates/import.md\nplugins/productizer/skills/spec/templates/intake.md\nplugins/productizer/skills/spec/templates/intent.md\nplugins/productizer/skills/spec/templates/interview.md\nplugins/productizer/skills/spec/templates/jira-intent.md\nplugins/productizer/skills/spec/templates/learnings.md\nplugins/productizer/skills/spec/templates/managed-settings.json\nplugins/productizer/skills/spec/templates/plan.md\nplugins/productizer/skills/spec/templates/prepare-commit-msg.sh\nplugins/productizer/skills/spec/templates/production-gate.sh\nplugins/productizer/skills/spec/templates/publish-gate.sh\nplugins/productizer/skills/spec/templates/release-blog.md\nplugins/productizer/skills/spec/templates/release-email.md\nplugins/productizer/skills/spec/templates/ruling.md\nplugins/productizer/skills/spec/templates/runners/gate-bypass.json\nplugins/productizer/skills/spec/templates/runners/publish-blast.json\nplugins/productizer/skills/spec/templates/runners/spec-mutation.json\nplugins/productizer/skills/spec/templates/scheduled-bands.md\nplugins/productizer/skills/spec/templates/scheduled-evals.md\nplugins/productizer/skills/spec/templates/session-start.sh\nplugins/productizer/skills/spec/templates/spec-command.md\nplugins/productizer/skills/spec/templates/spec-delta.md\nplugins/productizer/skills/spec/templates/spec.md\nplugins/productizer/skills/spec/templates/threshold.sh\nplugins/productizer/skills/spec/templates/triage-step.yml\nplugins/productizer/skills/spec/templates/user-guide.md\nplugins/productizer/skills/spec/templates/verification-section.md\nplugins/productizer/skills/spec/templates/view.html\nscripts/check-hygiene.sh\n  repository files hashed before and after: 336\n  files the generator moved: 0\n  page bytes read: 406641\n  capability declarations read: 1\n  declares `downloads` - output: it hands the viewer a file and reads nothing back\n  R4 satisfied: the generator moved no repository file, and the page declares nothing that can publish a new version of itself.\n",
+      "output_tail": "lugins/productizer/skills/spec/templates/import.md\nplugins/productizer/skills/spec/templates/intake.md\nplugins/productizer/skills/spec/templates/intent.md\nplugins/productizer/skills/spec/templates/interview.md\nplugins/productizer/skills/spec/templates/jira-intent.md\nplugins/productizer/skills/spec/templates/learnings.md\nplugins/productizer/skills/spec/templates/managed-settings.json\nplugins/productizer/skills/spec/templates/plan.md\nplugins/productizer/skills/spec/templates/prepare-commit-msg.sh\nplugins/productizer/skills/spec/templates/production-gate.sh\nplugins/productizer/skills/spec/templates/publish-gate.sh\nplugins/productizer/skills/spec/templates/release-blog.md\nplugins/productizer/skills/spec/templates/release-email.md\nplugins/productizer/skills/spec/templates/ruling.md\nplugins/productizer/skills/spec/templates/runners/gate-bypass.json\nplugins/productizer/skills/spec/templates/runners/publish-blast.json\nplugins/productizer/skills/spec/templates/runners/spec-mutation.json\nplugins/productizer/skills/spec/templates/scheduled-bands.md\nplugins/productizer/skills/spec/templates/scheduled-evals.md\nplugins/productizer/skills/spec/templates/session-start.sh\nplugins/productizer/skills/spec/templates/spec-command.md\nplugins/productizer/skills/spec/templates/spec-delta.md\nplugins/productizer/skills/spec/templates/spec.md\nplugins/productizer/skills/spec/templates/threshold.sh\nplugins/productizer/skills/spec/templates/triage-step.yml\nplugins/productizer/skills/spec/templates/user-guide.md\nplugins/productizer/skills/spec/templates/verification-section.md\nplugins/productizer/skills/spec/templates/view.html\nscripts/check-hygiene.sh\n  repository files hashed before and after: 336\n  files the generator moved: 0\n  page bytes read: 392837\n  capability declarations read: 1\n  declares `downloads` - output: it hands the viewer a file and reads nothing back\n  R4 satisfied: the generator moved no repository file, and the page declares nothing that can publish a new version of itself.\n",
       "status": "pass"
     },
     {
@@ -716,7 +706,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 8,
+      "files_in_scope": 3,
       "enabled": true,
       "tool": {
         "command": [
@@ -743,7 +733,7 @@
             "plugins/productizer/skills/spec/fixtures/missing-tool/changed.txt"
           ],
           "rules_loaded": null,
-          "files_in_scope": 8,
+          "files_in_scope": 3,
           "not_examined": []
         },
         "satisfied": true,
@@ -767,7 +757,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 8,
+      "files_in_scope": 3,
       "enabled": true,
       "tool": {
         "command": [
@@ -790,7 +780,7 @@
           "covered": 28,
           "covered_items": [],
           "rules_loaded": null,
-          "files_in_scope": 8,
+          "files_in_scope": 3,
           "not_examined": []
         },
         "satisfied": true,
@@ -814,7 +804,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 8,
+      "files_in_scope": 3,
       "enabled": true,
       "tool": {
         "command": [
@@ -837,7 +827,7 @@
           "covered": 28,
           "covered_items": [],
           "rules_loaded": null,
-          "files_in_scope": 8,
+          "files_in_scope": 3,
           "not_examined": []
         },
         "satisfied": true,
@@ -861,7 +851,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 8,
+      "files_in_scope": 3,
       "enabled": true,
       "tool": {
         "command": [
@@ -886,7 +876,7 @@
             ".claude/productizer/spec.md"
           ],
           "rules_loaded": null,
-          "files_in_scope": 8,
+          "files_in_scope": 3,
           "not_examined": []
         },
         "satisfied": true,
@@ -910,7 +900,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 8,
+      "files_in_scope": 3,
       "enabled": true,
       "tool": {
         "command": [
@@ -941,7 +931,7 @@
             ".claude/productizer/spec.md@842b5cc"
           ],
           "rules_loaded": null,
-          "files_in_scope": 8,
+          "files_in_scope": 3,
           "not_examined": []
         },
         "satisfied": true,
@@ -965,7 +955,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 8,
+      "files_in_scope": 3,
       "enabled": true,
       "tool": {
         "command": [
@@ -990,7 +980,7 @@
             ".claude/productizer/spec.md"
           ],
           "rules_loaded": null,
-          "files_in_scope": 8,
+          "files_in_scope": 3,
           "not_examined": []
         },
         "satisfied": true,
