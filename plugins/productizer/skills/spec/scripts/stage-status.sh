@@ -22,7 +22,7 @@ while [ $# -gt 0 ]; do
   esac
 done
 ROOT="${1:-.}"
-cd "$ROOT" 2>/dev/null || { echo "stage-status: no such directory: $ROOT" >&2; exit 2; }
+cd "$ROOT" || { echo "stage-status: no such directory: $ROOT" >&2; exit 2; }
 
 SPEC=".claude/productizer/spec.md"
 CONST=".claude/productizer/constitution.md"
@@ -88,7 +88,7 @@ else
   row 0a Scaffold "not run" "no living spec; Stage 2 has nothing to merge into"
 fi
 
-if [ -f "$SPEC" ] && grep -q 'Inferred from' "$SPEC" 2>/dev/null; then
+if [ -f "$SPEC" ] && grep -q 'Inferred from' "$SPEC"; then
   n=$(grep -c 'Inferred from' "$SPEC" || true)
   row 0c Import waiting "$n inferred requirement(s) awaiting confirmation"
 else
@@ -119,7 +119,7 @@ if [ -f "$SPEC" ]; then
   # fires on nothing gets ignored when it fires on something.
   # grep -c prints its count AND exits 1 when that count is zero, so a naive
   # `|| echo 0` appends a second zero and the test below sees "0\n0".
-  con=$(grep -iE '^\| C[0-9]+.*(open|unruled|waiting)' "$SPEC" 2>/dev/null \
+  con=$(grep -iE '^\| C[0-9]+.*(open|unruled|waiting)' "$SPEC" \
         | grep -vc '<[a-z ,]*>' || true)
   con=${con:-0}
   if [ "$con" -gt 0 ]; then row 2 Design blocked "$con open contradiction(s) - nothing merges"
@@ -130,7 +130,7 @@ fi
 
 # --- Stage 3, 4 ------------------------------------------------------------
 [ -f plan.md ] && row 3 Build ok "plan.md" || row 3 Build "not run" "no plan.md"
-if [ -f CLAUDE.md ] && grep -qi 'verification\|how to verify' CLAUDE.md 2>/dev/null; then
+if [ -f CLAUDE.md ] && grep -qi 'verification\|how to verify' CLAUDE.md; then
   row 4 Test ok "CLAUDE.md declares how to verify"
 else
   row 4 Test "not run" "CLAUDE.md does not say how this repo is verified"
@@ -153,7 +153,7 @@ if bad:
         len(bad), len(cs), ", ".join("%s (%s)" % (c["id"], c["status"]) for c in bad)))
 else:
     print("ok|%d check(s) passing" % len(cs))
-' "$CHECKS" 2>/dev/null || true)"
+' "$CHECKS" || true)"
   if [ -n "$parsed" ]; then
     row 5 Check "${parsed%%|*}" "${parsed#*|}"
   else

@@ -84,9 +84,9 @@ done
 # filename break out of its string and inject prose into the probe's own output, which the agent
 # reads as trusted environment. So hand the values to a real JSON encoder instead of a sed pipeline.
 JSON_ENC=fallback
-if python3 -c 'import json' >/dev/null 2>&1; then
+if command -v python3 >/dev/null 2>&1 && python3 -c 'import json' >/dev/null; then
   JSON_ENC=python
-elif jq -n '""' >/dev/null 2>&1; then
+elif command -v jq >/dev/null 2>&1 && jq -n '""' >/dev/null; then
   JSON_ENC=jq
 fi
 
@@ -116,8 +116,16 @@ for p in .claude/productizer/config.json .sdlc.json; do
   [ -f "$p" ] && CONFIG="$p" && break
 done
 
-if git rev-parse --git-dir >/dev/null 2>&1; then IS_REPO=true; else IS_REPO=false; fi
-REMOTE=$(git remote get-url origin 2>/dev/null || true)
+if git rev-parse --git-dir >/dev/null 2>&1; then IS_REPO=true; else IS_REPO=false; fi  # stderr-ok: git prints "fatal: not a git repository" here and that sentence IS the answer this probe wants; the false branch reports is_repo:false, which the usage text names as a normal supported state
+# `git remote get-url` writes `error: No such remote 'origin'` for a repo with no origin, which is
+# an ordinary configuration rather than a fault. `git config --get` answers "is origin configured"
+# with an exit status and nothing on stderr, so the value call below only runs when it can succeed
+# and anything it does report is real. It stays `get-url` and not the raw config value because
+# get-url expands url.<base>.insteadOf and the raw value does not.
+REMOTE=""
+if git config --get remote.origin.url >/dev/null; then
+  REMOTE=$(git remote get-url origin || true)
+fi
 REPO=""
 HOST=""
 case "$REMOTE" in
@@ -126,8 +134,10 @@ case "$REMOTE" in
 esac
 REPO="${REPO%.git}"
 
-BRANCH=$(git symbolic-ref --short HEAD 2>/dev/null || true)
-DEFAULT=$(git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null | sed 's|^origin/||' || true)
+# `-q` is git's own switch for exactly the two expected cases - a detached HEAD, and an
+# origin/HEAD that was never set - so they stay silent while a real failure still speaks.
+BRANCH=$(git symbolic-ref -q --short HEAD || true)
+DEFAULT=$(git symbolic-ref -q --short refs/remotes/origin/HEAD | sed 's|^origin/||' || true)
 
 GH_ACCOUNT=""
 GH_STATE="absent"
@@ -154,7 +164,7 @@ command -v jira >/dev/null 2>&1 && JIRA_STATE="cli"
 # writable directory on the way down, owned by this user and not writable by anyone else.
 
 # macOS and GNU stat share no flags; pick the dialect once.
-if stat -f '%Lp' / >/dev/null 2>&1; then
+if stat -f '%Lp' / >/dev/null 2>&1; then  # stderr-ok: this IS the dialect probe - GNU stat rejects the BSD -f flag with a usage error, and that rejection is the thing selecting the else branch below
   STAT_MODE='stat -f %Lp'; STAT_UID='stat -f %u'
 else
   STAT_MODE='stat -c %a'; STAT_UID='stat -c %u'
@@ -163,7 +173,7 @@ fi
 # Group- or world-writable means someone other than the owner can swap the contents between this
 # check and the exec. Treat unreadable as writable rather than guessing.
 insecure_mode() {
-  m=$($STAT_MODE "$1" 2>/dev/null) || return 0
+  m=$($STAT_MODE "$1") || return 0
   [ -n "$m" ] || return 0
   case "$m" in
     *[2367][01234567]) return 0 ;;
@@ -181,7 +191,7 @@ resolve_path() (
     case "$t" in /*) p=$t ;; *) p="$(dirname "$p")/$t" ;; esac
     n=$((n+1))
   done
-  cd "$(dirname "$p")" 2>/dev/null || return 1
+  cd "$(dirname "$p")" || return 1
   printf '%s/%s\n' "$(pwd -P)" "$(basename "$p")"
 )
 
@@ -198,11 +208,11 @@ if [ -n "${SDLC_CHECK_RUNNER:-}" ]; then
 
   if [ "$RUNNER_STATE" != "rejected" ]; then
     RUNNER_STATE="absent"; RUNNER_REASON="nothing at SDLC_CHECK_RUNNER"
-    RESOLVED=$(resolve_path "$SDLC_CHECK_RUNNER" 2>/dev/null || true)
+    RESOLVED=$(resolve_path "$SDLC_CHECK_RUNNER" || true)
     if [ -n "$RESOLVED" ] && [ -f "$RESOLVED" ]; then
       RUNNER_PATH="$RESOLVED"
       WORKTREE=$(pwd -P)
-      TMPROOT=$(resolve_path "${TMPDIR:-/tmp}" 2>/dev/null || printf '%s' "${TMPDIR:-/tmp}")
+      TMPROOT=$(resolve_path "${TMPDIR:-/tmp}" || printf '%s' "${TMPDIR:-/tmp}")
       TMPROOT="${TMPROOT%/}"
 
       # Ordered so the first failing check wins and later checks do not overwrite its reason.
@@ -222,7 +232,7 @@ if [ -n "${SDLC_CHECK_RUNNER:-}" ]; then
           d=$(dirname "$d")
         done
       fi
-      if [ -z "$REJECT" ] && [ "$($STAT_UID "$RESOLVED" 2>/dev/null || echo -1)" != "$(id -u)" ]; then
+      if [ -z "$REJECT" ] && [ "$($STAT_UID "$RESOLVED" || echo -1)" != "$(id -u)" ]; then
         REJECT="not owned by the current user"
       fi
       if [ -z "$REJECT" ] && insecure_mode "$RESOLVED"; then
@@ -235,7 +245,10 @@ if [ -n "${SDLC_CHECK_RUNNER:-}" ]; then
         # The old `node <path>` fallback turned "not executable" into "executed anyway", which is the
         # opposite of a permission check. A non-executable runner is broken, not usable.
         RUNNER_STATE="present-but-broken"; RUNNER_REASON="found, but it is not executable"
-      elif "$RESOLVED" --help >/dev/null 2>&1; then
+      # Only stdout is binned. The exit code is still what decides, but when a runner is
+      # reported as "found, but it does not run", its own error message is the only thing that
+      # says why, and it was going straight to /dev/null.
+      elif "$RESOLVED" --help >/dev/null; then
         RUNNER_STATE="usable"; RUNNER_REASON="--help exited 0"
       else
         RUNNER_STATE="present-but-broken"; RUNNER_REASON="found, but it does not run"
@@ -252,7 +265,7 @@ fi
 have() {
   [ -n "$(find . -maxdepth 4 \
     \( -name node_modules -o -name .git -o -name .venv -o -name dist -o -name build \) -prune \
-    -o -type f -name "$1" -print -quit 2>/dev/null)" ] && echo true || echo false
+    -o -type f -name "$1" -print -quit)" ] && echo true || echo false
 }
 
 # Repo-local templates override the skill's defaults. List what this repo actually

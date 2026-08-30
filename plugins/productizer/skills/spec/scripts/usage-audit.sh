@@ -86,8 +86,8 @@ if [ "$PROBE" -eq 1 ]; then
     # Exit status is the datum, so `|| true` keeps set -e from ending the audit
     # on the very failure it is trying to measure.
     case "$b" in *.py) run=python3 ;; *) run=bash ;; esac
-    ( cd "$SANDBOX" && "$run" "$f" --help >/dev/null 2>&1 ) && h=0 || h=$?
-    ( cd "$SANDBOX" && "$run" "$f" --zzz-not-a-real-flag >/dev/null 2>&1 ) && n=0 || n=$?
+    ( cd "$SANDBOX" && "$run" "$f" --help >/dev/null 2>&1 ) && h=0 || h=$?  # stderr-ok: the exit status is the datum this audit records; what lands on stderr here is the probed script printing its own usage, and every script in the tree doing that at once would bury the audit reading it
+    ( cd "$SANDBOX" && "$run" "$f" --zzz-not-a-real-flag >/dev/null 2>&1 ) && n=0 || n=$?  # stderr-ok: this probe hands over a flag that does not exist on purpose, so the error text IS the expected result and only the exit code separates a script that refuses from one that accepts anything
     printf '%s\t%s\t%s\n' "$b" "$h" "$n" >> "$PROBE_TSV"
   done
 fi

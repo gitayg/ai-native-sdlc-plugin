@@ -21,7 +21,7 @@ set -u
 
 # Silence is the failure mode. Anything this script writes to stderr surfaces in the transcript as a
 # hook error, which is a worse outcome than not announcing the state at all.
-exec 2>/dev/null
+exec 2>/dev/null  # stderr-ok: a SessionStart hook that writes to stderr surfaces in the transcript as a hook error, which is a worse outcome than not announcing the state at all - see the note directly above
 
 emit_nothing() { exit 0; }
 
@@ -168,14 +168,14 @@ if [ -f "$CACHE" ]; then
   esac
 fi
 if [ -z "$INTENTS" ] && [ "$TRY_NETWORK" -eq 1 ] && [ -z "${SDLC_HOOK_NO_NETWORK:-}" ] && command -v gh >/dev/null 2>&1; then
-  TMP=$(mktemp 2>/dev/null) || TMP=""
+  TMP=$(mktemp) || TMP=""
   if [ -n "$TMP" ]; then
-    gh issue list --label sdlc:intent --state open --limit 100 --json number --jq length >"$TMP" 2>/dev/null &
+    gh issue list --label sdlc:intent --state open --limit 100 --json number --jq length >"$TMP" &
     GH_PID=$!
-    ( sleep 1.5; kill -9 "$GH_PID" ) >/dev/null 2>&1 &
+    ( sleep 1.5; kill -9 "$GH_PID" ) >/dev/null &
     WD_PID=$!
     wait "$GH_PID"
-    kill "$WD_PID" >/dev/null 2>&1
+    kill "$WD_PID" >/dev/null
     FETCHED=$(head -c 32 "$TMP" | tr -d '[:space:]')
     rm -f "$TMP"
     case "$FETCHED" in

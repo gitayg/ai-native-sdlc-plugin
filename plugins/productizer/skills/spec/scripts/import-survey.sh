@@ -102,7 +102,7 @@ while [ "$#" -gt 0 ]; do
 done
 [ "$ROOT_SET" -eq 1 ] || ROOT=.
 
-cd "$ROOT" 2>/dev/null || { printf 'import-survey: cannot enter %s\n' "$ROOT" >&2; exit 1; }
+cd "$ROOT" || { printf 'import-survey: cannot enter %s\n' "$ROOT" >&2; exit 1; }
 ROOT_ABS=$(pwd -P)
 
 # Caps, stated here rather than buried, because every one of them is a place the survey stops
@@ -140,6 +140,7 @@ printf '0' > "$TMP/total_weak"
 printf 'none' > "$TMP/tier"
 printf 'no section open' > "$TMP/secname"
 : > "$TMP/ledger"
+printf '0' > "$TMP/n"
 
 find . \
   \( -name .git -o -name node_modules -o -name .venv -o -name venv -o -name dist \
@@ -148,7 +149,7 @@ find . \
      -o -name .cache -o -name .terraform -o -name Pods -o -name DerivedData \
      -o -name .gradle -o -name .tox -o -name .mypy_cache -o -name .idea \
      -o -name site-packages \) -prune \
-  -o -type f -print 2>/dev/null > "$RAW"
+  -o -type f -print > "$RAW"
 
 RAW_N=$(wc -l < "$RAW" | tr -d ' ')
 # Live secret files never enter the file list, so no later probe can quote one by accident.
@@ -173,7 +174,12 @@ done
 # shellcheck disable=SC2209  # TRIM holds a command that is invoked unquoted below;
 # `cat` is the identity passthrough when iconv is unavailable, not a string value.
 TRIM=cat
-printf 'x' | iconv -c -f UTF-8 -t UTF-8 >/dev/null 2>&1 && TRIM='iconv -c -f UTF-8 -t UTF-8'
+# Two separate questions, asked separately. `command -v` answers "is there an iconv" with an exit
+# status and no message; the probe run then answers "does it accept these flags", and if it does
+# not, its complaint is a real fault worth reading rather than a missing-command no-op.
+if command -v iconv >/dev/null 2>&1 && printf 'x' | iconv -c -f UTF-8 -t UTF-8 >/dev/null; then
+  TRIM='iconv -c -f UTF-8 -t UTF-8'
+fi
 
 # Two spaces in front of every evidence line. Nothing but this script's own headers ever starts
 # at column 0, so a file whose contents read "## Requirements" cannot impersonate a section.
@@ -204,14 +210,14 @@ SCAN_EXCL=''
 
 # $1 path-filter ERE ("" = every file), $2 content ERE, $3 max lines. Honours SCAN_EXCL.
 scan() {
-  if [ -n "$1" ]; then LC_ALL=C grep -E -- "$1" "$LIST" > "$SEL" 2>/dev/null
-  else cp "$LIST" "$SEL" 2>/dev/null; fi
+  if [ -n "$1" ]; then LC_ALL=C grep -E -- "$1" "$LIST" > "$SEL"
+  else cp "$LIST" "$SEL"; fi
   if [ -n "$SCAN_EXCL" ]; then
-    LC_ALL=C grep -vE -- "$SCAN_EXCL" "$SEL" > "$SEL.keep" 2>/dev/null
-    mv -f "$SEL.keep" "$SEL" 2>/dev/null
+    LC_ALL=C grep -vE -- "$SCAN_EXCL" "$SEL" > "$SEL.keep"
+    mv -f "$SEL.keep" "$SEL"
   fi
   [ -s "$SEL" ] || return 0
-  { tr '\n' '\0' < "$SEL" | xargs -0 grep -nEIH -e "$2" -- | head -n "$3"; } 2>/dev/null
+  { tr '\n' '\0' < "$SEL" | xargs -0 grep -nEIH -e "$2" -- | head -n "$3"; } 2>/dev/null  # stderr-ok: whenever the cap bites, head closes the pipe and xargs prints "grep: terminated with signal 13; aborting" - measured on this platform, one line per capped section, and the cap itself is already reported by note_trunc
 }
 
 # Keep at most $1 matches per file. Without this one 900-line router or one large test file
@@ -223,7 +229,7 @@ per_file() { awk -v m="$1" -F: '{ c[$1]++ } c[$1] <= m'; }
 # `#[tauri::command]` forty times and no function names — a list of the fact that handlers exist.
 # $1 = file-filter ERE, $2 = attribute ERE, $3 = max.
 after_attr() {
-  LC_ALL=C grep -E -- "$1" "$LIST" > "$SEL" 2>/dev/null
+  LC_ALL=C grep -E -- "$1" "$LIST" > "$SEL"
   [ -s "$SEL" ] || return 0
   # The pattern travels in the environment, not through -v: awk expands backslash escapes in a
   # -v assignment, which turns `#\[` into `#[` and silently reinterprets the regex as a character
@@ -233,11 +239,11 @@ after_attr() {
       $0 ~ pat { pend = 1; next }
       pend && /^[[:space:]]*#\[/ { next }
       pend { printf "%s:%d:%s\n", FILENAME, FNR, $0; pend = 0 }
-    '; } 2>/dev/null | head -n "$3"
+    '; } 2>/dev/null | head -n "$3"  # stderr-ok: same measured abort - head closes the pipe at the cap and xargs prints "awk: terminated with signal 13; aborting" - which is the designed exit from this scan, not a fault
 }
 
 # $1 filename ERE, $2 max. Lists matching paths rather than matching lines.
-files_named() { LC_ALL=C grep -E -- "$1" "$LIST" 2>/dev/null | head -n "$2"; }
+files_named() { LC_ALL=C grep -E -- "$1" "$LIST" | head -n "$2"; }
 
 # Evidence comes in two tiers, tallied separately, because they are not the same claim.
 #
@@ -293,7 +299,7 @@ body() {
   esac
   printf '%s\t%s\t%s\n' "$t" "$n" "$name" >> "$TMP/ledger"
 }
-note_trunc() { [ "$(cat "$TMP/n" 2>/dev/null || echo 0)" -ge "$1" ] && printf '  (truncated at %s)\n' "$1"; return 0; }
+note_trunc() { [ "$(cat "$TMP/n")" -ge "$1" ] && printf '  (truncated at %s)\n' "$1"; return 0; }
 
 cat <<HDR
 # Repo survey — evidence only
@@ -463,7 +469,7 @@ note_trunc $MAX_DOCS
 section "Doc headings" weak
 {
   LC_ALL=C grep -E '\.(md|mdx)$' "$LIST" | LC_ALL=C grep -vE '/(examples?|fixtures)/' | head -40 > "$SEL"
-  [ -s "$SEL" ] && { tr '\n' '\0' < "$SEL" | xargs -0 grep -nEIH -m 3 '^#{1,2} ' -- | head -n 60; } 2>/dev/null
+  [ -s "$SEL" ] && { tr '\n' '\0' < "$SEL" | xargs -0 grep -nEIH -m 3 '^#{1,2} ' -- | head -n 60; } 2>/dev/null  # stderr-ok: same measured abort - head -n 60 closes the pipe and xargs prints "grep: terminated with signal 13; aborting" - which is the cap doing its job
 } | body
 
 section "CI and gates" weak
@@ -500,15 +506,30 @@ note_trunc $MAX_INV
 section "Change history" weak
 GIT_ERR=$(git rev-parse --is-inside-work-tree 2>&1 >/dev/null)
 if [ -z "$GIT_ERR" ]; then
-  {
-    printf 'commits: %s\n' "$(git rev-list --count HEAD 2>/dev/null || echo unknown)"
-    printf 'first commit: %s\n' "$(git log --format=%cs 2>/dev/null | tail -1)"
-    printf 'last commit: %s\n' "$(git log -1 --format=%cs 2>/dev/null)"
-    printf 'authors: %s\n' "$(git log --format=%ae 2>/dev/null | sort -u | wc -l | tr -d ' ')"
-    printf 'most-changed files (last 500 commits):\n'
-    git log --name-only --format= -n 500 2>/dev/null | LC_ALL=C grep -v '^$' \
-      | sort | uniq -c | sort -rn | head -15
-  } | body
+  # A repo that has been initialised but never committed to is INSIDE a work tree and still has
+  # no HEAD, so every command below fails with `fatal: ambiguous argument 'HEAD'`. That one
+  # condition was what all six suppressions here were for. `rev-parse --verify -q` answers it
+  # with an exit status and no message, which leaves the commands below free to report a real
+  # failure - a corrupt object store, a broken pager, an unreadable ref - instead of hiding it.
+  if git rev-parse --verify -q HEAD >/dev/null; then
+    {
+      printf 'commits: %s\n' "$(git rev-list --count HEAD || echo unknown)"
+      printf 'first commit: %s\n' "$(git log --format=%cs | tail -1)"
+      printf 'last commit: %s\n' "$(git log -1 --format=%cs)"
+      printf 'authors: %s\n' "$(git log --format=%ae | sort -u | wc -l | tr -d ' ')"
+      printf 'most-changed files (last 500 commits):\n'
+      git log --name-only --format= -n 500 | LC_ALL=C grep -v '^$' \
+        | sort | uniq -c | sort -rn | head -15
+    } | body
+  else
+    # The same five lines the suppressed version produced for this case, so the report and the
+    # weak-tier tally are unchanged; only the six hidden fatals are gone.
+    { printf 'commits: unknown\n'
+      printf 'first commit: \n'
+      printf 'last commit: \n'
+      printf 'authors: 0\n'
+      printf 'most-changed files (last 500 commits):\n'; } | body
+  fi
 else
   # git being unreadable is common — sandboxed paths, a bare checkout, an export. It removes
   # the churn signal and nothing else, so say so and carry on rather than aborting the survey.

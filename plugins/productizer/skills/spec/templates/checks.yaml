@@ -360,7 +360,7 @@ checks:
       paths:
         - "**/*.sh"
         - "**/*.bash"
-    severity: advise
+    severity: block
     requires: [./scripts/check-stderr.sh]
     version_command: [./scripts/check-stderr.sh, --version]
     mode: per_file

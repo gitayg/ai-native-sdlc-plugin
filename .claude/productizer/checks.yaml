@@ -119,7 +119,7 @@ checks:
       paths:
         - "**/*.sh"
         - "**/*.bash"
-    severity: advise
+    severity: block
     requires: [./plugins/productizer/skills/spec/scripts/check-stderr.sh]
     version_command: [./plugins/productizer/skills/spec/scripts/check-stderr.sh, --version]
     mode: per_file

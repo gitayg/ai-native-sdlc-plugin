@@ -24,10 +24,16 @@ while [ $# -gt 0 ]; do
     *)         ROOT="$1"; shift ;;
   esac
 done
-cd "$ROOT" 2>/dev/null || { echo "no such directory: $ROOT" >&2; exit 2; }
-git rev-parse --is-inside-work-tree >/dev/null 2>&1 || { echo "not a git repository: $ROOT" >&2; exit 3; }
+cd "$ROOT" || { echo "no such directory: $ROOT" >&2; exit 2; }
+git rev-parse --is-inside-work-tree >/dev/null || { echo "not a git repository: $ROOT" >&2; exit 3; }
 
-[ -n "$SINCE" ] || SINCE="$(git describe --tags --abbrev=0 2>/dev/null || echo "")"
+# `git describe` writes `fatal: No names found, cannot describe anything.` when the repo has no
+# tags at all - normal before a first release. Ask whether a tag exists first, so describe only
+# runs when it can succeed and a failure it does report (tags present, none reachable from HEAD)
+# is a real one worth reading.
+if [ -z "$SINCE" ] && [ -n "$(git tag -l)" ]; then
+  SINCE="$(git describe --tags --abbrev=0 || echo "")"
+fi
 RANGE="${SINCE:+$SINCE..}HEAD"
 SPEC=".claude/productizer/spec.md"
 
@@ -51,7 +57,7 @@ if [ ! -f "$SPEC" ]; then
   say "the requirements were consulted."
 else
   # Requirement ids touched in this range, from the spec's own diff.
-  ids="$(git log "$RANGE" -p -- "$SPEC" 2>/dev/null \
+  ids="$(git log "$RANGE" -p -- "$SPEC" \
         | grep -E '^\+.*\*\*R[0-9]+\*\*' | grep -oE 'R[0-9]+' | sort -u -V || true)"
   if [ -z "$ids" ]; then
     say "The spec exists but no requirement changed in this range."
@@ -70,8 +76,10 @@ if ! command -v gh >/dev/null 2>&1; then
   say "**Unknown — \`gh\` is not installed, so no PR could be read.**"
   say "This is not the same as \"no PRs merged\"; nobody looked."
 else
+  # Without this, a gh auth or network failure came back empty and the branch below announced
+  # "None found ... nothing was merged through a PR", which is an absence that was not an absence.
   prs="$(gh pr list --state merged --limit 50 --json number,title,mergedAt \
-         --jq '.[] | "  - #\(.number) \(.title)"' 2>/dev/null || true)"
+         --jq '.[] | "  - #\(.number) \(.title)"' || true)"
   if [ -z "$prs" ]; then
     say "**None found.** Either nothing was merged through a PR in this range, or"
     say "the work went straight to the branch. If it went straight to the branch,"
@@ -85,19 +93,19 @@ say ""
 # --- source 3: the commits ---------------------------------------------------
 say "## Commits in range"
 say ""
-n="$(git log --oneline "$RANGE" 2>/dev/null | wc -l | tr -d ' ')"
+n="$(git log --oneline "$RANGE" | wc -l | tr -d ' ')"
 if [ "$n" = "0" ]; then
   say "**None.** \`$RANGE\` is empty — there is nothing to release."
 else
   say "$n commit(s):"
   say ""
-  git log "$RANGE" --pretty=format:'  - %s  (`%h`)' 2>/dev/null
+  git log "$RANGE" --pretty=format:'  - %s  (`%h`)'
   say ""
   say ""
   say "### Files changed"
   say ""
   say '```'
-  git diff --stat "$RANGE" 2>/dev/null | tail -20
+  git diff --stat "$RANGE" | tail -20
   say '```'
 fi
 say ""
