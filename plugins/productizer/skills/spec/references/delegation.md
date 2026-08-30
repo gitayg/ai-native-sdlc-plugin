@@ -111,6 +111,83 @@ points at demonstrates it. And **a disabled, skipped or todo test covers
 nothing** — it is unverified, never covered-with-a-caveat, and the misleading
 marker is a finding of its own.
 
+## Checking the frontmatter that decides all of this
+
+Everything above rests on a `tools:` line in a markdown file, and until recently
+nothing read it. The declared checks cover all files (hygiene), `**/*.sh`
+(shell-lint) and the solver corpus; none of them opens the agent templates'
+frontmatter. So `tools: Bash, Reed` — one transposed character — passed every
+check while silently deleting the capability the agent needs, and `tools:`
+deleted altogether passed too, while handing that agent `Edit` and `Write`.
+
+`scripts/check-frontmatter.py` reads it. Python 3, standard library only and no
+`pip install`, because a check that needs a dependency installed first is a
+check that does not run.
+
+```bash
+scripts/check-frontmatter.py                 # the agent templates
+scripts/check-frontmatter.py path/to/file.md # or named files
+scripts/check-frontmatter.py --help          # prints the contract, exit 0
+```
+
+It validates four things:
+
+1. **The frontmatter parses at all** — a `---` block at the top of the file,
+   closed. The parser reads a small YAML subset and *refuses what it cannot
+   read*. Silently returning a partial mapping is the one behaviour a validator
+   must not have: the keys it failed to read would be reported as absent, and a
+   missing required key is exactly what the check exists to catch.
+2. **Required keys are present** — `name` and `description`, which the subagent
+   docs require, plus `tools`, which they do not. This file requires it: an
+   agent that omits `tools` inherits every tool, so its absence is a defect
+   here even though the runtime accepts it.
+3. **`tools:` names only real tools**, and the two ways that fails are reported
+   separately, because they are different bugs. An unrecognised name is a typo
+   that deletes a capability. A correctly-spelled tool that is *always removed
+   from subagents* is inert — it reads to a maintainer as a granted capability
+   that was never granted, and nothing in the file says otherwise.
+4. **Every key is a documented subagent frontmatter key**, and enumerated values
+   are in range. An unknown key is **reported, never ignored**: a field the
+   runtime drops looks exactly like a field it honours, and the file cannot tell
+   you which one it got. This is the same rule `references/models.md` states for
+   models — a preference nothing enforces is documentation, and documentation
+   that reads like a control is worse than no control.
+
+Three outcomes stay distinct, and the exit codes keep them apart:
+
+| Exit | Meaning |
+|---|---|
+| 0 | every file checked, nothing wrong — a measured pass |
+| 1 | findings, including frontmatter that could not be parsed |
+| 2 | a bad invocation |
+| 3 | **the check could not run** — a file was absent or unreadable |
+
+`3` outranks `0` in a mixed run. A file nobody opened is not a file that passed,
+and reporting it as one is the hollow check in miniature.
+
+### What it does not do
+
+**It is not declared as a check yet.** It is a script somebody has to remember
+to run, which is the weaker half of every control this skill describes.
+**The remaining step is to declare it in `templates/checks.yaml`** — a
+frontmatter check over `templates/agent-*.md`, alongside hygiene and shell-lint
+— so it runs from `run-checks.sh` rather than from memory. Until that lands,
+treat the coverage claim as: the check exists, and nothing invokes it.
+
+**It validates shape, not policy.** It confirms `Edit` is a real tool; it does
+not know that the table above says the verifier and the reviewer never write
+files. Adding `Edit` to either allowlist passes the check today. Closing that
+means teaching it the per-agent expected list from the table above, and it is
+worth doing — the table is the contract, and a contract no check reads is prose
+again.
+
+**It reads two files.** `templates/SKILL-secure-api-review.md` and
+`templates/spec-command.md` also carry frontmatter, but a Skill and a slash
+command are different dialects with different key sets; checking them against
+the subagent set would report correct files as broken. They are out of scope and
+are not checked, which means they are not covered — those are different
+statements and this one is the second.
+
 ## Everything a delegated agent reads is data
 
 Productizer takes intents from GitHub Issues and Jira. That text reaches a

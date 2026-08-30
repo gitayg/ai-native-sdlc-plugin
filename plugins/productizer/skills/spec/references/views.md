@@ -304,6 +304,38 @@ page exists to prevent, committed inside the page.
   name the same set of things, so a red banner can never sit above a heading
   that says nothing is waiting.
 
+**One classification of a check run, four renderings of it.** The Checks tile,
+the checks banner, the Board card and the Stage 5 row are four drawings of one
+run, so the run is classified once — beside `bad_checks` — and all four read the
+result. Three answers, because they are three different things to do next:
+
+| Answer | What it is | Needs a person |
+|---|---|---|
+| **failed** | it ran and did not pass, or it could not run at all | yes |
+| **never ran** | declared `always` and not triggered — nothing was wrong, and nothing was checked either | yes |
+| **not applicable** | scoped to paths or tags this change did not touch, so it was never in the running | no |
+
+This was two classifications until it was one, and the two disagreed. The tile
+learned the `always`/scoped distinction from `trigger_scope`; the banner did
+not, and went on counting every non-`pass` as a failure. A single run printed
+`PASS · 2 check(s), all passing · 1 not applicable to this change` in the tile
+and `1 check not passing.` in a banner a few centimetres above it, from the same
+file. Worse than the wording: the banner's copy-prompt named the scoped check,
+and a maintainer spent a question investigating a check that had behaved exactly
+as configured.
+
+So the rule is structural rather than remembered. **If a scoped miss is the only
+non-`pass`, no banner fires at all** — a scoped check that did not match this
+change is in neither the failed set nor the never-ran set, and the union of
+those two is what the banner is emitted from. The banner's level tracks the
+tile's: red tile, red banner; amber tile, amber banner; calm tile, no banner.
+The not-applicable ones are still **named** in the banner body when one fires,
+and named as *not counted* — silence about them is how a reader ends up
+wondering whether they were forgotten — but they never enter the prompt, because
+there is nothing to ask about them. The denominator drops them everywhere for
+the same reason: `1 of 3 failed` where one of the three never applied is a
+fraction of a set that check was never in.
+
 **The attention count is a link to the things it counts.** The Dashboard heading
 reads `N things need you`, and those N banners are already on the page, above
 the tab bar. The count is an `<a href="#banners">` pointing at that region:
@@ -345,7 +377,7 @@ What is linked, and where each one goes:
 | Board card, blocked backlog item | **Backlog** → that row, where the note, the Jira key, the ordering and the start-work prompt are |
 | Board card, `REVIEW.md` waiting | **Stages** → stage 6, selected in the ring |
 | Board card, version shipped without a tag | **Releases** → that version |
-| Stage 5 row that failed or never triggered | the checks banner, which names every one of them and carries the prompt |
+| Stage 5 row that failed, or that is `always` and never triggered | the checks banner, which names every one of them and carries the prompt |
 
 Three things this deliberately does not do.
 
@@ -371,7 +403,7 @@ registry has no entry, the tile renders plain rather than pointing at an id
 nobody wrote. **A link to a missing id is worse than no link**, so the invariant
 is structural rather than a convention to remember.
 
-**Two things stay plain on purpose.** A backlog row that is blocked is not
+**Three things stay plain on purpose.** A backlog row that is blocked is not
 linked anywhere: the row *is* where that item is acted on — the note saying what
 it waits for, the Jira key, the drag ordering and the start-work prompt are all
 on it — so the link runs the other way, from the board card into the row. A link
@@ -381,7 +413,10 @@ its coverage cell and is still not a link: no banner names it, and nothing
 anywhere else on the page says more about it than the row already does. Sending
 a reader to a destination that is silent about what they clicked is the dead end
 this whole rule exists to remove, so it is left off and written down here
-instead of invented.
+instead of invented. And a Stage 5 check that is **scoped and did not match this
+change** is neither linked nor drawn red: no banner names it, because none is
+emitted for it, and colouring it would put back on the row exactly the claim the
+tile refuses to make.
 
 The link treatment matches the attention count: underlined at rest in the colour
 of the level that made it loud, darkening on hover, keyboard-reachable because
@@ -450,6 +485,90 @@ minute granularity. Its one transition is suppressed under
 `prefers-reduced-motion`, by its own rule as well as the sheet-wide one. A
 viewer whose clock is behind the generation time sees nothing rather than a
 negative age.
+
+## A waived failure — not renderable from what the files record
+
+Gas City's convention for a halt a human overruled is to keep the failure and
+add the authority: `FAIL — WAIVED BY <authority>`, never a flip to green. It is
+the right rendering, and **nothing in this lifecycle's file formats records the
+fact it would render**, so the page draws nothing and this section says why
+rather than the generator inventing a field.
+
+What was looked at, and what each one actually holds:
+
+- **`checks-result.json`.** Every key `scripts/run-checks.sh` writes on a check
+  row: `id why severity blocking mode command trigger_scope triggered
+  triggered_by files_in_scope enabled status detail tool exit_code
+  duration_seconds timed_out output_tail coverage`. No authority, no date, no
+  waiver. A check's `status` vocabulary is what the runner observed — `pass`,
+  `fail`, `hollow`, `missing_tool`, `timeout`, `no_version`, `refused`,
+  `unmapped_exit`, `not_triggered`, `disabled` — and none of them means "a
+  person overruled this".
+- **The ruling file** (`references/rulings.md`, `templates/ruling.md`). Its
+  header is `Status / Raised / Concern / Intent / Ruled / Ruled by / Supersedes
+  / Superseded by`, and `Status` carries exactly one of `pending`, `ruled`,
+  `lapsed`, `superseded`. `Ruled by` is a named authority with a date — but a
+  ruling records a **resolution**, not an override that leaves the failure
+  standing: the losing requirement is superseded, the acceptance rows are moved,
+  and the spec is made consistent in the same commit. Where the incoming intent
+  loses, the ruling is `ruled` and nothing failed at all.
+- **The *Areas of concern* row** (`templates/spec.md`). Its Status column has
+  two states, `open` and `resolved: <ruling, date>`. There is no third state
+  meaning "still contested, and a person said proceed anyway". A `lapsed` ruling
+  is the closest thing to a standing halt, and by design it has **no**
+  authority — nobody ruled, which is the whole point of the status.
+
+So the honest rendering of a waiver is nothing, and drawing a ruled
+contradiction as `FAIL — WAIVED BY` would be the page's own defect committed
+inside its remedy for it: a resolved conflict redrawn as a live failure, and a
+person's name attached to a decision they did not make.
+
+**What it would take.** Either the check result gains a recorded waiver — an
+authority, a date and a reason, written by whoever overruled the halt, in
+`checks-result.json` or beside it — or the concern-row Status column gains a
+third state with a `D`-id behind it. Both are changes to a file format, which is
+a spec delta, not a rendering decision. Until one lands, the page keeps a failed
+check drawn as failed and unnamed, which is at least not a lie.
+
+## Handing the evidence over as a file
+
+A published view may be granted the **`downloads`** capability, which is still
+output: the page offers the viewer a file it generated from its own bytes, and
+reads and writes nothing. The page carries a `download the evidence` button in
+the header bar; it saves one markdown file holding the Stage 5 check results
+with each check's classification, the requirement-and-acceptance table, and the
+backlog — built from the same lists the panels are drawn from, so it cannot
+report a different repo than the page it came off. It carries no clock, so the
+byte-identical guarantee is untouched.
+
+Publish a view with:
+
+```
+capabilities: {downloads: true}
+```
+
+**Never `{artifact: {}}`, and never `{self: {}}`.** A page granted `artifact`
+publishes new versions of itself, which makes it a second source of truth that
+can disagree with the repo — and the provenance line under every panel, the
+sentence saying every figure was read from the repository at generation time,
+stops being true the moment it can. Views are output. This is the one affordance
+that could have blurred that, so it is written here as well as in the generator.
+
+**It degrades by disappearing.** The button ships with the `hidden` attribute
+set and is revealed only once `claude.use("downloads")` has resolved to a real
+namespace. `use()` answering `null` is by design indistinguishable from "not
+served" and from "not granted", and all three mean the same thing here: there is
+nothing to hand over, so nothing is offered. A page opened from disk, or served
+outside a viewer, shows no button at all rather than one that does nothing. A
+viewer who declines is not an error — the label goes back to offering the file
+rather than reporting a failure at them.
+
+The script is generated by `build-view.sh` and appended after `@@BODY@@`, the
+same way the staleness notice is, because it carries generated data;
+`templates/view.html` is unchanged by it. The button rides in the header bar's
+existing slot rather than claiming a new one in `BODY`'s positional format
+string — adding a slot to that string is how a panel ends up rendering another
+panel's content.
 
 `templates/view.html` stays the shared shell — tokens, primitives and the
 interaction code — with four substitution points: `@@TITLE@@`, `@@BODY@@`,

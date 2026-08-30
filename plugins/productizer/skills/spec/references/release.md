@@ -232,7 +232,7 @@ Positive-control each one against a product already on the site before believing
 a zero:
 
 ```bash
-grep -ci <product> llms.txt llms-full.txt   # must be non-zero; if it is not, the command is broken
+grep -ci productizer llms.txt llms-full.txt   # must be non-zero; if it is not, the command is broken
 ```
 
 The same trap applies to the HTTP check. glick.run serves a **soft 404** — an
