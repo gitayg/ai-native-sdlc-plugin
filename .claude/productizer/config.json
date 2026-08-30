@@ -15,7 +15,7 @@
     "on_supersede": "mark_with_pointer",
     "on_contradiction": "ask_human",
     "audit_record": "git_diff",
-    "home": "product.spec_repo"
+    "home": "product.spec_home"
   },
   "models": {
     "_note": "Per-stage model and effort. ENFORCED only where a fresh context begins - a subagent with frontmatter. Stages that run in your session inherit the session model whatever this file says; for those this block is a recommendation the skill reads out so you can choose before the stage runs. Values: model = inherit | cheap | <model id>. effort = inherit | low | medium | high. See references/models.md.",
@@ -105,7 +105,7 @@
   "github": {
     "repo": "gitayg/productizer",
     "default_branch": "main",
-    "gh_account": "your-gh-login",
+    "gh_account": "gitayg",
     "pr_draft_first": true,
     "issues": {
       "label": "sdlc",
@@ -123,6 +123,10 @@
   "jira": null,
   "views": {
     "publish_as_artifact": true,
-    "refresh": "on_request"
+    "refresh": "on_request",
+    "redact_from": [
+      "plugins/productizer/skills/spec/scripts/check-hygiene.sh",
+      ".claude/productizer/hygiene-local.txt"
+    ]
   }
 }

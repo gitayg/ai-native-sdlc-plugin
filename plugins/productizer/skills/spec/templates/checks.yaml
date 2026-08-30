@@ -319,3 +319,237 @@ checks:
       examined_when_exit_in: [0, 1]
       must_cover: all_triggering
       min_covered: 1
+
+  # --- 7 · suppressed stderr ----------------------------------------------
+  #
+  # `2>/dev/null` makes an ERROR and a genuine NO-MATCH identical. Once they
+  # are identical, the run is green either way — and a check that examined
+  # nothing looks exactly like a check that found nothing, which is the failure
+  # this whole file exists to refuse, arriving one level down inside the tools.
+  # In the repo that ships this template it hid three real defects in one
+  # session: a broken count, a false absence, and a check that examined
+  # nothing.
+  #
+  # `advise` HERE IS NOT TIMIDITY. Run it once before you set `block`: a repo
+  # of any age has more of these than anyone expects, and blocking on day one
+  # turns the rollout into an argument about the rule instead of a list of the
+  # debt. The count is printed on every run. Promote to `block` the day it
+  # reaches zero — a number, not a judgement call.
+  #
+  # EXEMPTIONS, AND WHY THEY COST A SENTENCE EACH. There are legitimate uses.
+  # `command -v x >/dev/null 2>&1` is an existence TEST whose answer is the
+  # exit status, and it is exempt structurally with no entry. Everything else
+  # states a reason, in one of two places:
+  #
+  #   INLINE, for code you own — `# stderr-ok: <reason>` on the offending line.
+  #   ALLOWLIST, for code you do not — an `--allow` argument, right here in the
+  #   committed config, reviewed in the same diff as the check that grants it.
+  #
+  # Both refuse (exit 2) when the reason is missing or under 12 characters, and
+  # the allowlist also refuses a snippet that does not itself quote the
+  # redirection — a snippet naming only the surrounding code would exempt that
+  # whole line forever, including a suppression added to it next year. A check
+  # that can be silenced without saying why is the thing this check prevents.
+  #
+  # `check-stderr.sh` ships with this skill under `skills/spec/scripts/`. Copy
+  # it to `./scripts/` or point the paths below at the plugin; either way a
+  # repo-local tool path needs `policy.allow_repo_local_tools: true`.
+  - id: stderr-suppression
+    why: an error and a genuine no-match are indistinguishable once stderr is discarded, and a hollow check then looks exactly like a clean one
+    when:
+      paths:
+        - "**/*.sh"
+        - "**/*.bash"
+    severity: advise
+    requires: [./scripts/check-stderr.sh]
+    version_command: [./scripts/check-stderr.sh, --version]
+    mode: per_file
+    command:
+      - ./scripts/check-stderr.sh
+      # One entry per exemption. FILE::SNIPPET::REASON — the snippet is a
+      # literal substring of the offending line and must contain the
+      # redirection itself; the reason is a sentence someone can disagree with
+      # in review. Delete these two examples; they describe another repo.
+      - --allow
+      - 'scripts/build-view.sh::2>/dev/null || :::the builder runs against a repo that may have no history, no tags and no remote, and every one of these lines already turns a failure into no data with || :'
+      - --allow
+      - 'scripts/run-checks.sh::$pid" 2>/dev/null::kill and wait address a pid this script started and owns, so the only stderr is ESRCH from a child that already exited'
+      - "{file}"
+    timeout_seconds: 60
+    exit_codes:
+      pass: [0]
+      fail: [1]        # suppressed stderr found
+      refused: [2]     # unreadable file, or an exemption with no reason
+    coverage:
+      from: per_file_exit
+      # 0 = clean, 1 = findings. Both mean the file was read. A 2 is a file it
+      # bounced off or an exemption it would not honour, and neither is a file
+      # it checked.
+      examined_when_exit_in: [0, 1]
+      must_cover: all_triggering
+      min_covered: 1
+
+  # --- 8 · one living spec per product ------------------------------------
+  #
+  # The declared-checks answer to "exactly one living spec per product". It
+  # reads `product.spec_home` and `product.repos` out of config.json and asks
+  # every repo one question: do you hold the spec file? Two answers of yes is a
+  # failure — two allocators both handing out R42, two specs both believed, and
+  # the divergence found later by whoever trusted the wrong one. Zero is also a
+  # failure.
+  #
+  # UNREACHABLE IS NOT ABSENT. A repo the check cannot open exits 2 — refused,
+  # distinct from both pass and fail — and is never counted as "no spec there".
+  # Counting it as absent is precisely how a two-spec product reports as a
+  # one-spec product: the second spec is in the repo nobody could reach.
+  #
+  # `always`, because this failure does not arrive in a diff. A repo joins the
+  # product, or someone scaffolds a spec in the wrong place, and no file in
+  # this repo changes.
+  #
+  # Multi-repo products need to tell it where the other checkouts are:
+  # `--repo owner/name=../name` per repo, or `--remote` to ask the GitHub
+  # contents API via `gh`. `--remote` is off by default because a check that
+  # reaches the network is not deterministic, and a rate limit would read as an
+  # outage rather than a verdict.
+  - id: spec-home
+    why: two repos both holding a living spec means two allocators both handing out R42, and nothing else in the lifecycle notices
+    when:
+      always: true
+    severity: block
+    requires: [./scripts/check-spec-home.sh]
+    version_command: [./scripts/check-spec-home.sh, --version]
+    mode: batch
+    command: [./scripts/check-spec-home.sh, --config, .claude/productizer/config.json]
+    timeout_seconds: 60
+    exit_codes:
+      pass: [0]
+      fail: [1]        # too many specs, none, or not where the config says
+      refused: [2]     # a repo out of reach, or a config that cannot be read
+    coverage:
+      # The check's own count of repos it actually REACHED. A run that reached
+      # none prints 0 and fails coverage as well as exiting 2: a spec count
+      # nobody could compute is not a spec count of zero.
+      from: stdout_count
+      pattern: 'repos reachable:\s*([0-9]+)'
+      min_covered: 1
+
+  # --- 9 · a control framework, wired to the same tags --------------------
+  #
+  # `when.tags` matches REQUIREMENT TAGS carried by the change — and a tag is
+  # just a string, so a control id is a tag like any other. Tag a requirement
+  # `A.8.28` in the living spec and this check fires on exactly the changes
+  # that touch that control, and on nothing else. No second system, no
+  # spreadsheet kept in parallel, no quarterly reconciliation between the two.
+  #
+  # QUOTE THE IDS. `A.8.28` is fine bare, but `42001-6.1.2` is not obviously a
+  # string to a YAML parser and `8.28` would be read as a number. Quote them
+  # all and stop thinking about it.
+  #
+  # WHAT THIS BUYS, EXACTLY: for the control ids you tag, a dated, per-change
+  # record of which tool ran, at which version, over which files, and what it
+  # covered. That is the evidence layer UNDER a management system. It is not
+  # the management system. `references/checks.md` sets out the boundary in
+  # full — read it before anyone writes "ISO 27001 compliant" on a slide.
+  - id: secure-coding-controls
+    why: a change touching a tagged control gets the control's own scan, on the change that touches it, with a dated record of what was covered
+    when:
+      tags:
+        - "A.8.28"        # ISO/IEC 27001:2022 Annex A — secure coding
+        - "A.8.26"        # application security requirements
+        - "42001-6.1.3"   # ISO/IEC 42001 — AI risk treatment
+    severity: block
+    requires: [semgrep]
+    version_command: [semgrep, --version]
+    mode: batch
+    command: [semgrep, --config, p/secure-defaults, --json, --quiet, "{files}"]
+    timeout_seconds: 900
+    exit_codes:
+      pass: [0]
+      fail: [1]
+      refused: [2, 4, 7]
+    coverage:
+      from: stdout_paths
+      pattern: '"([^"]+\.(py|js|ts|go))"'
+      must_cover: all_triggering
+      min_covered: 1
+      min_rules: 10
+      rules_command: [semgrep, --config, p/secure-defaults, --dump-config, --json]
+      rules_pattern: '"id"\s*:\s*"([^"]+)"'
+      # THE CLAIM IS NOT THE EVIDENCE. Naming the requirement the control is
+      # tagged on ties this check's result to that requirement in the report;
+      # if the check is disabled, its tool is missing, or it came back hollow,
+      # the claim is voided and the requirement goes back to Missing.
+      #
+      # spec_units:
+      #   - {id: R44, verdict: Covered, evidence: "p/secure-defaults over every file in the change"}
+
+  # --- a halt that nobody was asked to answer --------------------------------
+  #
+  # R23 says the lifecycle shall stop and ask which wins. The acceptance row for
+  # it asserted the STOP and not the ASK, and the two are not the same event:
+  # the halt worked, no ruling was ever drafted, and the work stopped and stayed
+  # stopped with nobody holding a question. This check observes the ask.
+  #
+  # It asserts the obligation, not the implementation. The cautionary case in
+  # this repo is R18, whose row says `argv[0] validation` while the principle it
+  # enforces requires the whole argv - a row that describes what the code does
+  # can never fail.
+  #
+  # `always`, because the failure does not arrive in a diff. A contradiction is
+  # raised in conversation and abandoned; no file changes, which is precisely
+  # the problem.
+  #
+  # UNREADABLE IS NOT ABSENT. A rulings directory nobody can open exits 2, never
+  # 0 - a directory nobody can open is exactly where an unasked question hides.
+  - id: ruling-requested
+    why: a contradiction that halted without a drafted ruling leaves nobody holding the question, and the spec shows nothing waiting
+    when:
+      always: true
+    severity: block
+    requires: [./plugins/productizer/skills/spec/scripts/check-ruling-requested.sh]
+    version_command: [./plugins/productizer/skills/spec/scripts/check-ruling-requested.sh, --version]
+    mode: batch
+    command: [./plugins/productizer/skills/spec/scripts/check-ruling-requested.sh]
+    timeout_seconds: 60
+    exit_codes:
+      pass: [0]
+      fail: [1]        # a concern with no ruling, a ruling nothing cites, or a ruling still wearing the template
+      refused: [2]     # the rulings directory or one of its files could not be read
+    coverage:
+      # Files the check actually opened, one per line. The spec is always one of
+      # them, so a run that opened nothing is a bug rather than an empty repo.
+      from: stdout_paths
+      pattern: '^(\S+)$'
+      min_covered: 1
+
+  # --- agent templates carry frontmatter nothing reads ------------------------
+  #
+  # Declared checks covered all files (hygiene), `**/*.sh` and the solver corpus.
+  # The agent templates carry YAML frontmatter that selects a model, a tool set
+  # and a permission mode - and nothing validated it. A typo in a key name does
+  # not fail loudly; it silently falls back to a default, so a template that
+  # asked for a restricted tool set quietly gets the unrestricted one.
+  #
+  # `always`, because the failure does not arrive in a diff: a key stops being
+  # honoured when the host changes, not when the template does.
+  - id: template-frontmatter
+    why: a mistyped frontmatter key does not fail, it falls back to a default, so a template that asked for a restricted tool set silently gets the unrestricted one
+    when:
+      always: true
+    severity: block
+    requires: [python3]
+    version_command: [python3, ./plugins/productizer/skills/spec/scripts/check-frontmatter.py, --version]
+    mode: batch
+    command: [python3, ./plugins/productizer/skills/spec/scripts/check-frontmatter.py]
+    timeout_seconds: 60
+    exit_codes:
+      pass: [0]
+      fail: [1]        # frontmatter that will not do what it says
+      refused: [2]     # bad invocation, or a template that could not be read
+    coverage:
+      # The check's own count of files it opened. A file nobody could read is
+      # counted as could-not-run, never as a file that passed.
+      from: stdout_count
+      pattern: '([0-9]+) file\(s\) checked'
+      min_covered: 1

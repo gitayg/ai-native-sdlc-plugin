@@ -168,7 +168,7 @@ until a human rules on it.
 | R18 | `run-checks.sh` argv[0] validation — shells, interpreters, repo-local paths |
 | R20 | `scripts/import-survey.sh` Verdict section |
 | R22 | `policy.allow_repo_local_tools`, default false |
-| R23 | `scripts/contradiction-check.py --selftest` — 7 true positives, precision 1.00 (inherited from R14; asserts the stop, not the non-merge) |
+| R23 | Two halves, asserted separately. **Stop:** `scripts/contradiction-check.py --selftest` — 7 true positives, precision 1.00 (inherited from R14). **Ask:** `ruling-requested` check over `check-ruling-requested.sh` — fails when a concern is open with no ruling file, when a pending ruling is cited by nothing, and when a pending ruling still wears the template. Proven by removing a raised ruling and watching it go red 2026-08-30 |
 | R24 | not yet verified — R14's checks asserted the stop; no check yet observes that nothing was merged |
 | R25 | `check-hygiene.sh`, `stage-status.sh`, `build-view.sh` unmeasured states (inherited from R16) |
 | R26 | not yet verified — inherited from R16, whose checks observe the unmeasured report, not the absence of a recorded zero |
