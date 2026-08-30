@@ -30,6 +30,27 @@ aside. Plugin skills are namespaced, so they do not replace it — both load, bo
 compete for the same triggers, and `claude plugin update` moves only one of
 them. Two copies is silent drift.
 
+### Three commands, typed with a slash
+
+Everything below can also be reached by asking in English — the skill triggers
+on what you are trying to do, not on a keyword. The slash forms exist because a
+capability nobody can find is one nobody uses, and a menu you can scroll beats
+remembering the sentence that triggers it.
+
+| | |
+|---|---|
+| `/productizer:dashboard` | regenerate the view from this repo's files and publish it |
+| `/productizer:check` | run the declared checks over the current change |
+| `/productizer:spec` | the whole lifecycle — intake, classification, deltas, releases |
+
+Type `/productizer` and the menu lists them. The bare forms — `/dashboard`,
+`/check` — work too unless another plugin has claimed the name.
+
+`dashboard` and `check` are marked so the model will not invoke them on its own:
+one publishes a page and the other runs every declared tool in the repo, and
+neither should happen because a sentence sounded like a request for it. You type
+those. `spec` is the opposite — it is meant to trigger from what you are doing.
+
 ## First run in a repo
 
 Just describe what you want. The skill works out which stage you are in from
