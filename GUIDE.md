@@ -339,6 +339,102 @@ export SDLC_CHECK_RUNNER="/path/to/your/check-runner"
 Enforced beats advisory. The skill probes by *running* it, never by checking the
 file exists, and tells you which way it resolved.
 
+## What it guarantees today
+
+Everything above argues for the shape. This is the agreed set — the requirements
+the spec holds active right now, in the EARS patterns stage 2 writes them in, and
+nothing else. It is the one part of this page nobody edits by hand: stage 7
+regenerates it from `.claude/productizer/spec.md` on every release, so a guide
+promising behaviour nobody agreed to would have to survive a release to do it.
+Edit the spec; this section follows.
+
+<!-- productizer:requirements:begin -->
+<!-- Generated from `.claude/productizer/spec.md` by
+     plugins/productizer/skills/spec/scripts/build-guide.sh. Everything between
+     these two markers is rewritten on every release - edit the spec, not this. -->
+
+**Twenty-five requirements are active**, and they are the whole of what has
+been agreed.
+
+Three more are superseded and none withdrawn, and neither kind is listed here.
+The spec keeps both forever with their text intact, so a citation written two
+years ago still leads somewhere — but a guide is read by someone deciding what
+to do next, and a superseded sentence gives them no sign it stopped being
+true.
+
+**Always, with no trigger.** Five requirements hold whatever else is
+happening:
+
+- **R1** — The lifecycle shall hold exactly one living spec per product.
+- **R2** — The lifecycle shall keep requirement ids permanent: never reused,
+  never renumbered.
+- **R3** — The lifecycle shall keep a replaced requirement's original text in
+  the spec, marked superseded.
+- **R4** — Every published view shall be read-only with respect to the spec.
+- **R5** — Every check shall declare what it must have examined for its pass
+  to count.
+
+**When something arrives.** Six things happen on a discrete trigger:
+
+- **R6** — When an intent arrives, the lifecycle shall classify it against the
+  whole living spec as exactly one of extend, refine, duplicate or contradict.
+- **R7** — When an intent is classified, the lifecycle shall record the
+  classification in the spec's change log.
+- **R8** — When a requirement is added, the lifecycle shall allocate the next
+  unused id and record it in the acceptance criteria table.
+- **R9** — When a release is prepared, the lifecycle shall regenerate the user
+  guide from the active requirements.
+- **R10** — When a repository with history is imported, the lifecycle shall
+  mark every drafted requirement inferred and unconfirmed.
+- **R11** — When a published view is regenerated, the lifecycle shall read
+  every figure in it from a file in the repository.
+
+**For as long as a state lasts.** Two requirements are true for the duration
+of a state, not at a moment inside it:
+
+- **R12** — While a contradiction is unruled, the lifecycle shall merge no
+  spec change that depends on it.
+- **R13** — While a check tool named by the configuration is absent, the
+  lifecycle shall report that check as missing rather than skipped.
+
+**When something goes wrong.** Nine defences, written as `If … then` because a
+designed path and a defended one are not the same thing:
+
+- **R15** — If a check exits zero having examined less than it declared, then
+  the lifecycle shall report it as hollow and treat it as a failure.
+- **R17** — If a command would publish or deploy, then the gate shall block it
+  until a person approves.
+- **R18** — If a configured command names a shell or an interpreter with an
+  inline program, then the lifecycle shall refuse to run it.
+- **R19** — If the spec home is unreachable, then the lifecycle shall stop
+  rather than classify against a remembered copy.
+- **R20** — If a survey finds too little evidence to draft from, then the
+  lifecycle shall refuse to draft a spec from it.
+- **R23** — If an intent contradicts an active requirement, then the lifecycle
+  shall stop and ask which wins.
+- **R24** — If an intent contradicts an active requirement, then the lifecycle
+  shall merge nothing.
+- **R25** — If a value could not be measured, then the lifecycle shall report
+  it as unmeasured.
+- **R26** — If a value could not be measured, then the lifecycle shall not
+  record it as zero.
+
+**Only where the feature is present.** Three requirements apply only to a
+build that includes the feature:
+
+- **R22** — Where a repository declares its own check tools, the lifecycle
+  shall run them only if the configuration explicitly opts in.
+- **R27** — Where a backlog item names a Jira key, the lifecycle shall read
+  that item's status from Jira.
+- **R28** — Where a backlog item names a Jira key, the lifecycle shall write
+  nothing back to Jira.
+
+Every id above is permanent. A plan, a test or a PR title naming `R1` will
+still mean this sentence in two years, which is why ids are never reused and
+never renumbered. The whole spec — the superseded text included, with the
+acceptance criteria and the change log — is at `.claude/productizer/spec.md`.
+<!-- productizer:requirements:end -->
+
 ## The rules it will not bend
 
 1. Leave the record. Work that changed no spec and cites no issue did not happen.

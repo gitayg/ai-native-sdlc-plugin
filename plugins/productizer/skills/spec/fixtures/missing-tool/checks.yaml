@@ -1,0 +1,55 @@
+# Fixture: a check whose declared tool is not installed.
+#
+# R13 - WHILE A CHECK TOOL NAMED BY THE CONFIGURATION IS ABSENT, THE LIFECYCLE
+# SHALL REPORT THAT CHECK AS MISSING RATHER THAN SKIPPED.
+#
+# The behaviour lives in run-checks.sh and was demonstrated by hand. A
+# demonstration is not a test: nothing stopped a later refactor turning
+# `missing_tool` back into a skip while every run stayed green. This file is
+# the standing case, and `scripts/check-missing-tool.sh` is what runs it.
+#
+# SELF-CONTAINED ON PURPOSE. It names no path outside itself, so it works in a
+# fresh clone on any machine: the tool is absent everywhere, `spec_coverage` is
+# off so no spec has to exist, and `when.always` means the run cannot be empty
+# whatever the changed-file list holds. An absolute path here would have made
+# the test pass on one machine and refuse on every other one.
+version: 1
+
+policy:
+  empty_run: refuse
+  # There is no spec beside this fixture and there should not be one: the
+  # subject here is the runner's handling of an absent TOOL, and a missing
+  # denominator would refuse the run for a second, unrelated reason - which
+  # would make the test pass for the wrong cause.
+  spec_coverage: "off"
+
+defaults:
+  timeout_seconds: 30
+  mode: batch
+  severity: block
+
+checks:
+  # The name is deliberately one nothing will ever install. A fixture that
+  # names a plausible tool is a fixture that goes green on the machine where
+  # somebody happens to have it.
+  - id: ghost
+    why: the tool is absent on every machine, so this check can only ever report missing_tool - and if it ever reports anything else, the runner has started skipping what it cannot run
+    when:
+      always: true
+    severity: block
+    requires: [definitely-not-a-real-tool]
+    version_command: [definitely-not-a-real-tool, --version]
+    mode: batch
+    command: [definitely-not-a-real-tool, --scan, "{files}"]
+    exit_codes:
+      pass: [0]
+      fail: [1]
+      refused: [2]
+    # run-checks.sh refuses a check that declares no coverage block, so the
+    # fixture carries one. It is never exercised: the run stops at the absent
+    # tool, which is the whole point.
+    coverage:
+      from: stdout_paths
+      pattern: '^(\S+)$'
+      must_cover: none
+      min_covered: 1
