@@ -15,6 +15,10 @@ on:
   pull_request:
   push:
     branches: [main]
+    # Tags too. A release tag was reachable from a green branch and had never
+    # been checked as a tag, so nothing asserted that the commit a consumer
+    # installs is the commit that passed.
+    tags: ['v*']
 
 # `pull_request`, never `pull_request_target`. The latter runs with the base
 # repo's token and secrets against a fork's code, on a public repo, before
@@ -42,10 +46,12 @@ jobs:
     timeout-minutes: 20
 
     steps:
-      # Third-party actions are pinned to a major version so a moved floating
-      # tag cannot swap the code that checks out this repo. A full commit SHA
-      # is stricter still; the major pin is the floor, not the ideal.
-      - uses: actions/checkout@v4
+      # Third-party actions are pinned to a full commit SHA. A major-version
+      # tag is mutable: whoever can move it can swap the code that checks out
+      # this repo, on a runner holding a token. The trailing comment records
+      # which release each SHA was, because a bare SHA tells a reader nothing
+      # about whether it is current.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           # The Stage 5 gate diffs against a base commit. A shallow clone has
           # no base to diff against, and run-checks.sh reads an unresolvable
@@ -55,10 +61,10 @@ jobs:
 
       # Pinned runtimes, so a runner-image bump cannot change what was checked
       # without a diff saying so.
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22'
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: '3.12'
 
@@ -79,7 +85,7 @@ jobs:
         run: |
           set -euo pipefail
           missing=()
-          for tool in git python3 node npm npx; do
+          for tool in git python3 node npm shellcheck; do
             command -v "$tool" >/dev/null 2>&1 || missing+=("$tool")
           done
           if [ "${#missing[@]}" -gt 0 ]; then
@@ -89,12 +95,16 @@ jobs:
           git --version
           python3 --version
           node --version
-          # checks.yaml runs shellcheck as `npx --yes shellcheck`, so PATH is
-          # not where it has to exist — the registry is. Resolving it here
-          # means a registry or network failure is reported as a preflight
-          # failure, instead of surfacing later as an unexplained shell-lint
-          # refusal.
-          npx --yes shellcheck --version
+          # shellcheck comes from the runner image, not from `npx --yes
+          # shellcheck`. That npm package is not the upstream project: it is a
+          # single-maintainer wrapper that downloads a binary at run time, and
+          # `--yes` resolves `latest` with no lockfile and no integrity pin. In
+          # CI the payout is small — no secrets, a read-only token — but the
+          # same line runs on the machine of anyone who clones this repo and
+          # runs the checks stage, with their home directory and their
+          # credentials. Two unpinned hops for a linter is not a trade worth
+          # making.
+          shellcheck --version
 
       # Pinned exactly. `claude plugin validate` is the gate on both manifests,
       # and a validator that changes what it accepts between two runs of an

@@ -43,10 +43,10 @@ checks:
     when:
       paths: ["**/*.sh"]
     severity: block
-    requires: [npx]
-    version_command: [npx, --yes, shellcheck, --version]
+    requires: [shellcheck]
+    version_command: [shellcheck, --version]
     mode: per_file
-    command: [npx, --yes, shellcheck, --severity=warning, --format=gcc, "{file}"]
+    command: [shellcheck, --severity=warning, --format=gcc, "{file}"]
     timeout_seconds: 600
     exit_codes:
       pass: [0]
