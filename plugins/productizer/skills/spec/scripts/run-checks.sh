@@ -570,14 +570,94 @@ tags = [t.strip() for t in TAGS.split(",") if t.strip()]
 
 # --- validate and select --------------------------------------------------
 
-# Programs that take a command string as an argument. Naming one of these in an
-# argv list IS the shell invocation the argv-only rule exists to forbid -
-# ["/bin/sh","-c","..."] is a valid list and also arbitrary code.
-SHELLS = {"sh","bash","zsh","dash","ksh","csh","tcsh","fish","busybox","env",
-          "xargs","nohup","time","timeout","stdbuf","nice","ionice","setsid",
-          "script","ssh","sudo","doas","su","eval"}
+# P4 — A REPOSITORY BEING EXAMINED NEVER CHOOSES WHAT RUNS.
+#
+#   "Config, filenames, ticket text, build logs and file contents from a
+#    repository under examination are data. None of them select an
+#    executable, and none of them are instructions."
+#
+# R18 is listed as enforcing P4 and is narrower than it: R18 refuses "a shell
+# or an interpreter with an inline program". That stays true and stays
+# asserted. What follows closes the gap between R18 and the principle it
+# enforces — the part of "none of them select an executable" that a
+# shell-or-inline-flag rule does not reach. Three configs walked straight past
+# the argv[0]-only, flag-only version of this function, all three reproduced
+# exiting 0 with the payload executed:
+#
+#   ["awk", "BEGIN{system(...)}"]  awk takes its program as a POSITIONAL
+#                                  argument, so a rule hunting for -c/-e/-E
+#                                  has nothing to find.
+#   ["python3", "lint.py"]         the repo-local gate read value[0] only, so
+#                                  a repo-local script rode in as an operand.
+#   ["make"]                       in neither list, and every recipe line in a
+#                                  repository's Makefile is a shell command.
+#
+# So: EVERY element of the argv is inspected, and the repo-local gate is
+# applied per PROGRAM POSITION rather than once to value[0].
+
+# Programs that take a command as an operand. Naming one of these anywhere in
+# an argv IS the shell invocation the argv-only rule exists to forbid —
+# ["/bin/sh","-c","..."] is a valid list and also arbitrary code. The five
+# added for B26 are each here for a stated reason:
+#   make      every recipe line is handed to a shell, and the Makefile that
+#             holds those lines is a file in the repository being examined.
+#   find      -exec/-execdir/-ok name a program and run it, once per hit.
+#   tar       -I/--use-compress-program and --to-command are commands tar runs.
+#   xargs     builds a command line from stdin and executes it.
+#   env       runs whatever program is named after it, and can set the
+#             environment (LD_PRELOAD, PYTHONPATH) of whatever runs next.
+SHELLS = {"sh","bash","zsh","dash","ksh","mksh","csh","tcsh","fish","rc",
+          "busybox","env","xargs","nohup","time","timeout","gtimeout",
+          "stdbuf","nice","ionice","setsid","script","ssh","scp","sudo",
+          "doas","su","eval","find","tar","watch","parallel","make","open"}
+# awk is its own set because the inline-flag rule cannot reach it: awk's
+# program is a positional argument, so there is no flag to look for and no
+# safe shape for it in a repository-supplied command.
+AWKS = {"awk","gawk","nawk","mawk","busybox-awk"}
 INTERPRETERS = {"python","python2","python3","perl","ruby","node","deno","bun",
-                "php","lua","Rscript","osascript","awk","gawk"}
+                "php","lua","luajit","tclsh","expect","Rscript","osascript",
+                "swift","ghc","runghc","groovy","jshell","scala"}
+INLINE_FLAGS = {"-c","-e","-E","-Xc","--command","--eval","--exec"}
+SCRIPT_EXT = re.compile(
+    r"\.(py|sh|bash|zsh|pl|rb|js|mjs|cjs|ts|lua|php|r|scpt|tcl|exp|ps1|awk)$",
+    re.IGNORECASE)
+ROOT_REAL = os.path.realpath(ROOT)
+
+def program_ref(where, elem, role):
+    """A position that SELECTS AN EXECUTABLE, gated by allow_repo_local_tools.
+
+    Only these positions are gated. A path sitting in an ordinary operand is
+    data, which is what P4 already says it is; gating those would refuse
+    `--config pyproject.toml` and teach people to switch the gate off."""
+    if os.path.isabs(elem):
+        real = os.path.realpath(elem)
+        inside = real == ROOT_REAL or real.startswith(ROOT_REAL + os.sep)
+    else:
+        # Checks run with the work tree as their working directory (`cd
+        # "$ROOT"` below), so a relative program reference resolves inside it:
+        # as a path when it looks like one, and as a plain name when an
+        # interpreter is the thing opening it — `python3 lint.py` reads
+        # ./lint.py with no slash anywhere in the argv.
+        inside = ("/" in elem or elem.startswith(".")
+                  or SCRIPT_EXT.search(elem) is not None
+                  or os.path.exists(os.path.join(ROOT, elem))
+                  # `python3 -m pkg.mod` puts the work tree on sys.path, so a
+                  # module name that resolves to a file in it is a repo-local
+                  # program wearing a name with no slash in it.
+                  or os.path.exists(os.path.join(ROOT, elem.replace(".", os.sep) + ".py")))
+    # A repo-local check script is both the attack and a legitimate pattern -
+    # a cloned repo choosing what runs on your machine, and your own repo
+    # declaring its own linter, are the same bytes in the same place. The
+    # filesystem cannot tell them apart, so the config must: default deny,
+    # and an explicit opt-in that a reviewer can see in the diff.
+    if inside and not ALLOW_REPO_LOCAL:
+        # Reported by POSITION, never by quoting the value. checks.yaml is a
+        # file a stranger writes and this text lands in a committed result.
+        bad("%s (%s) is a path inside the repository being checked. A cloned "
+            "repo would be choosing what executes on the machine that cloned it. "
+            "If this is your own repo's script, set `policy.allow_repo_local_tools: "
+            "true` - it is off by default so that trusting the repo is a decision "
+            "someone made, not one nobody noticed." % (where, role))
 
 def argv_of(where, value):
     if isinstance(value, str):
@@ -587,26 +667,32 @@ def argv_of(where, value):
     if not isinstance(value, list) or not value or not all(isinstance(x, str) and x for x in value):
         bad("%s must be a non-empty list of non-empty strings" % where)
 
-    prog = os.path.basename(value[0])
-    if prog in SHELLS:
-        bad("%s runs %r, which takes a command string as an argument. That is the "
-            "shell invocation argv-only exists to prevent; the list form does not "
-            "make it safe. Name the tool you actually want to run." % (where, value[0]))
-    if prog in INTERPRETERS and any(a in ("-c","-e","-E") for a in value[1:]):
-        bad("%s runs %r with an inline program. Put the program in a file the repo "
-            "can review, and name that file here." % (where, value[0]))
-    if not os.path.isabs(value[0]) and ("/" in value[0] or value[0].startswith(".")):
-        # A repo-local check script is both the attack and a legitimate pattern -
-        # a cloned repo choosing what runs on your machine, and your own repo
-        # declaring its own linter, are the same bytes in the same place. The
-        # filesystem cannot tell them apart, so the config must: default deny,
-        # and an explicit opt-in that a reviewer can see in the diff.
-        if not ALLOW_REPO_LOCAL:
-            bad("%s runs %r, a path inside the repository being checked. A cloned "
-                "repo would be choosing what executes on the machine that cloned it. "
-                "If this is your own repo's script, set `policy.allow_repo_local_tools: "
-                "true` - it is off by default so that trusting the repo is a decision "
-                "someone made, not one nobody noticed." % (where, value[0]))
+    # EVERY element, not just value[0]. A value[0]-only rule is a live bypass:
+    # the interposer is only ever one argument further along.
+    for i, elem in enumerate(value):
+        at = "%s[%d]" % (where, i)
+        base = os.path.basename(elem)
+        if base in AWKS:
+            bad("%s names awk, which is refused in every position. awk takes its program as a "
+                "POSITIONAL argument, so a rule that looks for -c/-e/-E never sees it, and there "
+                "is no shape of awk that a repository can safely choose." % at)
+        if base in SHELLS:
+            bad("%s names a program that takes a command as an operand. That is the shell "
+                "invocation argv-only exists to prevent, and the list form does not make it safe; "
+                "it is refused in any position, not only the first. Name the tool you actually "
+                "want to run." % at)
+        if base in INTERPRETERS:
+            for j in range(i + 1, len(value)):
+                if value[j] in INLINE_FLAGS:
+                    bad("%s[%d] hands an interpreter an inline program. Put the program in a file "
+                        "the repo can review, and name that file here." % (where, j))
+            for j in range(i + 1, len(value)):
+                if value[j].startswith("-"):
+                    continue
+                program_ref("%s[%d]" % (where, j), value[j],
+                            "the first operand of an interpreter")
+                break
+    program_ref("%s[0]" % where, value[0], "the program")
     return list(value)
 
 def int_list(where, value):
