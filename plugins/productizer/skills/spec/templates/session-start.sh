@@ -101,6 +101,44 @@ case "${RMIN:-}${RMAX:-}${SUPERSEDED:-}${CONCERNS:-}" in
   ''|*[!0-9]*) emit_nothing ;;
 esac
 
+# The spec's Areas of concern table is one source for "what is waiting on a person". The ruling
+# files are the other, and rulings.md makes this hook a named consumer of that second contract.
+# They are counted separately and on purpose: a concern row with no ruling file behind it is a
+# contradiction that halted without ever asking, which is the failure this whole path exists to
+# prevent. Reconciling them here would hide it - the disagreement is the signal, and
+# check-ruling-requested.sh is what fails on it. This hook only has to avoid claiming the
+# healthy answer when it does not know.
+#
+# Never a bare count from a glob: an unmatched glob arrives as a literal path, and an unreadable
+# directory and an empty one are not the same fact. No directory means never raised; unreadable
+# means unknown; and unknown is reported as unknown, never as zero, for the same reason the intent
+# count below is - a zero reads as "nothing is waiting" and is the one wrong answer that looks
+# like a healthy one.
+RULINGS_DIR=".claude/productizer/rulings"
+PENDING=""          # "" = unknown, "0" = genuinely none, "N" = that many
+PIDS="-"
+if [ ! -e "$RULINGS_DIR" ]; then
+  PENDING=0
+elif [ -d "$RULINGS_DIR" ] && [ -r "$RULINGS_DIR" ] && [ -x "$RULINGS_DIR" ]; then
+  # -l -x -F, never a substring match: "Status: pending" appears in the template's own prose and
+  # in any ruling that discusses being pending, and an unanchored match reports questions that do
+  # not exist. Ids only, never a line of the file - a ruling quotes an incoming intent, which is
+  # text a stranger can write, and this string lands in the model's context before a human has
+  # read a word of it.
+  PFILES=$(find "$RULINGS_DIR" -maxdepth 1 -type f -name 'D*.md' -exec grep -lxF 'Status: pending' {} +) || PFILES=""
+  if [ -z "$PFILES" ]; then
+    PENDING=0
+  else
+    PENDING=$(printf '%s\n' "$PFILES" | grep -c .)
+    PIDS=$(printf '%s\n' "$PFILES" | sed -n 's#^.*/\(D[0-9][0-9]*\)[-.].*#\1#p' \
+             | sort -t D -k2 -n | head -5 | paste -sd, -)
+    [ -n "$PIDS" ] || PIDS="-"
+  fi
+fi
+case "$PENDING" in
+  ''|*[!0-9]*) PENDING="" ;;
+esac
+
 # Open intents live in the tracker, not in the tree: the shipped binding sets intent.persist false,
 # so there is no committed file to count and a folder scan would report a different quantity from the
 # one the fleet view calls open intents. That justifies the one network call — and bounds it:
@@ -173,6 +211,18 @@ if [ "$CONCERNS" -gt 0 ]; then
     ''|-|*[!C0-9,]*) LINE2="Nothing merges into the spec until it is ruled on." ;;
     *) LINE2="Open in Areas of concern: $CIDS. Nothing merges into the spec until it is ruled on." ;;
   esac
+fi
+
+# A concern that never became a ruling file is a halt nobody was asked to answer.
+if [ -z "$PENDING" ]; then
+  LINE="$LINE · rulings unreadable, pending count unknown"
+elif [ "$PENDING" -gt 0 ]; then
+  case "$PIDS" in
+    -|*[!D0-9,]*) LINE="$LINE · $PENDING drafted" ;;
+    *) LINE="$LINE · $PENDING drafted: $PIDS" ;;
+  esac
+elif [ "$CONCERNS" -gt 0 ]; then
+  LINE="$LINE · NO RULING DRAFTED - nobody has been asked"
 fi
 LINE="$LINE · $SPEC_TEXT"
 

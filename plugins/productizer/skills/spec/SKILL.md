@@ -207,7 +207,16 @@ things (`templates/intake.md`):
 
 **A contradiction is a stop, not a merge.** Quote both requirement ids, state
 the conflict in one sentence, ask which wins, and say plainly nothing was
-merged. Never supersede silently, and never prefer a requirement for being newer
+merged.
+
+**Write the ruling before you ask.** Run `scripts/request-ruling.sh` at the
+moment you classify contradict - it allocates the `D` and `C` ids, drafts the
+file from `templates/ruling.md` with both sides and both columns of costs, and
+prints the path to name in your message. Asking first and writing after is the
+failure this is for: the session can end before anything is written, the halt
+leaves no trace, and the work stops and stays stopped with nobody holding a
+question. A stop that nobody was asked to answer is indistinguishable from a
+stop that was abandoned. Never supersede silently, and never prefer a requirement for being newer
 — that changes agreed behaviour with nobody approving it, leaving a spec that is
 confidently wrong rather than obviously incomplete.
 
@@ -369,6 +378,7 @@ spans several repos, and what breaks when it is split:
 | EARS, id lifecycle, classification | `references/ears.md` |
 | Principles above requirements | `references/constitution.md` |
 | How a contradiction is decided | `references/rulings.md` |
+| Observations that are not requirements | `references/learnings.md` |
 | Importing a repo that has no spec | `references/import.md` |
 | Declared checks, coverage, hollow passes | `references/checks.md` |
 | Deterministic contradiction detection | `references/solver.md` |
@@ -402,6 +412,13 @@ contract before wiring one into a gate.
 | `scripts/import-survey.sh` | read-only survey for Stage 0c | 0 |
 | `scripts/run-checks.sh` | runs the declared checks | 0 pass · 3 refused · 2 usage · 1 crash |
 | `scripts/contradiction-check.py` | second opinion on one pair | 0 no halt · 1 contradiction · 2 usage |
+| `scripts/request-ruling.sh` | raises the ruling a contradiction needs | 0 wrote · 2 usage · 3 unreadable · 4 refused |
+| `scripts/pending-rulings.sh` | which decisions are waiting on a person | 0 none · 1 pending · 2 unknown |
+| `scripts/check-ruling-requested.sh` | every halt actually asked | 0 · 1 findings · 2 could not run |
+| `scripts/check-hygiene.sh` | generic leak rules, plus a private list read at runtime | 0 · 1 findings · 2 could not run |
+| `scripts/check-frontmatter.py` | agent templates' frontmatter does what it says | 0 · 1 findings · 2 usage |
+| `scripts/learnings.sh` | observations that are not obligations, cited to `R` ids | 0 · 1 findings · 2 usage · 3 unreadable · 4 cannot determine · 5 never created · 6 refused |
+| `scripts/run-runner.sh` | validates and executes a runner definition | 0 · 1 reported failure · 2 usage · 3 unreadable · 4 refused |
 | `scripts/init.sh` | all of Stage 0 in one command | 0 · 2 usage · 3 prerequisite · 4 refused · 5 partial |
 | `scripts/spec-diff.sh` | the spec **delta** for Build, not just the spec | 0 diff · 2 usage · 3 not a repo · 4 unchanged · 5 no baseline · 6 base unresolved · 7 over cap |
 | `scripts/validate-spec.py` | EARS and id permanence, executable | 0 · 1 errors · 2 usage · 3 strict warnings · 4 not measured |
