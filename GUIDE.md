@@ -41,15 +41,25 @@ remembering the sentence that triggers it.
 |---|---|
 | `/productizer:dashboard` | regenerate the view from this repo's files and publish it |
 | `/productizer:check` | run the declared checks over the current change |
+| `/productizer:backlog` | the queue in front of the lifecycle — see it, add to it, start an item |
+| `/productizer:answer` | every question the repo is holding open for a person, one at a time |
 | `/productizer:spec` | the whole lifecycle — intake, classification, deltas, releases |
 
 Type `/productizer` and the menu lists them. The bare forms — `/dashboard`,
 `/check` — work too unless another plugin has claimed the name.
 
-`dashboard` and `check` are marked so the model will not invoke them on its own:
-one publishes a page and the other runs every declared tool in the repo, and
-neither should happen because a sentence sounded like a request for it. You type
-those. `spec` is the opposite — it is meant to trigger from what you are doing.
+All four are marked so the model will not invoke them on its own. One publishes
+a page, one runs every declared tool in the repo, one edits the queue and one
+starts asking you questions — none of those should happen because a sentence
+sounded like a request for it. You type those. `spec` is the opposite: it is
+meant to trigger from what you are doing.
+
+`answer` is the one worth knowing about. It reads the spec, the rulings and the
+backlog and finds what is genuinely waiting on a person — a requirement nothing
+asserts, a contradiction nobody ruled, an item that named what it is blocked on
+— then puts them **one at a time**, with what it already found about each. It
+caught nine stale rows on its first run: requirements whose verifiers had been
+built and declared while the table still said nothing asserted them.
 
 ## First run in a repo
 
