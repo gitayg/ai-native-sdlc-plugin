@@ -62,6 +62,14 @@ jobs:
         with:
           python-version: '3.12'
 
+      # run-checks.sh reads checks.yaml with PyYAML and REFUSES when the module
+      # is missing rather than guessing what was declared - which is the correct
+      # behaviour and is why every run before this one was red. Pinned, because
+      # an unpinned install here decides what parses the file that decides what
+      # executes.
+      - name: PyYAML, which the runner refuses to work without
+        run: python3 -m pip install --disable-pip-version-check 'PyYAML==6.0.2'
+
       # FAIL CLOSED, FIRST. Every tool below is asserted present here so a
       # missing one is a named failure at the top of the log, not a check that
       # quietly did not run. This is the same rule run-checks.sh enforces
