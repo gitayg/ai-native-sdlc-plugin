@@ -124,3 +124,24 @@ deliberately parked near the bottom. Within a group, file order is preserved.
   at Stage 1 against the requirement it violates (`references/drift.md`).
 - **Anything already specified.** Intake will rule it a duplicate — the right
   answer, reached expensively. Check the spec first.
+
+## Bug or feature — the tracker already knows
+
+There is no `Kind` column and there will not be one. The tracker has `bug` and
+`enhancement`, they mean exactly this, and a second field saying what the first
+one says disagrees with it the moment someone edits one and not the other. That
+is the same reason there is no priority column.
+
+**bug** — something already agreed is not being honoured, or cannot be. Code
+failing a requirement, or a requirement that is unfollowable as written.
+
+**enhancement** — nothing agreed covers it yet.
+
+**The kind belongs to the intent, not to the backlog item.** You cannot know
+which one something is until it has been classified against the spec: "the
+system fails a requirement" is a claim about a requirement that exists, and an
+item sitting in the queue has not been checked against anything. Labelling it
+when it is written down decides at the wrong moment, by the wrong person, using
+the least information anyone will ever have about it.
+
+So the label goes on at intake, on the issue, by whoever classified it.
