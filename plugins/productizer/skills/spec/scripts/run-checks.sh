@@ -974,6 +974,14 @@ for c in plan:
         fh.write("".join(r + "\n" for r in c["requires"]))
     with open(os.path.join(d, "files"), "w") as fh:
         fh.write("".join(f + "\n" for f in c["files"]))
+    # The check's OWN verdict map, written where per_file aggregation can read
+    # it. Without this the shell has only the numbers, and a number cannot say
+    # which outcome it means: a check declaring `pass: [1]` and `fail: [0]` is
+    # not a broken check, it is grep.
+    with open(os.path.join(d, "exit_map"), "w") as fh:
+        for kind in ("pass", "fail", "refused"):
+            for code in c["exit_codes"].get(kind, []):
+                fh.write("%s %s\n" % (kind, code))
 
 sys.stdout.write("\n".join(str(c["index"]) for c in plan if c["triggered"]) + "\n")
 PY
@@ -1070,7 +1078,29 @@ for idx in $TRIGGERED; do
 
   if [ "$mode" = "per_file" ]; then
     : > "$D/file_exits"
+    # AGGREGATE BY DECLARED OUTCOME, NOT BY NUMERIC SIZE.
+    #
+    # This used to be `worst = max(exit code)`, which assumes a larger number is
+    # a worse result. That is a convention, not a fact, and every check here
+    # DECLARES what its codes mean. A check with inverted semantics - grep,
+    # where 0 means the forbidden thing was FOUND - has `pass: [1]` and
+    # `fail: [0]`, so max() picked 1 over 0 and the stage reported PASS over a
+    # tree that violated. Measured on a fixture, not argued.
+    #
+    # Order is refused > fail > pass > unmapped-becomes-refused. The first file
+    # reaching the worst outcome donates its exit code, so whatever maps it
+    # downstream sees a code the check itself declared rather than one this
+    # loop invented.
+    rank_of() {  # 3 refused · 2 fail · 1 pass · 0 not declared
+      _r=0
+      while read -r _kind _code; do
+        [ "$_code" = "$1" ] || continue
+        case "$_kind" in refused) _r=3 ;; fail) [ "$_r" -lt 2 ] && _r=2 ;; pass) [ "$_r" -lt 1 ] && _r=1 ;; esac
+      done < "$D/exit_map"
+      printf '%s' "$_r"
+    }
     worst=0
+    worst_rank=-1
     while IFS= read -r f; do
       [ -n "$f" ] || continue
       read_argv "$D/argv"
@@ -1082,7 +1112,12 @@ for idx in $TRIGGERED; do
       frc=0
       run_limited "$timeout" "$D/output" "${CMD[@]}" || frc=$?
       printf '%s\t%s\n' "$frc" "$f" >> "$D/file_exits"
-      [ "$frc" -gt "$worst" ] && worst="$frc"
+      r="$(rank_of "$frc")"
+      # An UNDECLARED code outranks everything. A check that returned something
+      # its own map does not cover has not passed - nobody knows what it did,
+      # and unknown is refused, never clean.
+      [ "$r" -eq 0 ] && r=4
+      if [ "$r" -gt "$worst_rank" ]; then worst_rank="$r"; worst="$frc"; fi
     done < "$D/files"
     printf '%s\n' "$worst" > "$D/exit"
   else
