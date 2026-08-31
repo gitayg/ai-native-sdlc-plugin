@@ -6,22 +6,20 @@
   "root_source": "--root, given on the command line",
   "change": {
     "files": [
-      ".claude/productizer/backlog.md",
       ".claude/productizer/checks-result.json",
       ".claude/productizer/checks.yaml",
       ".claude/productizer/spec.md",
       "README.md",
       "plugins/productizer/.claude-plugin/plugin.json",
-      "plugins/productizer/skills/spec/fixtures/fabricated-zero/changed.txt",
-      "plugins/productizer/skills/spec/fixtures/fabricated-zero/checks.yaml",
-      "plugins/productizer/skills/spec/scripts/check-jira-unbound.sh",
-      "plugins/productizer/skills/spec/scripts/check-no-fabricated-zero.sh"
+      "plugins/productizer/skills/spec/fixtures/nothing-merged/intent.md",
+      "plugins/productizer/skills/spec/fixtures/nothing-merged/spec.md",
+      "plugins/productizer/skills/spec/scripts/check-nothing-merged.sh"
     ],
-    "file_count": 10,
+    "file_count": 8,
     "tags": []
   },
-  "verdict": "refused",
-  "exit_code": 3,
+  "verdict": "pass",
+  "exit_code": 0,
   "counts": {
     "declared": 18,
     "triggered": 18,
@@ -33,11 +31,11 @@
     "spec_units_unsatisfied": 21
   },
   "spec_coverage": {
-    "mode": "auto",
+    "mode": "report",
     "spec": ".claude/productizer/spec.md",
     "status": "measured",
     "detail": null,
-    "enforced": true,
+    "enforced": false,
     "units_total": 25,
     "counts": {
       "Covered": 2,
@@ -302,7 +300,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 10,
+      "files_in_scope": 8,
       "enabled": true,
       "tool": {
         "command": [
@@ -322,28 +320,26 @@
           "min_rules": 0
         },
         "observed": {
-          "covered": 10,
+          "covered": 8,
           "covered_items": [
-            ".claude/productizer/backlog.md",
             ".claude/productizer/checks-result.json",
             ".claude/productizer/checks.yaml",
             ".claude/productizer/spec.md",
             "README.md",
             "plugins/productizer/.claude-plugin/plugin.json",
-            "plugins/productizer/skills/spec/fixtures/fabricated-zero/changed.txt",
-            "plugins/productizer/skills/spec/fixtures/fabricated-zero/checks.yaml",
-            "plugins/productizer/skills/spec/scripts/check-jira-unbound.sh",
-            "plugins/productizer/skills/spec/scripts/check-no-fabricated-zero.sh"
+            "plugins/productizer/skills/spec/fixtures/nothing-merged/intent.md",
+            "plugins/productizer/skills/spec/fixtures/nothing-merged/spec.md",
+            "plugins/productizer/skills/spec/scripts/check-nothing-merged.sh"
           ],
           "rules_loaded": null,
-          "files_in_scope": 10,
+          "files_in_scope": 8,
           "not_examined": []
         },
         "satisfied": true,
         "reasons": []
       },
       "timed_out": false,
-      "output_tail": ".claude/productizer/backlog.md\n.claude/productizer/checks-result.json\n.claude/productizer/checks.yaml\n.claude/productizer/spec.md\nREADME.md\nplugins/productizer/.claude-plugin/plugin.json\nplugins/productizer/skills/spec/fixtures/fabricated-zero/changed.txt\nplugins/productizer/skills/spec/fixtures/fabricated-zero/checks.yaml\nplugins/productizer/skills/spec/scripts/check-jira-unbound.sh\nplugins/productizer/skills/spec/scripts/check-no-fabricated-zero.sh\n",
+      "output_tail": ".claude/productizer/checks-result.json\n.claude/productizer/checks.yaml\n.claude/productizer/spec.md\nREADME.md\nplugins/productizer/.claude-plugin/plugin.json\nplugins/productizer/skills/spec/fixtures/nothing-merged/intent.md\nplugins/productizer/skills/spec/fixtures/nothing-merged/spec.md\nplugins/productizer/skills/spec/scripts/check-nothing-merged.sh\n",
       "status": "pass"
     },
     {
@@ -363,7 +359,7 @@
       "triggered_by": [
         "path:**/*.sh"
       ],
-      "files_in_scope": 2,
+      "files_in_scope": 1,
       "enabled": true,
       "tool": {
         "command": [
@@ -374,7 +370,7 @@
         "exit_code": 0
       },
       "exit_code": 0,
-      "duration_seconds": 2,
+      "duration_seconds": 1,
       "coverage": {
         "from": "per_file_exit",
         "required": {
@@ -383,20 +379,19 @@
           "min_rules": 0
         },
         "observed": {
-          "covered": 2,
+          "covered": 1,
           "covered_items": [
-            "plugins/productizer/skills/spec/scripts/check-jira-unbound.sh",
-            "plugins/productizer/skills/spec/scripts/check-no-fabricated-zero.sh"
+            "plugins/productizer/skills/spec/scripts/check-nothing-merged.sh"
           ],
           "rules_loaded": null,
-          "files_in_scope": 2,
+          "files_in_scope": 1,
           "not_examined": []
         },
         "satisfied": true,
         "reasons": []
       },
       "timed_out": false,
-      "output_tail": "\n===== plugins/productizer/skills/spec/scripts/check-jira-unbound.sh\n\n===== plugins/productizer/skills/spec/scripts/check-no-fabricated-zero.sh\n",
+      "output_tail": "\n===== plugins/productizer/skills/spec/scripts/check-nothing-merged.sh\n",
       "status": "pass"
     },
     {
@@ -415,7 +410,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 10,
+      "files_in_scope": 8,
       "enabled": true,
       "tool": {
         "command": [
@@ -438,7 +433,7 @@
           "covered": 7,
           "covered_items": [],
           "rules_loaded": null,
-          "files_in_scope": 10,
+          "files_in_scope": 8,
           "not_examined": []
         },
         "satisfied": true,
@@ -471,7 +466,7 @@
       "triggered_by": [
         "path:**/*.sh"
       ],
-      "files_in_scope": 2,
+      "files_in_scope": 1,
       "enabled": true,
       "tool": {
         "command": [
@@ -482,7 +477,7 @@
         "exit_code": 0
       },
       "exit_code": 0,
-      "duration_seconds": 2,
+      "duration_seconds": 1,
       "coverage": {
         "from": "per_file_exit",
         "required": {
@@ -491,20 +486,19 @@
           "min_rules": 0
         },
         "observed": {
-          "covered": 2,
+          "covered": 1,
           "covered_items": [
-            "plugins/productizer/skills/spec/scripts/check-jira-unbound.sh",
-            "plugins/productizer/skills/spec/scripts/check-no-fabricated-zero.sh"
+            "plugins/productizer/skills/spec/scripts/check-nothing-merged.sh"
           ],
           "rules_loaded": null,
-          "files_in_scope": 2,
+          "files_in_scope": 1,
           "not_examined": []
         },
         "satisfied": true,
         "reasons": []
       },
       "timed_out": false,
-      "output_tail": "\n===== plugins/productizer/skills/spec/scripts/check-jira-unbound.sh\nplugins/productizer/skills/spec/scripts/check-jira-unbound.sh\n\n===== plugins/productizer/skills/spec/scripts/check-no-fabricated-zero.sh\nplugins/productizer/skills/spec/scripts/check-no-fabricated-zero.sh\n",
+      "output_tail": "\n===== plugins/productizer/skills/spec/scripts/check-nothing-merged.sh\nplugins/productizer/skills/spec/scripts/check-nothing-merged.sh\n",
       "status": "pass"
     },
     {
@@ -523,7 +517,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 10,
+      "files_in_scope": 8,
       "enabled": true,
       "tool": {
         "command": [
@@ -546,7 +540,7 @@
           "covered": 1,
           "covered_items": [],
           "rules_loaded": null,
-          "files_in_scope": 10,
+          "files_in_scope": 8,
           "not_examined": []
         },
         "satisfied": true,
@@ -570,7 +564,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 10,
+      "files_in_scope": 8,
       "enabled": true,
       "tool": {
         "command": [
@@ -595,7 +589,7 @@
             ".claude/productizer/spec.md"
           ],
           "rules_loaded": null,
-          "files_in_scope": 10,
+          "files_in_scope": 8,
           "not_examined": []
         },
         "satisfied": true,
@@ -620,7 +614,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 10,
+      "files_in_scope": 8,
       "enabled": true,
       "tool": {
         "command": [
@@ -644,7 +638,7 @@
           "covered": 2,
           "covered_items": [],
           "rules_loaded": null,
-          "files_in_scope": 10,
+          "files_in_scope": 8,
           "not_examined": []
         },
         "satisfied": true,
@@ -669,7 +663,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 10,
+      "files_in_scope": 8,
       "enabled": true,
       "tool": {
         "command": [
@@ -692,7 +686,7 @@
           "covered": 25,
           "covered_items": [],
           "rules_loaded": null,
-          "files_in_scope": 10,
+          "files_in_scope": 8,
           "not_examined": []
         },
         "satisfied": true,
@@ -716,7 +710,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 10,
+      "files_in_scope": 8,
       "enabled": true,
       "tool": {
         "command": [
@@ -940,14 +934,14 @@
             "evals/cases/P15-vocabulary-drift-dunning-abandon/prompt.md"
           ],
           "rules_loaded": null,
-          "files_in_scope": 10,
+          "files_in_scope": 8,
           "not_examined": []
         },
         "satisfied": true,
         "reasons": []
       },
       "timed_out": false,
-      "output_tail": "lugins/productizer/skills/spec/templates/import.md\nplugins/productizer/skills/spec/templates/intake.md\nplugins/productizer/skills/spec/templates/intent.md\nplugins/productizer/skills/spec/templates/interview.md\nplugins/productizer/skills/spec/templates/jira-intent.md\nplugins/productizer/skills/spec/templates/learnings.md\nplugins/productizer/skills/spec/templates/managed-settings.json\nplugins/productizer/skills/spec/templates/plan.md\nplugins/productizer/skills/spec/templates/prepare-commit-msg.sh\nplugins/productizer/skills/spec/templates/production-gate.sh\nplugins/productizer/skills/spec/templates/publish-gate.sh\nplugins/productizer/skills/spec/templates/release-blog.md\nplugins/productizer/skills/spec/templates/release-email.md\nplugins/productizer/skills/spec/templates/ruling.md\nplugins/productizer/skills/spec/templates/runners/gate-bypass.json\nplugins/productizer/skills/spec/templates/runners/publish-blast.json\nplugins/productizer/skills/spec/templates/runners/spec-mutation.json\nplugins/productizer/skills/spec/templates/scheduled-bands.md\nplugins/productizer/skills/spec/templates/scheduled-evals.md\nplugins/productizer/skills/spec/templates/session-start.sh\nplugins/productizer/skills/spec/templates/spec-command.md\nplugins/productizer/skills/spec/templates/spec-delta.md\nplugins/productizer/skills/spec/templates/spec.md\nplugins/productizer/skills/spec/templates/threshold.sh\nplugins/productizer/skills/spec/templates/triage-step.yml\nplugins/productizer/skills/spec/templates/user-guide.md\nplugins/productizer/skills/spec/templates/verification-section.md\nplugins/productizer/skills/spec/templates/view.html\nscripts/check-hygiene.sh\n  repository files hashed before and after: 349\n  files the generator moved: 0\n  page bytes read: 440145\n  capability declarations read: 1\n  declares `downloads` - output: it hands the viewer a file and reads nothing back\n  R4 satisfied: the generator moved no repository file, and the page declares nothing that can publish a new version of itself.\n",
+      "output_tail": "lugins/productizer/skills/spec/templates/import.md\nplugins/productizer/skills/spec/templates/intake.md\nplugins/productizer/skills/spec/templates/intent.md\nplugins/productizer/skills/spec/templates/interview.md\nplugins/productizer/skills/spec/templates/jira-intent.md\nplugins/productizer/skills/spec/templates/learnings.md\nplugins/productizer/skills/spec/templates/managed-settings.json\nplugins/productizer/skills/spec/templates/plan.md\nplugins/productizer/skills/spec/templates/prepare-commit-msg.sh\nplugins/productizer/skills/spec/templates/production-gate.sh\nplugins/productizer/skills/spec/templates/publish-gate.sh\nplugins/productizer/skills/spec/templates/release-blog.md\nplugins/productizer/skills/spec/templates/release-email.md\nplugins/productizer/skills/spec/templates/ruling.md\nplugins/productizer/skills/spec/templates/runners/gate-bypass.json\nplugins/productizer/skills/spec/templates/runners/publish-blast.json\nplugins/productizer/skills/spec/templates/runners/spec-mutation.json\nplugins/productizer/skills/spec/templates/scheduled-bands.md\nplugins/productizer/skills/spec/templates/scheduled-evals.md\nplugins/productizer/skills/spec/templates/session-start.sh\nplugins/productizer/skills/spec/templates/spec-command.md\nplugins/productizer/skills/spec/templates/spec-delta.md\nplugins/productizer/skills/spec/templates/spec.md\nplugins/productizer/skills/spec/templates/threshold.sh\nplugins/productizer/skills/spec/templates/triage-step.yml\nplugins/productizer/skills/spec/templates/user-guide.md\nplugins/productizer/skills/spec/templates/verification-section.md\nplugins/productizer/skills/spec/templates/view.html\nscripts/check-hygiene.sh\n  repository files hashed before and after: 349\n  files the generator moved: 0\n  page bytes read: 443588\n  capability declarations read: 1\n  declares `downloads` - output: it hands the viewer a file and reads nothing back\n  R4 satisfied: the generator moved no repository file, and the page declares nothing that can publish a new version of itself.\n",
       "status": "pass"
     },
     {
@@ -964,7 +958,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 10,
+      "files_in_scope": 8,
       "enabled": true,
       "tool": {
         "command": [
@@ -991,7 +985,7 @@
             "plugins/productizer/skills/spec/fixtures/missing-tool/changed.txt"
           ],
           "rules_loaded": null,
-          "files_in_scope": 10,
+          "files_in_scope": 8,
           "not_examined": []
         },
         "satisfied": true,
@@ -1015,7 +1009,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 10,
+      "files_in_scope": 8,
       "enabled": true,
       "tool": {
         "command": [
@@ -1038,7 +1032,7 @@
           "covered": 28,
           "covered_items": [],
           "rules_loaded": null,
-          "files_in_scope": 10,
+          "files_in_scope": 8,
           "not_examined": []
         },
         "satisfied": true,
@@ -1062,7 +1056,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 10,
+      "files_in_scope": 8,
       "enabled": true,
       "tool": {
         "command": [
@@ -1085,14 +1079,14 @@
           "covered": 28,
           "covered_items": [],
           "rules_loaded": null,
-          "files_in_scope": 10,
+          "files_in_scope": 8,
           "not_examined": []
         },
         "satisfied": true,
         "reasons": []
       },
       "timed_out": false,
-      "output_tail": ".claude/productizer/spec.md\n    requirements read: 28\n    requirements still wearing the marking, refused at import, or promoted from one: 0\n    cohort A - change log rows naming one of them: 0\n    cohort B - commits introducing one of them: 0, of 8 touching the spec\n    cohort C - change log rows or commits naming `Stage 0c`: 0\n    requirements attributed to an import: 0\n    of those, already marked, refused or promoted: 0\n    attributed requirements with no inferred marking: 0\n    NOTE: no import was found. That is not the same fact as an import having been marked correctly - an import that marked nothing at all and named no stage leaves this check nothing to anchor on\n",
+      "output_tail": ".claude/productizer/spec.md\n    requirements read: 28\n    requirements still wearing the marking, refused at import, or promoted from one: 0\n    cohort A - change log rows naming one of them: 0\n    cohort B - commits introducing one of them: 0, of 9 touching the spec\n    cohort C - change log rows or commits naming `Stage 0c`: 0\n    requirements attributed to an import: 0\n    of those, already marked, refused or promoted: 0\n    attributed requirements with no inferred marking: 0\n    NOTE: no import was found. That is not the same fact as an import having been marked correctly - an import that marked nothing at all and named no stage leaves this check nothing to anchor on\n",
       "status": "pass"
     },
     {
@@ -1109,7 +1103,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 10,
+      "files_in_scope": 8,
       "enabled": true,
       "tool": {
         "command": [
@@ -1134,7 +1128,7 @@
             ".claude/productizer/spec.md"
           ],
           "rules_loaded": null,
-          "files_in_scope": 10,
+          "files_in_scope": 8,
           "not_examined": []
         },
         "satisfied": true,
@@ -1158,7 +1152,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 10,
+      "files_in_scope": 8,
       "enabled": true,
       "tool": {
         "command": [
@@ -1178,9 +1172,10 @@
           "min_rules": 0
         },
         "observed": {
-          "covered": 9,
+          "covered": 10,
           "covered_items": [
             ".claude/productizer/spec.md",
+            ".claude/productizer/spec.md@3495c5e",
             ".claude/productizer/spec.md@4148cef",
             ".claude/productizer/spec.md@a6a9e71",
             ".claude/productizer/spec.md@f5bfdae",
@@ -1191,14 +1186,14 @@
             ".claude/productizer/spec.md@842b5cc"
           ],
           "rules_loaded": null,
-          "files_in_scope": 10,
+          "files_in_scope": 8,
           "not_examined": []
         },
         "satisfied": true,
         "reasons": []
       },
       "timed_out": false,
-      "output_tail": ".claude/productizer/spec.md\n.claude/productizer/spec.md@4148cef\n.claude/productizer/spec.md@a6a9e71\n.claude/productizer/spec.md@f5bfdae\n.claude/productizer/spec.md@dad2ce9\n.claude/productizer/spec.md@28d138f\n.claude/productizer/spec.md@9993a93\n.claude/productizer/spec.md@8b03b65\n.claude/productizer/spec.md@842b5cc\nspec versions examined: 8\n  R14 superseded baseline 8b03b65 (pre-supersede)  text unchanged\n  R16 superseded baseline 8b03b65 (pre-supersede)  text unchanged\n  R21 superseded baseline 8b03b65 (pre-supersede)  text unchanged\nrequirements examined: 28\nsuperseded or withdrawn: 3\ntext compared against history: 3\nPASS: every superseded or withdrawn requirement still carries the sentence it had at the commit before it was replaced, and every forward pointer resolves to an active id.\n",
+      "output_tail": ".claude/productizer/spec.md\n.claude/productizer/spec.md@3495c5e\n.claude/productizer/spec.md@4148cef\n.claude/productizer/spec.md@a6a9e71\n.claude/productizer/spec.md@f5bfdae\n.claude/productizer/spec.md@dad2ce9\n.claude/productizer/spec.md@28d138f\n.claude/productizer/spec.md@9993a93\n.claude/productizer/spec.md@8b03b65\n.claude/productizer/spec.md@842b5cc\nspec versions examined: 9\n  R14 superseded baseline 8b03b65 (pre-supersede)  text unchanged\n  R16 superseded baseline 8b03b65 (pre-supersede)  text unchanged\n  R21 superseded baseline 8b03b65 (pre-supersede)  text unchanged\nrequirements examined: 28\nsuperseded or withdrawn: 3\ntext compared against history: 3\nPASS: every superseded or withdrawn requirement still carries the sentence it had at the commit before it was replaced, and every forward pointer resolves to an active id.\n",
       "status": "pass"
     },
     {
@@ -1215,7 +1210,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 10,
+      "files_in_scope": 8,
       "enabled": true,
       "tool": {
         "command": [
@@ -1240,7 +1235,7 @@
             ".claude/productizer/spec.md"
           ],
           "rules_loaded": null,
-          "files_in_scope": 10,
+          "files_in_scope": 8,
           "not_examined": []
         },
         "satisfied": true,
@@ -1264,7 +1259,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 10,
+      "files_in_scope": 8,
       "enabled": true,
       "tool": {
         "command": [
@@ -1290,7 +1285,7 @@
             ".claude/productizer/backlog.md"
           ],
           "rules_loaded": null,
-          "files_in_scope": 10,
+          "files_in_scope": 8,
           "not_examined": []
         },
         "satisfied": true,
@@ -1314,7 +1309,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 10,
+      "files_in_scope": 8,
       "enabled": true,
       "tool": {
         "command": [
@@ -1341,7 +1336,7 @@
             "plugins/productizer/skills/spec/fixtures/fabricated-zero/changed.txt"
           ],
           "rules_loaded": null,
-          "files_in_scope": 10,
+          "files_in_scope": 8,
           "not_examined": []
         },
         "satisfied": true,
@@ -1365,7 +1360,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 10,
+      "files_in_scope": 8,
       "enabled": true,
       "tool": {
         "command": [
@@ -1393,7 +1388,7 @@
             "plugins/productizer/skills/spec/scripts/request-ruling.sh"
           ],
           "rules_loaded": null,
-          "files_in_scope": 10,
+          "files_in_scope": 8,
           "not_examined": []
         },
         "satisfied": true,

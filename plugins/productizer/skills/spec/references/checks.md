@@ -516,11 +516,33 @@ thirty-three, printed by a different part of the pipeline.
 |---|---|
 | `auto` (default) | measure as soon as any check declares `spec_units`; while none does, say `not_declared` out loud and do not refuse |
 | `require` | always measure; a spec that cannot be read refuses the run |
+| `report` | always measure, never refuse. The line reads *declared but not enforced* |
 | `"off"` | committed, visible opt-out. Quote it — YAML reads a bare `off` as the boolean false |
 
 `auto` exists so that adding this file to a repo mid-adoption does not turn
 every run red on day one. What it does not do is report silence as success:
 with nothing declared the line reads *unmeasured, not covered*.
+
+**`auto` has no middle, which is why `report` exists.** Enforcement under `auto`
+is all-or-nothing: the FIRST check to declare a `spec_units` claim turns it on
+for the whole spec. A repo adopting this incrementally therefore goes from green
+to refusing every run the moment it records its first honest piece of coverage,
+which punishes exactly the act the mode is meant to encourage. This repo did it
+to itself — four claims, and every run refused on the twenty-one requirements
+nobody had mapped yet.
+
+The two obvious ways out are both worse. Deleting the claims destroys a real
+record to dodge a verdict. Narrowing the denominator to what checks happen to
+claim is the hollow pass this whole stage exists to prevent — a spec of one
+requirement, fully covered.
+
+So `report` changes the **verdict** and never the **measurement**. The
+denominator still comes from the spec, every uncovered requirement is still
+named, and the line says *declared but not enforced* so nobody reads the run as
+clean coverage. It is a committed, visible statement that the mapping is
+unfinished. Moving to `require` should be the LAST step of adoption, not the
+first: flipping it early refuses every run, and a stage that always refuses is a
+stage everybody learns to ignore.
 
 ### How the runner fails closed
 

@@ -430,9 +430,9 @@ if SPEC_MODE is False:
     # the author wrote is better than making them learn that; the alternative
     # is an author who typed `off` and got a config error they cannot explain.
     SPEC_MODE = "off"
-if SPEC_MODE not in ("require", "auto", "off"):
-    bad("`policy.spec_coverage` must be `require`, `auto` or `off`, not %r. YAML reads a bare "
-        "`on`/`yes`/`true` as a boolean; quote the word." % (SPEC_MODE,))
+if SPEC_MODE not in ("require", "auto", "report", "off"):
+    bad("`policy.spec_coverage` must be `require`, `auto`, `report` or `off`, not %r. YAML reads "
+        "a bare `on`/`yes`/`true` as a boolean; quote the word." % (SPEC_MODE,))
 SPEC_PATH = policy.get("spec", ".claude/productizer/spec.md")
 if not isinstance(SPEC_PATH, str) or not SPEC_PATH.strip():
     bad("policy.spec must be a non-empty string, not %r" % (SPEC_PATH,))
@@ -931,6 +931,20 @@ if not any(c["enabled"] for c in plan):
 # `auto` measures the moment anyone declares a claim, and says so plainly when
 # nobody has. Silence is reported as not-declared, never as covered.
 _claim_count = sum(len(v) for v in SPEC_CLAIMS.values())
+# `report` MEASURES AND NEVER REFUSES, and it exists because `auto` has no
+# middle. Under `auto` the FIRST claim anybody declares turns enforcement on for
+# the whole spec, so a repo adopting this incrementally goes from green to
+# refusing every run the moment it records its first honest piece of coverage -
+# which punishes exactly the act it is trying to encourage. The alternatives
+# were both worse: delete the claims to get green, which destroys a real record
+# to dodge a verdict, or narrow the denominator to what checks happen to claim,
+# which is the hollow pass this whole file exists to prevent.
+#
+# `report` changes the VERDICT and never the MEASUREMENT. The denominator still
+# comes from the spec, every uncovered requirement is still named, and the line
+# says "declared but not enforced" so nobody reads the run as clean coverage. It
+# is a visible, committed statement that the mapping is unfinished - not a way
+# to stop counting.
 SPEC_ENFORCED = SPEC_MODE == "require" or (SPEC_MODE == "auto" and _claim_count > 0)
 if SPEC_MODE == "auto" and _claim_count == 0:
     SPEC_STATUS, SPEC_DETAIL, SPEC_UNITS = "not_declared", (
