@@ -129,6 +129,12 @@ if git -C "$ROOT" rev-parse --git-dir >/dev/null 2>&1; then
       refs/tags >"$TMP/tags" 2>/dev/null || :
   git -C "$ROOT" ls-files -z >"$TMP/files" 2>/dev/null || :
   git -C "$ROOT" remote get-url origin >"$TMP/remote" 2>/dev/null || :
+  # Every commit this clone knows the remote already has, from remote-TRACKING
+  # refs. Deliberately not `git ls-remote`: that is a network call, and a view
+  # that needs the network renders nothing on a train and different bytes on two
+  # runs. The cost is that it answers about the last fetch, which the panel says.
+  git -C "$ROOT" for-each-ref --format='%(refname)' refs/remotes >"$TMP/remote-refs" 2>/dev/null || :
+  git -C "$ROOT" rev-list --remotes >"$TMP/remote-commits" 2>/dev/null || :
   git -C "$ROOT" rev-parse --short HEAD >"$TMP/head" 2>/dev/null || :
   TZ=UTC git -C "$ROOT" log -1 --date=format-local:'%Y-%m-%d' --pretty=format:'%ad' >"$TMP/head-date" 2>/dev/null || :
   TZ=UTC git -C "$ROOT" log -1 --date=format-local:'%Y-%m-%d' --pretty=format:'%ad' \
@@ -1167,6 +1173,58 @@ else:
                           href=BN.get('constitution', '') if principles == 0 else '',
                           go='→ the banner, and the prompt that drafts them'))
 
+# Is a released commit on the remote? THREE answers, and the third is the point.
+#
+#   True   the commit is reachable from a remote-tracking ref
+#   False  it is not, so the remote cannot have it
+#   None   there is no remote-tracking ref to compare against - a repo with no
+#          remote has not FAILED to push, it has nowhere to push to, and that
+#          is unknown rather than unpushed
+#
+# What this does NOT prove: that the TAG is on the remote. A commit can be
+# pushed while its tag is not, which is exactly the state this repo held for
+# four versions. So the row says "commit on the remote", never "released".
+_rr = tmpf('remote-refs')
+_rc = tmpf('remote-commits')
+HAVE_REMOTE_REFS = bool((_rr or '').strip())
+REMOTE_COMMITS = set(x.strip() for x in (_rc or '').split('\n') if x.strip())
+
+
+def commit_on_remote(sha):
+    if not HAVE_REMOTE_REFS:
+        return None
+    return sha in REMOTE_COMMITS
+
+
+def _relpush(r, on_remote):
+    """This release's push prompt, or nothing when there is nothing to do.
+
+    Named to ONE version, by tag and by commit. A generic "push the tags" would
+    take whatever else happens to be sitting unpushed with it, which is how a
+    deliberate hold gets broken by a command that looked narrow.
+    """
+    if on_remote is True and r['tag']:
+        return ''
+    step1 = ('create the annotated tag `v%s` on commit %s' % (r['ver'], r['short'])) \
+        if not r['tag'] else ('confirm `%s` points at %s' % (r['tag'], r['short']))
+    return cp(
+        'In %s, release version %s and nothing else.\n\n'
+        'Commit: %s\n'
+        'Tag: %s\n\n'
+        'In order, stopping at the first step that fails:\n'
+        '  1. %s.\n'
+        '  2. Check that commit is on the branch you mean to release from. A tag on an unmerged '
+        'branch names a version nobody can install.\n'
+        '  3. Push that one tag. Not other tags, not branches, not in the same command - a wide '
+        'push is how a deliberate hold gets broken by something that looked narrow.\n'
+        '  4. Say what CI reported for that tag, and say plainly if it did not run.\n\n'
+        'Honour the standing rule about when pushes may happen. If it is too early, do the local '
+        'half, then stop and say what is waiting.'
+        % (PRODUCT, r['ver'], r['short'],
+           r['tag'] if r['tag'] else 'does not exist yet; step 1 creates it', step1),
+        'copy prompt \u00b7 release %s' % r['ver'])
+
+
 if not IS_GIT:
     # Not "no releases". There is no record to read, which is a different answer.
     stats.append(tile_unknown('Releases', 'not a git repository; there is no history to read'))
@@ -1884,6 +1942,16 @@ else:
     for _ri, r in enumerate(releases):
         tag = ('<span class="rtag">tagged %s</span>' % esc(r['tag'])) if r['tag'] \
             else '<span class="rtag warn">no tag</span>'
+        _on = commit_on_remote(r['sha'])
+        if _on is None:
+            push = ('<span class="rpush unk" title="no remote-tracking ref to compare against, so '
+                    'this could not be determined. Unknown, not unpushed">push state unknown</span>')
+        elif _on:
+            push = ('<span class="rpush ok" title="reachable from a remote-tracking ref as of the '
+                    'last fetch. Whether the TAG was pushed is a separate question this page cannot '
+                    'answer without the network">commit on the remote</span>')
+        else:
+            push = '<span class="rpush warn">not pushed</span>'
         sha = ('<a class="relsha mono" href="https://github.com/%s/commit/%s" target="_blank" '
                'rel="noopener">%s</a>' % (esc(GH), esc(r['sha']), esc(r['short']))) if GH \
             else '<span class="relsha mono">%s</span>' % esc(r['short'])
@@ -1897,8 +1965,8 @@ else:
             '<span class="reldot %s"></span></div><div class="relbody"><div class="relhead">'
             '<h3>%s</h3><span class="rkind %s">%s</span>%s<span style="flex:1"></span>%s'
             '<span class="reldate mono">%s</span></div><ul class="rlist">%s</ul></div></div>'
-            % (REL_ID[_ri], esc(r['ver']), dot, esc(r['title']), '', esc(r['kind']), tag, sha,
-               esc(r['date']), bl))
+            % (REL_ID[_ri], esc(r['ver']), dot, esc(r['title']), '', esc(r['kind']),
+               tag + push + _relpush(r, _on), sha, esc(r['date']), bl))
     p_rel = ('<div class="h">Release history — newest first</div>'
              '<div class="relnote"><b>%d of these %d carry a git tag.</b> A version in the log with no tag '
              'has no release page.</div><div class="rels">%s</div>'

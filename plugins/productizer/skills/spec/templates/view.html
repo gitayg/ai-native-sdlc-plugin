@@ -281,6 +281,19 @@ padding:11px 14px;background:var(--surface)}
 .rkind.warn{color:var(--warn);border-color:#d2992240}
 .rkind.ok{color:var(--ok);border-color:#3fb95040}
 .rtag{font-size:9.5px;text-transform:uppercase;letter-spacing:.08em;padding:2px 7px;border-radius:4px;
+/* Push state. `not pushed` is the only one drawn loud, because it is the only
+   one that is a fact about work not finished. `commit on the remote` is calm:
+   it is the normal state and colouring it would spend the signal the loud one
+   carries. Unknown is dashed rather than coloured - it is neither good news nor
+   bad, and dressing it as either would be the fabricated-zero mistake wearing a
+   different hat. */
+.rpush{font-family:var(--mono);font-size:9.5px;letter-spacing:.06em;padding:2px 7px;
+border-radius:999px;border:1px solid var(--line);color:var(--muted);margin-left:6px;white-space:nowrap}
+.rpush.warn{color:#D29922;border-color:#D2992255;background:#D2992212}
+.rpush.ok{opacity:.72}
+.rpush.unk{border-style:dashed;opacity:.7}
+.rel .cp{font-size:10px;padding:3px 8px;margin-left:6px}
+
   border:1px solid var(--line);color:var(--muted)}
 .rtag.ok{color:var(--ok);border-color:#3fb95040}
 .rtag.warn{color:var(--warn);border-color:#d2992240}
