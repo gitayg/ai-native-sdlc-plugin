@@ -39,6 +39,7 @@ remembering the sentence that triggers it.
 
 | | |
 |---|---|
+| `/productizer:help` | every command, read from the installed plugin rather than from memory |
 | `/productizer:dashboard` | regenerate the view from this repo's files and publish it |
 | `/productizer:check` | run the declared checks over the current change |
 | `/productizer:backlog` | the queue in front of the lifecycle — see it, add to it, start an item |
