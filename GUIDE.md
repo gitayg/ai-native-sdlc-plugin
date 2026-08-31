@@ -386,7 +386,7 @@ Edit the spec; this section follows.
      plugins/productizer/skills/spec/scripts/build-guide.sh. Everything between
      these two markers is rewritten on every release - edit the spec, not this. -->
 
-**Twenty-five requirements are active**, and they are the whole of what has
+**Twenty-six requirements are active**, and they are the whole of what has
 been agreed.
 
 Three more are superseded and none withdrawn, and neither kind is listed here.
@@ -430,7 +430,7 @@ of a state, not at a moment inside it:
 - **R13** — While a check tool named by the configuration is absent, the
   lifecycle shall report that check as missing rather than skipped.
 
-**When something goes wrong.** Nine defences, written as `If … then` because a
+**When something goes wrong.** Ten defences, written as `If … then` because a
 designed path and a defended one are not the same thing:
 
 - **R15** — If a check exits zero having examined less than it declared, then
@@ -451,6 +451,9 @@ designed path and a defended one are not the same thing:
   it as unmeasured.
 - **R26** — If a value could not be measured, then the lifecycle shall not
   record it as zero.
+- **R29** — If a configured command would let the repository being examined
+  select an executable in any argv position, then the lifecycle shall refuse
+  to run it.
 
 **Only where the feature is present.** Three requirements apply only to a
 build that includes the feature:

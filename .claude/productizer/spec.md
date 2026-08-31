@@ -9,13 +9,13 @@ site generators, doc builds and packaging all skip that directory, so the spec
 is never rendered as a page or shipped in a release.
 
 Next requirement id
-: `R29` — allocate from here, then increment. This is the highest id the spec
+: `R30` — allocate from here, then increment. This is the highest id the spec
 has ever used, not a count of the rows on screen. Ids are never reused and
 never renumbered, and stay unique across the whole repo even if this spec is
 later split into several files.
 
 Requirements
-: 25 active, 3 superseded, 0 withdrawn.
+: 26 active, 3 superseded, 0 withdrawn.
 
 Audit trail
 : `git log -p .claude/productizer/spec.md`. Each commit is one change, joined to the
@@ -126,6 +126,7 @@ file stays skimmable at two hundred. One row per requirement, in id order.
 - **R24** — If an intent contradicts an active requirement, then the lifecycle shall merge nothing.
 - **R25** — If a value could not be measured, then the lifecycle shall report it as unmeasured.
 - **R26** — If a value could not be measured, then the lifecycle shall not record it as zero.
+- **R29** — If a configured command would let the repository being examined select an executable in any argv position, then the lifecycle shall refuse to run it.
 
 ### Optional
 
@@ -174,6 +175,7 @@ until a human rules on it.
 | R26 | not yet verified — inherited from R16, whose checks observe the unmeasured report, not the absence of a recorded zero |
 | R27 | not yet verified — R21 carried no acceptance-criteria row |
 | R28 | not yet verified — R21 carried no acceptance-criteria row |
+| R29 | `run-checks.sh` argv validation over EVERY element, not `value[0]`. Falsified against HEAD with a marker file: `awk` with a positional program, `python3` naming a repo-local script as an ARGUMENT, and `make` each exited 0 with the payload executed; all three now refuse at validation with the payload absent. The repo's own config still passes under `allow_repo_local_tools: true`, and is refused with it false. |
 | R3 | `superseded-text` check over `check-superseded-text.sh` — diffs each superseded requirement's text against the last commit at which it was still active, choosing that baseline per requirement. The first check here to read git history. Falsified by editing a superseded sentence and watching it go red; a shallow clone is refused, never passed. |
 | R4 | `view-read-only` check — both halves. The generator moves no repository file (every file hashed before and after, content and mtime), and the page declares no capability that can publish a new version of itself. Falsified four ways on the first half and three on the second; a page that could not be built is exit 2, never zero capabilities. |
 | R6 | `classification-provenance` check — asserts every active requirement id was in the context the classification was made from, and that exactly one classification was recorded. Falsified by dropping an active id from a record's scope list. |
@@ -202,6 +204,7 @@ someone edits one and not the other.
 |---|---|---|---|---|---|---|
 | <YYYY-MM-DD> | <#123 / PROJ-123> | `<branch>` / <pr> | R41–R43 | R12 | R7 → R41 | <what changed and why> |
 | 2026-08-29 | — | — | R23–R28 | — | R14 → R23, R24; R16 → R25, R26; R21 → R27, R28 | Each of the three carried two `shall` clauses under one id. Split so every obligation has its own id and neither half can be half-tested. Originals retained verbatim, marked superseded. |
+| 2026-08-30 | [#2](https://github.com/gitayg/productizer/issues/2) | `feature/2-argv-any-position` / PR | R29 | — | — | R18 is narrower than P4, the principle it is listed as enforcing: it names a shell or an interpreter with an inline program, and says nothing about the other argv positions. Three bypasses were reproduced against it. Classified `extend` at Stage 1 and kept as extend by ruling: R18 stays active and true. **Recorded against that choice:** R29 subsumes R18, so a test satisfying R18 proves nothing about R29 - the same shape as the defect that split R14, R16 and R21, and the reason supersede was the alternative considered. |
 
 ## Decision record
 
