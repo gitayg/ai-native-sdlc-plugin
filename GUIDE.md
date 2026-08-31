@@ -386,7 +386,7 @@ Edit the spec; this section follows.
      plugins/productizer/skills/spec/scripts/build-guide.sh. Everything between
      these two markers is rewritten on every release - edit the spec, not this. -->
 
-**Twenty-six requirements are active**, and they are the whole of what has
+**Twenty-eight requirements are active**, and they are the whole of what has
 been agreed.
 
 Three more are superseded and none withdrawn, and neither kind is listed here.
@@ -430,8 +430,8 @@ of a state, not at a moment inside it:
 - **R13** — While a check tool named by the configuration is absent, the
   lifecycle shall report that check as missing rather than skipped.
 
-**When something goes wrong.** Ten defences, written as `If … then` because a
-designed path and a defended one are not the same thing:
+**When something goes wrong.** Eleven defences, written as `If … then` because
+a designed path and a defended one are not the same thing:
 
 - **R15** — If a check exits zero having examined less than it declared, then
   the lifecycle shall report it as hollow and treat it as a failure.
@@ -454,9 +454,11 @@ designed path and a defended one are not the same thing:
 - **R29** — If a configured command would let the repository being examined
   select an executable in any argv position, then the lifecycle shall refuse
   to run it.
+- **R31** — If a published view declares a capability that can publish new
+  versions of itself, then the lifecycle shall refuse to publish it.
 
-**Only where the feature is present.** Three requirements apply only to a
-build that includes the feature:
+**Only where the feature is present.** Four requirements apply only to a build
+that includes the feature:
 
 - **R22** — Where a repository declares its own check tools, the lifecycle
   shall run them only if the configuration explicitly opts in.
@@ -464,6 +466,9 @@ build that includes the feature:
   that item's status from Jira.
 - **R28** — Where a backlog item names a Jira key, the lifecycle shall write
   nothing back to Jira.
+- **R30** — Where a published view hands over its evidence as a file, the
+  lifecycle shall use a capability that writes only to the viewer's own
+  device.
 
 Every id above is permanent. A plan, a test or a PR title naming `R1` will
 still mean this sentence in two years, which is why ids are never reused and
