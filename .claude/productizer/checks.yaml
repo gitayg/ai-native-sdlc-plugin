@@ -773,3 +773,65 @@ checks:
       - Two of P1's four sources are exercised - an absent tool and an unreadable file. A failed API call and a refused permission are not reached by any fixture.
       - The runner's `timeout` path builds a coverage block with `covered` initialised to 0 while the status means no verdict. Assertion 7 would flag it, but no timeout fixture exists, so that is unmeasured and is backlog item B29.
       - It covers run-checks.sh only. P1 also names import-survey.sh, build-view.sh and track-traffic.sh, and none of those is touched here.
+
+  # --- a contradiction must merge nothing -----------------------------------
+  #
+  # R24. R23's pair - stop, and ask - is asserted by two checks, and NEITHER
+  # looks at the spec afterwards. A contradiction that halted loudly and merged
+  # quietly passes every other check in this file. This one drives a committed
+  # fixture through the real contradiction path and then compares the spec.
+  #
+  # LITERAL WHOLE-FILE IDENTITY IS NOT THE TEST, and demanding it would fail
+  # correct behaviour. The stop is REQUIRED to append an `Areas of concern`
+  # row - step 3 of references/rulings.md, and `ruling-requested` goes red
+  # without it. So assertion 1 hashes the spec with that section excised, and
+  # every other byte must match. That leaves one blind region, which is why
+  # assertion 2 also requires every id inside that section to name a
+  # requirement that existed before the run: an id taken there is a merge, and
+  # the excision would otherwise hide it. That gap was found by falsifying, not
+  # by reading - the first version of this check went green on it.
+  #
+  # Four assertions, reported separately: the spec is unchanged, no id was
+  # allocated, the change log gained no row, the acceptance table gained no
+  # row. A contradiction that quietly took the next id has merged the losing
+  # side even if no sentence changed, and the counter moving is the tell.
+  #
+  # The premise is guarded at both ends. If the fixture's intent does not
+  # actually contradict, the case was never tested - exit 2. If the merge path
+  # exits non-zero, it never ran to completion, and a spec left untouched by an
+  # ERROR is not a spec the lifecycle declined to merge - also exit 2.
+  - id: nothing-merged
+    why: R23's two checks assert the stop and neither looks at the spec afterwards, so a contradiction that halted loudly and merged quietly passes every check in this file
+    when:
+      always: true
+    severity: block
+    requires:
+      - ./plugins/productizer/skills/spec/scripts/check-nothing-merged.sh
+      - python3
+    version_command: [./plugins/productizer/skills/spec/scripts/check-nothing-merged.sh, --version]
+    mode: batch
+    command: [./plugins/productizer/skills/spec/scripts/check-nothing-merged.sh]
+    timeout_seconds: 120
+    exit_codes:
+      pass: [0]        # the contradiction path merged nothing
+      fail: [1]        # the spec moved, an id was taken, or a log row appeared
+      refused: [2]     # no fixture, no contradiction checker, a premise that did not hold, or a merge path that never ran
+    coverage:
+      # The four files it opened: both fixture files, the checker that settles
+      # the premise, and the merge path it drove. A run that printed fewer
+      # opened fewer, and did not run the case.
+      from: stdout_paths
+      pattern: '^(\S+)$'
+      must_cover: none
+      min_covered: 4
+      spec_units:
+        - id: R24
+          verdict: Covered
+          evidence: fixtures/nothing-merged/ driven through request-ruling.sh; four assertions on the spec afterwards, each falsified separately
+    limitations:
+      - It proves the CONTRADICTION PATH merges nothing. `request-ruling.sh` is the only script under skills/spec/scripts that writes spec.md - a grep result, not a guarantee, and a second writer added later is invisible to this.
+      - Prose written into `## Areas of concern` is not seen. Assertion 1 excises that section and assertion 2 catches only ids taken inside it.
+      - >-
+          The `record-classification.sh` path is not exercised; it needs a work tree with the spec
+          committed at HEAD. "Recording a contradict classification merges nothing" is therefore unasserted.
+      - A file the merge path CREATES elsewhere in the sandbox is not noticed. The comparison is scoped to the spec, which is what R24 is about, but a merge that landed somewhere else entirely would not show here.
