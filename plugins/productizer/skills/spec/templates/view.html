@@ -568,9 +568,16 @@ function humanList(){
       + 'somewhere an agent can move it.</p>';
     return;
   }
-  var h = '<p class="hl-lede">Each of these is stopped until a person does something. '
-        + 'They are the same cards the <b>Board</b> draws, counted by what is holding '
-        + 'them rather than by where they will go next.</p><ul class="hl">';
+  var h = '<p class="hl-lede">Each of these is stopped until <b>a decision nobody has made</b>. '
+        + 'The reason on each row is the item\u2019s own note, not a generated phrase.'
+        + (DEFERRED
+            ? ' <b>' + esc(DEFERRED) + '</b> item' + (DEFERRED === 1 ? ' is' : 's are')
+              + ' marked <span class="mono">long-term</span> and are not counted here: '
+              + '\u201cwanted, deliberately not now\u201d is a decision you already took, and a '
+              + 'count that includes settled questions is one people learn to scroll past. '
+              + 'They are on the <b>Backlog</b> tab.'
+            : '')
+        + '</p><ul class="hl">';
   for (var i=0;i<HUMANL.length;i++){
     var it = HUMANL[i];
     var inner = '<span class="hl-id mono">' + esc(it.id) + '</span>'

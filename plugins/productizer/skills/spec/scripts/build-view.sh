@@ -1314,7 +1314,14 @@ for _ci, _cs in enumerate(COL_STAGE):
 # rather than moving it: a contradiction nobody ruled, a check that did not
 # pass, a version shipped and never announced. Each is a thing only a person
 # can unhold.
-HUMAN_ITEMS = len(cols[0][1]) + contra_open + len(CHK_ACT) + len(cols[5][1])
+# `long-term` means "wanted, deliberately not now" - the file's own words. That
+# is a DECISION, and a count of what is waiting on a person must not include
+# things that person already ruled on. Counting them made the number read 13
+# where 7 were undecided, and a count that includes settled questions is a count
+# people learn to scroll past.
+_deferred = [it for it in items
+             if it['status'].strip('`').strip().lower() in ('long-term', 'long term')]
+HUMAN_ITEMS = (len(cols[0][1]) - len(_deferred)) + contra_open + len(CHK_ACT) + len(cols[5][1])
 
 # The same things, itemised, so the count can be opened. `href` is an id this
 # run actually minted - the page mints every id in one place precisely so a link
@@ -1324,11 +1331,16 @@ HUMAN_ITEMS = len(cols[0][1]) + contra_open + len(CHK_ACT) + len(cols[5][1])
 HUMAN_LIST = []
 for _i, _it in enumerate(items):
     _st = _it['status'].strip().strip('`').lower()
-    if _st in ('done', 'in-progress', 'in progress'):
+    if _st in ('done', 'in-progress', 'in progress', 'long-term', 'long term'):
         continue
-    HUMAN_LIST.append({'id': _it['id'], 'what': _it['what'],
-                       'why': 'in the queue, waiting for you to pick it up'
-                              if _st != 'blocked' else 'blocked - it names what it is waiting on',
+    # The reason each row is stopped is already written, in the item's own note.
+    # A generated stock phrase said the same sentence about a design blocker, an
+    # untested integration and a measured correctness bug - which is the same
+    # defect as rendering three different unknowns as one number.
+    _why = short(_it['note'], 108) or (
+        'blocked - it names what it is waiting on' if _st == 'blocked'
+        else 'in the queue, and nothing is written about what it is waiting on')
+    HUMAN_LIST.append({'id': _it['id'], 'what': _it['what'], 'why': _why,
                        'href': BK_ID[_i], 'go': 'Backlog'})
 for _c in contradictions:
     if _c['open']:
@@ -2422,8 +2434,8 @@ BODY = (
 # rides along in the bar's existing slot rather than claiming a new one.
 BODY = BODY + DL + STALE
 
-DATA = ('var PROD = %s;\nvar CUR0 = %d;\nvar HUMAN = %d;\nvar HUMANL = %s;\nvar S = %s;\n'
-        % (json.dumps(PRODUCT), CUR0, HUMAN_ITEMS,
+DATA = ('var PROD = %s;\nvar CUR0 = %d;\nvar HUMAN = %d;\nvar DEFERRED = %d;\nvar HUMANL = %s;\nvar S = %s;\n'
+        % (json.dumps(PRODUCT), CUR0, HUMAN_ITEMS, len(_deferred),
            json.dumps(HUMAN_LIST, ensure_ascii=False),
            json.dumps(S, indent=1, sort_keys=True, ensure_ascii=False)))
 

@@ -6,10 +6,10 @@
   "root_source": "the git work tree holding the config",
   "change": {
     "files": [
-      "GUIDE.md",
       "README.md",
       "plugins/productizer/.claude-plugin/plugin.json",
-      "plugins/productizer/skills/help/SKILL.md"
+      "plugins/productizer/skills/spec/scripts/build-view.sh",
+      "plugins/productizer/skills/spec/templates/view.html"
     ],
     "file_count": 4,
     "tags": []
@@ -18,12 +18,12 @@
   "exit_code": 0,
   "counts": {
     "declared": 15,
-    "triggered": 13,
-    "passed": 13,
+    "triggered": 15,
+    "passed": 15,
     "blocking_failures": 0,
     "advisory_failures": 0,
     "disabled": 0,
-    "not_triggered": 2,
+    "not_triggered": 0,
     "spec_units_unsatisfied": null
   },
   "spec_coverage": {
@@ -76,10 +76,10 @@
         "observed": {
           "covered": 4,
           "covered_items": [
-            "GUIDE.md",
             "README.md",
             "plugins/productizer/.claude-plugin/plugin.json",
-            "plugins/productizer/skills/help/SKILL.md"
+            "plugins/productizer/skills/spec/scripts/build-view.sh",
+            "plugins/productizer/skills/spec/templates/view.html"
           ],
           "rules_loaded": null,
           "files_in_scope": 4,
@@ -89,7 +89,7 @@
         "reasons": []
       },
       "timed_out": false,
-      "output_tail": "GUIDE.md\nREADME.md\nplugins/productizer/.claude-plugin/plugin.json\nplugins/productizer/skills/help/SKILL.md\n",
+      "output_tail": "README.md\nplugins/productizer/.claude-plugin/plugin.json\nplugins/productizer/skills/spec/scripts/build-view.sh\nplugins/productizer/skills/spec/templates/view.html\n",
       "status": "pass"
     },
     {
@@ -105,11 +105,44 @@
         "{file}"
       ],
       "trigger_scope": "scoped",
-      "triggered": false,
-      "triggered_by": [],
-      "files_in_scope": 0,
+      "triggered": true,
+      "triggered_by": [
+        "path:**/*.sh"
+      ],
+      "files_in_scope": 1,
       "enabled": true,
-      "status": "not_triggered"
+      "tool": {
+        "command": [
+          "shellcheck",
+          "--version"
+        ],
+        "version": "ShellCheck - shell script analysis tool version: 0.11.0 license: GNU General Public License, version 3 website: https://www.shellcheck.net",
+        "exit_code": 0
+      },
+      "exit_code": 0,
+      "duration_seconds": 1,
+      "coverage": {
+        "from": "per_file_exit",
+        "required": {
+          "min_covered": 1,
+          "must_cover": "all_triggering",
+          "min_rules": 0
+        },
+        "observed": {
+          "covered": 1,
+          "covered_items": [
+            "plugins/productizer/skills/spec/scripts/build-view.sh"
+          ],
+          "rules_loaded": null,
+          "files_in_scope": 1,
+          "not_examined": []
+        },
+        "satisfied": true,
+        "reasons": []
+      },
+      "timed_out": false,
+      "output_tail": "\n===== plugins/productizer/skills/spec/scripts/build-view.sh\n",
+      "status": "pass"
     },
     {
       "id": "solver-corpus",
@@ -179,11 +212,44 @@
         "{file}"
       ],
       "trigger_scope": "scoped",
-      "triggered": false,
-      "triggered_by": [],
-      "files_in_scope": 0,
+      "triggered": true,
+      "triggered_by": [
+        "path:**/*.sh"
+      ],
+      "files_in_scope": 1,
       "enabled": true,
-      "status": "not_triggered"
+      "tool": {
+        "command": [
+          "./plugins/productizer/skills/spec/scripts/check-stderr.sh",
+          "--version"
+        ],
+        "version": "check-stderr 1.0",
+        "exit_code": 0
+      },
+      "exit_code": 0,
+      "duration_seconds": 1,
+      "coverage": {
+        "from": "per_file_exit",
+        "required": {
+          "min_covered": 1,
+          "must_cover": "all_triggering",
+          "min_rules": 0
+        },
+        "observed": {
+          "covered": 1,
+          "covered_items": [
+            "plugins/productizer/skills/spec/scripts/build-view.sh"
+          ],
+          "rules_loaded": null,
+          "files_in_scope": 1,
+          "not_examined": []
+        },
+        "satisfied": true,
+        "reasons": []
+      },
+      "timed_out": false,
+      "output_tail": "\n===== plugins/productizer/skills/spec/scripts/build-view.sh\nplugins/productizer/skills/spec/scripts/build-view.sh\n",
+      "status": "pass"
     },
     {
       "id": "spec-home",
@@ -367,7 +433,7 @@
           "min_rules": 0
         },
         "observed": {
-          "covered": 25,
+          "covered": 28,
           "covered_items": [],
           "rules_loaded": null,
           "files_in_scope": 4,
@@ -377,7 +443,7 @@
         "reasons": []
       },
       "timed_out": false,
-      "output_tail": ".claude/productizer/spec.md\nGUIDE.md\n2 file(s) read, 25 active requirement(s) rendered\nGUIDE.md is up to date with the spec.\n",
+      "output_tail": ".claude/productizer/spec.md\nGUIDE.md\n2 file(s) read, 28 active requirement(s) rendered\nGUIDE.md is up to date with the spec.\n",
       "status": "pass"
     },
     {
@@ -405,7 +471,7 @@
         "exit_code": 0
       },
       "exit_code": 0,
-      "duration_seconds": 2,
+      "duration_seconds": 1,
       "coverage": {
         "from": "stdout_paths",
         "required": {
@@ -625,7 +691,7 @@
         "reasons": []
       },
       "timed_out": false,
-      "output_tail": "lugins/productizer/skills/spec/templates/import.md\nplugins/productizer/skills/spec/templates/intake.md\nplugins/productizer/skills/spec/templates/intent.md\nplugins/productizer/skills/spec/templates/interview.md\nplugins/productizer/skills/spec/templates/jira-intent.md\nplugins/productizer/skills/spec/templates/learnings.md\nplugins/productizer/skills/spec/templates/managed-settings.json\nplugins/productizer/skills/spec/templates/plan.md\nplugins/productizer/skills/spec/templates/prepare-commit-msg.sh\nplugins/productizer/skills/spec/templates/production-gate.sh\nplugins/productizer/skills/spec/templates/publish-gate.sh\nplugins/productizer/skills/spec/templates/release-blog.md\nplugins/productizer/skills/spec/templates/release-email.md\nplugins/productizer/skills/spec/templates/ruling.md\nplugins/productizer/skills/spec/templates/runners/gate-bypass.json\nplugins/productizer/skills/spec/templates/runners/publish-blast.json\nplugins/productizer/skills/spec/templates/runners/spec-mutation.json\nplugins/productizer/skills/spec/templates/scheduled-bands.md\nplugins/productizer/skills/spec/templates/scheduled-evals.md\nplugins/productizer/skills/spec/templates/session-start.sh\nplugins/productizer/skills/spec/templates/spec-command.md\nplugins/productizer/skills/spec/templates/spec-delta.md\nplugins/productizer/skills/spec/templates/spec.md\nplugins/productizer/skills/spec/templates/threshold.sh\nplugins/productizer/skills/spec/templates/triage-step.yml\nplugins/productizer/skills/spec/templates/user-guide.md\nplugins/productizer/skills/spec/templates/verification-section.md\nplugins/productizer/skills/spec/templates/view.html\nscripts/check-hygiene.sh\n  repository files hashed before and after: 342\n  files the generator moved: 0\n  page bytes read: 411628\n  capability declarations read: 1\n  declares `downloads` - output: it hands the viewer a file and reads nothing back\n  R4 satisfied: the generator moved no repository file, and the page declares nothing that can publish a new version of itself.\n",
+      "output_tail": "lugins/productizer/skills/spec/templates/import.md\nplugins/productizer/skills/spec/templates/intake.md\nplugins/productizer/skills/spec/templates/intent.md\nplugins/productizer/skills/spec/templates/interview.md\nplugins/productizer/skills/spec/templates/jira-intent.md\nplugins/productizer/skills/spec/templates/learnings.md\nplugins/productizer/skills/spec/templates/managed-settings.json\nplugins/productizer/skills/spec/templates/plan.md\nplugins/productizer/skills/spec/templates/prepare-commit-msg.sh\nplugins/productizer/skills/spec/templates/production-gate.sh\nplugins/productizer/skills/spec/templates/publish-gate.sh\nplugins/productizer/skills/spec/templates/release-blog.md\nplugins/productizer/skills/spec/templates/release-email.md\nplugins/productizer/skills/spec/templates/ruling.md\nplugins/productizer/skills/spec/templates/runners/gate-bypass.json\nplugins/productizer/skills/spec/templates/runners/publish-blast.json\nplugins/productizer/skills/spec/templates/runners/spec-mutation.json\nplugins/productizer/skills/spec/templates/scheduled-bands.md\nplugins/productizer/skills/spec/templates/scheduled-evals.md\nplugins/productizer/skills/spec/templates/session-start.sh\nplugins/productizer/skills/spec/templates/spec-command.md\nplugins/productizer/skills/spec/templates/spec-delta.md\nplugins/productizer/skills/spec/templates/spec.md\nplugins/productizer/skills/spec/templates/threshold.sh\nplugins/productizer/skills/spec/templates/triage-step.yml\nplugins/productizer/skills/spec/templates/user-guide.md\nplugins/productizer/skills/spec/templates/verification-section.md\nplugins/productizer/skills/spec/templates/view.html\nscripts/check-hygiene.sh\n  repository files hashed before and after: 342\n  files the generator moved: 0\n  page bytes read: 413476\n  capability declarations read: 1\n  declares `downloads` - output: it hands the viewer a file and reads nothing back\n  R4 satisfied: the generator moved no repository file, and the page declares nothing that can publish a new version of itself.\n",
       "status": "pass"
     },
     {
@@ -713,7 +779,7 @@
           "min_rules": 0
         },
         "observed": {
-          "covered": 28,
+          "covered": 32,
           "covered_items": [],
           "rules_loaded": null,
           "files_in_scope": 4,
@@ -723,7 +789,7 @@
         "reasons": []
       },
       "timed_out": false,
-      "output_tail": ".claude/productizer/spec.md\n    requirements read: 28\n    active requirements examined: 25\n    no row required: 3 superseded, 0 withdrawn, 0 inferred\n    acceptance criteria rows read: 25, naming 25 distinct ids\n    requirements missing an acceptance row: 0\n",
+      "output_tail": ".claude/productizer/spec.md\n    requirements read: 32\n    active requirements examined: 28\n    no row required: 4 superseded, 0 withdrawn, 0 inferred\n    acceptance criteria rows read: 28, naming 28 distinct ids\n    requirements missing an acceptance row: 0\n",
       "status": "pass"
     },
     {
@@ -760,7 +826,7 @@
           "min_rules": 0
         },
         "observed": {
-          "covered": 28,
+          "covered": 32,
           "covered_items": [],
           "rules_loaded": null,
           "files_in_scope": 4,
@@ -770,7 +836,7 @@
         "reasons": []
       },
       "timed_out": false,
-      "output_tail": ".claude/productizer/spec.md\n    requirements read: 28\n    requirements still wearing the marking, refused at import, or promoted from one: 0\n    cohort A - change log rows naming one of them: 0\n    cohort B - commits introducing one of them: 0, of 7 touching the spec\n    cohort C - change log rows or commits naming `Stage 0c`: 0\n    requirements attributed to an import: 0\n    of those, already marked, refused or promoted: 0\n    attributed requirements with no inferred marking: 0\n    NOTE: no import was found. That is not the same fact as an import having been marked correctly - an import that marked nothing at all and named no stage leaves this check nothing to anchor on\n",
+      "output_tail": ".claude/productizer/spec.md\n    requirements read: 32\n    requirements still wearing the marking, refused at import, or promoted from one: 0\n    cohort A - change log rows naming one of them: 0\n    cohort B - commits introducing one of them: 0, of 10 touching the spec\n    cohort C - change log rows or commits naming `Stage 0c`: 0\n    requirements attributed to an import: 0\n    of those, already marked, refused or promoted: 0\n    attributed requirements with no inferred marking: 0\n    NOTE: no import was found. That is not the same fact as an import having been marked correctly - an import that marked nothing at all and named no stage leaves this check nothing to anchor on\n",
       "status": "pass"
     },
     {
@@ -856,9 +922,12 @@
           "min_rules": 0
         },
         "observed": {
-          "covered": 8,
+          "covered": 11,
           "covered_items": [
             ".claude/productizer/spec.md",
+            ".claude/productizer/spec.md@5998c4c",
+            ".claude/productizer/spec.md@42bac26",
+            ".claude/productizer/spec.md@bc89947",
             ".claude/productizer/spec.md@a6a9e71",
             ".claude/productizer/spec.md@f5bfdae",
             ".claude/productizer/spec.md@dad2ce9",
@@ -875,7 +944,7 @@
         "reasons": []
       },
       "timed_out": false,
-      "output_tail": ".claude/productizer/spec.md\n.claude/productizer/spec.md@a6a9e71\n.claude/productizer/spec.md@f5bfdae\n.claude/productizer/spec.md@dad2ce9\n.claude/productizer/spec.md@28d138f\n.claude/productizer/spec.md@9993a93\n.claude/productizer/spec.md@8b03b65\n.claude/productizer/spec.md@842b5cc\nspec versions examined: 7\n  R14 superseded baseline 8b03b65 (pre-supersede)  text unchanged\n  R16 superseded baseline 8b03b65 (pre-supersede)  text unchanged\n  R21 superseded baseline 8b03b65 (pre-supersede)  text unchanged\nrequirements examined: 28\nsuperseded or withdrawn: 3\ntext compared against history: 3\nPASS: every superseded or withdrawn requirement still carries the sentence it had at the commit before it was replaced, and every forward pointer resolves to an active id.\n",
+      "output_tail": ".claude/productizer/spec.md\n.claude/productizer/spec.md@5998c4c\n.claude/productizer/spec.md@42bac26\n.claude/productizer/spec.md@bc89947\n.claude/productizer/spec.md@a6a9e71\n.claude/productizer/spec.md@f5bfdae\n.claude/productizer/spec.md@dad2ce9\n.claude/productizer/spec.md@28d138f\n.claude/productizer/spec.md@9993a93\n.claude/productizer/spec.md@8b03b65\n.claude/productizer/spec.md@842b5cc\nspec versions examined: 10\n  R7 superseded baseline 42bac26 (pre-supersede)  text unchanged\n  R14 superseded baseline 8b03b65 (pre-supersede)  text unchanged\n  R16 superseded baseline 8b03b65 (pre-supersede)  text unchanged\n  R21 superseded baseline 8b03b65 (pre-supersede)  text unchanged\nrequirements examined: 32\nsuperseded or withdrawn: 4\ntext compared against history: 4\nPASS: every superseded or withdrawn requirement still carries the sentence it had at the commit before it was replaced, and every forward pointer resolves to an active id.\n",
       "status": "pass"
     },
     {
