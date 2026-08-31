@@ -1328,6 +1328,22 @@ HUMAN_ITEMS = (len(cols[0][1]) - len(_deferred)) + contra_open + len(CHK_ACT) + 
 # here cannot point at a dead end. An entry with no href is still listed: it is
 # a real thing waiting on a person even when there is nowhere better to send
 # them, and dropping it would make the list shorter than the number above it.
+# The one number here that is about the reader rather than the repo. Placed
+# first for that reason, and linked into the ring, which lists the items behind
+# it - a tile naming a quantity of work without a way to see the work is the
+# defect this page already fixed twice, on the attention count and on the hub.
+#
+# `att` only when there is something, so the colour keeps meaning something.
+# Zero is calm and stays a div: nothing waiting is the normal state, not an
+# achievement, and a celebratory zero makes the loud state look ordinary.
+stats.insert(0, tile_num(
+    'Waiting on you', str(HUMAN_ITEMS),
+    ('decisions nobody has made yet' if HUMAN_ITEMS != 1 else 'a decision nobody has made yet')
+    + ((' · %d deferred, not counted' % len(_deferred)) if _deferred else ''),
+    'att' if HUMAN_ITEMS else '',
+    href='stage-1' if HUMAN_ITEMS else '',
+    go='\u2192 Stages · the ring lists them'))
+
 HUMAN_LIST = []
 for _i, _it in enumerate(items):
     _st = _it['status'].strip().strip('`').lower()

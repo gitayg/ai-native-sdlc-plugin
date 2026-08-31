@@ -488,9 +488,9 @@ negative age.
 
 ## A waived failure — not renderable from what the files record
 
-Gas City's convention for a halt a human overruled is to keep the failure and
-add the authority: `FAIL — WAIVED BY <authority>`, never a flip to green. It is
-the right rendering, and **nothing in this lifecycle's file formats records the
+A comparable tool's convention for a halt a human overruled is to keep the
+failure and add the authority: `FAIL — WAIVED BY <authority>`, never a flip to
+green. It is the right rendering, and **nothing in this lifecycle's file formats records the
 fact it would render**, so the page draws nothing and this section says why
 rather than the generator inventing a field.
 
