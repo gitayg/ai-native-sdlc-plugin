@@ -9,13 +9,13 @@ site generators, doc builds and packaging all skip that directory, so the spec
 is never rendered as a page or shipped in a release.
 
 Next requirement id
-: `R32` — allocate from here, then increment. This is the highest id the spec
+: `R33` — allocate from here, then increment. This is the highest id the spec
 has ever used, not a count of the rows on screen. Ids are never reused and
 never renumbered, and stay unique across the whole repo even if this spec is
 later split into several files.
 
 Requirements
-: 28 active, 3 superseded, 0 withdrawn.
+: 28 active, 4 superseded, 0 withdrawn.
 
 Audit trail
 : `git log -p .claude/productizer/spec.md`. Each commit is one change, joined to the
@@ -99,10 +99,12 @@ file stays skimmable at two hundred. One row per requirement, in id order.
 
 - **R6** — When an intent arrives, the lifecycle shall classify it against the whole living spec as exactly one of extend, refine, duplicate or contradict.
 - **R7** — When an intent is classified, the lifecycle shall record the classification in the spec's change log.
+  Superseded by R32. R7 required a change-log row for EVERY classification, and that log is defined as one row per commit to this file - so a classification that merges nothing was asked for a row in a table keyed on an event that did not happen. Narrowed to the classifications that actually change the spec.
 - **R8** — When a requirement is added, the lifecycle shall allocate the next unused id and record it in the acceptance criteria table.
 - **R9** — When a release is prepared, the lifecycle shall regenerate the user guide from the active requirements.
 - **R10** — When a repository with history is imported, the lifecycle shall mark every drafted requirement inferred and unconfirmed.
 - **R11** — When a published view is regenerated, the lifecycle shall read every figure in it from a file in the repository.
+- **R32** — When a classification changes the spec, the lifecycle shall record it in the spec's change log.
 
 ### State-driven
 
@@ -183,7 +185,7 @@ until a human rules on it.
 | R3 | `superseded-text` check over `check-superseded-text.sh` — diffs each superseded requirement's text against the last commit at which it was still active, choosing that baseline per requirement. The first check here to read git history. Falsified by editing a superseded sentence and watching it go red; a shallow clone is refused, never passed. |
 | R4 | `view-read-only` check — both halves. The generator moves no repository file (every file hashed before and after, content and mtime), and the page declares no capability that can publish a new version of itself. Falsified four ways on the first half and three on the second; a page that could not be built is exit 2, never zero capabilities. |
 | R6 | `classification-provenance` check — asserts every active requirement id was in the context the classification was made from, and that exactly one classification was recorded. Falsified by dropping an active id from a record's scope list. |
-| R7 | **Contested.** 2026-08-30: R7 requires every classification in the spec's change log, but that log is one row per commit to this file, and a classification that merges nothing commits nothing. Ruled too broad; to be refined so only a classification reaching the spec belongs here. Until then two classifications (B23, B26) sit in the backlog and their issues, not here |
+| R32 | **Nothing yet.** A verifier would assert that every change-log row cites an intent, and that a commit changing the Requirements section carries a row. The inverse - a classification that merged nothing and wrote no row - is correct by construction under R32 and needs no check. Not built |
 | R8 | `acceptance-rows` check — asserts every active requirement has a row here. Superseded, withdrawn and inferred requirements are exempt, the last per `references/import.md:70`. Measured 2026-08-30: 25 active, 25 rows. |
 | R9 | `guide-current` check over `build-guide.sh --check` — regenerates the guide's requirements section into memory and reports drift without writing. Falsified by weakening a requirement's wording inside the markers; missing markers are refused rather than guessed at. |
 | R10 | `import-marking` check — fails a requirement attributed to an import that carries no inferred marking. Attribution is structural, from a marked sibling's change-log row or introducing commit; the naive signal (the word *import* in a message) was built first and measured as unusable. **Declared limitation:** an import that marked nothing and named no stage is invisible, and the run says so. |
@@ -210,6 +212,7 @@ someone edits one and not the other.
 | 2026-08-29 | — | — | R23–R28 | — | R14 → R23, R24; R16 → R25, R26; R21 → R27, R28 | Each of the three carried two `shall` clauses under one id. Split so every obligation has its own id and neither half can be half-tested. Originals retained verbatim, marked superseded. |
 | 2026-08-30 | [#2](https://github.com/gitayg/productizer/issues/2) | `feature/2-argv-any-position` / PR | R29 | — | — | R18 is narrower than P4, the principle it is listed as enforcing: it names a shell or an interpreter with an inline program, and says nothing about the other argv positions. Three bypasses were reproduced against it. Classified `extend` at Stage 1 and kept as extend by ruling: R18 stays active and true. **Recorded against that choice:** R29 subsumes R18, so a test satisfying R18 proves nothing about R29 - the same shape as the defect that split R14, R16 and R21, and the reason supersede was the alternative considered. |
 | 2026-08-30 | [#1](https://github.com/gitayg/productizer/issues/1) | `feature/1-view-hands-over-evidence` / PR | R30, R31 | — | — | A published view may hand over its evidence as a file. Two ids, not one: the permission is Optional and the refusal is unwanted behaviour, different EARS categories, and one id would let a test prove the permission while nothing asserted the refusal - the half that protects the spec. R31 is asserted on arrival by the existing `view-read-only` check; R30 is not, and its row says so. |
+| 2026-08-30 | [#3](https://github.com/gitayg/productizer/issues/3) | `feature/3-r7-narrowed` / PR | R32 | — | R7 → R32 | R7 could not be satisfied as written: it demanded a change-log row for every classification, and the log is defined as one row per commit to this file. Three classifications the same day merged nothing and so wrote nothing, making them violations of a requirement the practice was right to ignore. Narrowed to classifications that change the spec; a classification that stops is recorded where the intent lives - a `D` ruling and `C` row for a contradiction, the cited id for a duplicate. |
 
 ## Decision record
 

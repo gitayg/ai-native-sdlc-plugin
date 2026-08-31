@@ -389,7 +389,7 @@ Edit the spec; this section follows.
 **Twenty-eight requirements are active**, and they are the whole of what has
 been agreed.
 
-Three more are superseded and none withdrawn, and neither kind is listed here.
+Four more are superseded and none withdrawn, and neither kind is listed here.
 The spec keeps both forever with their text intact, so a citation written two
 years ago still leads somewhere — but a guide is read by someone deciding what
 to do next, and a superseded sentence gives them no sign it stopped being
@@ -411,8 +411,6 @@ happening:
 
 - **R6** — When an intent arrives, the lifecycle shall classify it against the
   whole living spec as exactly one of extend, refine, duplicate or contradict.
-- **R7** — When an intent is classified, the lifecycle shall record the
-  classification in the spec's change log.
 - **R8** — When a requirement is added, the lifecycle shall allocate the next
   unused id and record it in the acceptance criteria table.
 - **R9** — When a release is prepared, the lifecycle shall regenerate the user
@@ -421,6 +419,8 @@ happening:
   mark every drafted requirement inferred and unconfirmed.
 - **R11** — When a published view is regenerated, the lifecycle shall read
   every figure in it from a file in the repository.
+- **R32** — When a classification changes the spec, the lifecycle shall record
+  it in the spec's change log.
 
 **For as long as a state lasts.** Two requirements are true for the duration
 of a state, not at a moment inside it:
