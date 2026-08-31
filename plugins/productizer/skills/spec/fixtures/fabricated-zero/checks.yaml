@@ -1,0 +1,74 @@
+# Fixture: a run in which nothing could be measured.
+#
+# R26 - IF A VALUE COULD NOT BE MEASURED, THEN THE LIFECYCLE SHALL NOT RECORD
+# IT AS ZERO. Its pair R25 - report it as unmeasured - is already asserted, and
+# the two are not the same claim: a run can print UNMEASURED on the terminal
+# and still write 0 into the machine-readable result, which is the state R25
+# passes and R26 fails. This fixture creates exactly that situation and
+# `scripts/check-no-fabricated-zero.sh` reads the result file, not the screen.
+#
+# TWO VALUES ARE MADE UNMEASURABLE AT ONCE, because the runner records them in
+# two different shapes and R26 has to hold for both:
+#
+#   the coverage denominator - `policy.spec` names a file that is not there, so
+#   the count of active requirements cannot be derived. The fields that would
+#   carry that count must come back null.
+#
+#   one check's own coverage - the declared tool is absent, so the check never
+#   ran and examined nothing measurable. The field that would carry that count
+#   must be absent from the row entirely.
+#
+# Null and absent are both correct and they are not the same state; 0 is wrong
+# in both places. A check that collapsed the three would not be able to tell
+# the defect from the fix.
+#
+# SELF-CONTAINED ON PURPOSE. It names no path outside itself, so it works in a
+# fresh clone on any machine: the tool is absent everywhere and the spec path
+# is relative, so it is missing wherever the fixture is copied. An absolute
+# path here would make the test pass on one machine and refuse on every other.
+version: 1
+
+policy:
+  empty_run: refuse
+  # `require` is what makes the missing denominator matter. Under `auto` a
+  # config that claims no requirement is reported not_declared and never
+  # enforced, and the run would refuse for the absent tool alone - which would
+  # leave the denominator half of R26 untested while the run still went red.
+  spec_coverage: require
+  # Relative, and deliberately not the name of any real spec. The runner
+  # resolves it against the repository under test, which is a temporary copy of
+  # this directory holding two files and no spec. There is nothing to read, so
+  # the denominator is unmeasured - not zero requirements.
+  spec: no-spec-in-this-fixture.md
+
+defaults:
+  timeout_seconds: 30
+  mode: batch
+  severity: block
+
+checks:
+  # The name is deliberately one nothing will ever install. A fixture that
+  # names a plausible tool is a fixture that goes green on the machine where
+  # somebody happens to have it.
+  - id: unmeasurable
+    why: the tool is absent on every machine, so this check can never examine anything - and the number of things it examined must therefore be absent from the result, not recorded as 0
+    when:
+      always: true
+    severity: block
+    requires: [definitely-not-a-real-tool]
+    version_command: [definitely-not-a-real-tool, --version]
+    mode: batch
+    command: [definitely-not-a-real-tool, --scan, "{files}"]
+    exit_codes:
+      pass: [0]
+      fail: [1]
+      refused: [2]
+    # run-checks.sh refuses a check that declares no coverage block, so the
+    # fixture carries one. It is never exercised - the run stops at the absent
+    # tool - and that is the point: the declared minimum of 1 is what a
+    # fabricated `covered: 0` would be compared against.
+    coverage:
+      from: stdout_paths
+      pattern: '^(\S+)$'
+      must_cover: none
+      min_covered: 1

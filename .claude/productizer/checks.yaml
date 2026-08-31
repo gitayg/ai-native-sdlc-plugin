@@ -662,3 +662,114 @@ checks:
       min_covered: 1
     limitations:
       - The incoming behaviour merged under a sentence with a different EARS trigger than the contested requirement is not recognised. Closing it needs a similarity threshold, which starts refusing unrelated intents - the failure rulings.md names.
+
+  # --- R27 and R28: measure the precondition, do not claim the behaviour ----
+  #
+  # Both are EARS optional-feature clauses guarded on a backlog item naming a
+  # Jira key. Nothing here does: `jira` is null in the config - the recorded
+  # "GitHub only" answer - and no backlog row carries a key. So the obligation
+  # is not unimplemented, it is UNREACHABLE, and the honest verdict is `n/a`.
+  #
+  # The n/a is not an excuse with a reason bolted on. It is bound to a
+  # measurement that reruns every time: the runner voids a coverage claim from
+  # a check that failed, so the instant Jira is bound or a key appears, this
+  # check fails, both claims void, R27 and R28 return to `Missing`, and the
+  # suite refuses. The n/a expires by itself. Nobody has to remember it.
+  #
+  # Building the integration instead stays a backlog item, which is the
+  # decision that was actually made. This declares what is true today, and
+  # arranges to stop being true on its own.
+  - id: jira-unbound
+    why: an n/a nobody can expire is an excuse; this one is re-measured from the two files that decide it, every run
+    when:
+      always: true
+    severity: block
+    requires:
+      - ./plugins/productizer/skills/spec/scripts/check-jira-unbound.sh
+      - python3
+    version_command: [./plugins/productizer/skills/spec/scripts/check-jira-unbound.sh, --version]
+    mode: batch
+    command: [./plugins/productizer/skills/spec/scripts/check-jira-unbound.sh]
+    timeout_seconds: 60
+    exit_codes:
+      pass: [0]
+      fail: [1]        # Jira is bound, or a backlog row names something key-shaped
+      refused: [2]     # config or backlog absent or unreadable - the precondition is UNKNOWN, which is not shut
+    coverage:
+      from: stdout_paths
+      pattern: '^(\S+)$'
+      min_covered: 1
+      spec_units:
+        - id: R27
+          verdict: n/a
+          reason: >-
+            No backlog item names a Jira key and `jira` is null in the config, so the
+            "Where a backlog item names a Jira key" guard never opens in this repository.
+            This is measured from both files on every run, not asserted once: bind Jira or
+            write a key into the backlog and this check fails, which voids this claim and
+            puts R27 back to Missing.
+          evidence: .claude/productizer/config.json and .claude/productizer/backlog.md, read each run
+        - id: R28
+          verdict: n/a
+          reason: >-
+            Same guard as R27, same measurement. With no Jira binding and no key in the
+            backlog there is no Jira for the lifecycle to write back to, so the obligation
+            not to write is unreachable rather than unimplemented. It returns to Missing the
+            moment the guard can open.
+          evidence: .claude/productizer/config.json and .claude/productizer/backlog.md, read each run
+    limitations:
+      - It measures that the guard is SHUT. It says nothing whatever about what the lifecycle would do if it were open, because nothing here reads or writes Jira at all.
+      - The key pattern has no exclusion list, so a token like `UTF-8` in the backlog will fail this check. That is the intended direction to be wrong in - a false positive costs five minutes, a false negative leaves two requirements in an n/a nobody notices.
+
+  # --- an unmeasured value must not be recorded as zero ---------------------
+  #
+  # R26, and P1's first sentence. Its pair R25 - report it as unmeasured - is
+  # already asserted, and the two are not the same claim. A run can print
+  # `spec coverage: UNMEASURED` on the terminal and, in the same breath, write
+  # `units_total: 0` into the result file every downstream reader parses: R25
+  # passes on that run and R26 fails on it. That state was CONSTRUCTED from
+  # this runner, not argued for - the printed line is keyed on the status and
+  # the recorded values are not, so the two live in different code paths.
+  #
+  # So this check reads THE RESULT FILE and never the printed line. It drives
+  # `fixtures/fabricated-zero/` through run-checks.sh, which makes two values
+  # unmeasurable at once because the runner records them in two shapes: the
+  # coverage denominator (spec file absent, so the fields must be NULL) and one
+  # check's own coverage (declared tool absent, so the block must be ABSENT).
+  # Absent, null and zero are three states and collapsing them is the defect;
+  # each field is classified into one of them and the classification prints, so
+  # a failure says which state the field is in.
+  #
+  # Both premises are guarded. If the tool turns out to be installed, or the
+  # spec path turns out to exist, nothing was unmeasurable and R26 was never
+  # exercised - exit 2, unmeasured, never a pass.
+  - id: no-fabricated-zero
+    why: a fabricated zero is the only failure here that is invisible - a month later it reads exactly like a real zero, and nobody can tell which they are looking at
+    when:
+      always: true
+    severity: block
+    requires: [./plugins/productizer/skills/spec/scripts/check-no-fabricated-zero.sh]
+    version_command: [./plugins/productizer/skills/spec/scripts/check-no-fabricated-zero.sh, --version]
+    mode: batch
+    command: [./plugins/productizer/skills/spec/scripts/check-no-fabricated-zero.sh]
+    timeout_seconds: 120
+    exit_codes:
+      pass: [0]
+      fail: [1]        # a value nobody could measure is recorded as zero
+      refused: [2]     # no fixture, no runner, an unreadable result, or a premise that did not hold
+    coverage:
+      # The three files it opened: the runner under test and the two fixture
+      # files. A run that printed fewer opened fewer, and did not run the case.
+      from: stdout_paths
+      pattern: '^(\S+)$'
+      must_cover: none
+      min_covered: 3
+      spec_units:
+        - id: R26
+          verdict: Covered
+          evidence: fixtures/fabricated-zero/ driven through run-checks.sh; seven assertions on the recorded result, falsified three ways
+    limitations:
+      - It names six fields plus a sweep over cannot-run rows. A zero fabricated into a seventh field would not be caught; a blanket "no 0 anywhere" would go red on real counts like `passed: 0`.
+      - Two of P1's four sources are exercised - an absent tool and an unreadable file. A failed API call and a refused permission are not reached by any fixture.
+      - The runner's `timeout` path builds a coverage block with `covered` initialised to 0 while the status means no verdict. Assertion 7 would flag it, but no timeout fixture exists, so that is unmeasured and is backlog item B29.
+      - It covers run-checks.sh only. P1 also names import-survey.sh, build-view.sh and track-traffic.sh, and none of those is touched here.

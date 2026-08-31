@@ -3,81 +3,272 @@
   "config": ".claude/productizer/checks.yaml",
   "root": ".",
   "config_source": "the default, under the git work tree holding the working directory",
-  "root_source": "the git work tree holding the config",
+  "root_source": "--root, given on the command line",
   "change": {
     "files": [
-      ".claude/hooks/publish-gate.sh",
-      ".claude/productizer/checks-result.json",
-      "plugins/productizer/skills/spec/scripts/ab-harness.sh",
-      "plugins/productizer/skills/spec/scripts/build-guide.sh",
-      "plugins/productizer/skills/spec/scripts/build-release-notes.sh",
-      "plugins/productizer/skills/spec/scripts/build-view.sh",
-      "plugins/productizer/skills/spec/scripts/check-acceptance-rows.sh",
-      "plugins/productizer/skills/spec/scripts/check-classification-provenance.sh",
-      "plugins/productizer/skills/spec/scripts/check-hygiene.sh",
-      "plugins/productizer/skills/spec/scripts/check-import-marking.sh",
-      "plugins/productizer/skills/spec/scripts/check-missing-tool.sh",
-      "plugins/productizer/skills/spec/scripts/check-pending-ruling-scope.sh",
-      "plugins/productizer/skills/spec/scripts/check-ruling-requested.sh",
-      "plugins/productizer/skills/spec/scripts/check-spec-home.sh",
-      "plugins/productizer/skills/spec/scripts/check-stderr.sh",
-      "plugins/productizer/skills/spec/scripts/check-superseded-text.sh",
-      "plugins/productizer/skills/spec/scripts/check-view-readonly.sh",
-      "plugins/productizer/skills/spec/scripts/detect-context.sh",
-      "plugins/productizer/skills/spec/scripts/drift-reverse.sh",
-      "plugins/productizer/skills/spec/scripts/fixtures/root-resolution.sh",
-      "plugins/productizer/skills/spec/scripts/graduate.sh",
-      "plugins/productizer/skills/spec/scripts/import-survey.sh",
-      "plugins/productizer/skills/spec/scripts/init.sh",
-      "plugins/productizer/skills/spec/scripts/learnings.sh",
-      "plugins/productizer/skills/spec/scripts/pending-rulings.sh",
-      "plugins/productizer/skills/spec/scripts/record-classification.sh",
-      "plugins/productizer/skills/spec/scripts/req-trailer.sh",
-      "plugins/productizer/skills/spec/scripts/request-ruling.sh",
-      "plugins/productizer/skills/spec/scripts/retrieval-budget.sh",
-      "plugins/productizer/skills/spec/scripts/run-checks.sh",
-      "plugins/productizer/skills/spec/scripts/run-runner.sh",
-      "plugins/productizer/skills/spec/scripts/scaffold.sh",
-      "plugins/productizer/skills/spec/scripts/score.sh",
-      "plugins/productizer/skills/spec/scripts/signals.sh",
-      "plugins/productizer/skills/spec/scripts/spec-diff.sh",
-      "plugins/productizer/skills/spec/scripts/spec-requirements.sh",
-      "plugins/productizer/skills/spec/scripts/stage-snapshot.sh",
-      "plugins/productizer/skills/spec/scripts/stage-status.sh",
-      "plugins/productizer/skills/spec/scripts/usage-audit.sh",
-      "plugins/productizer/skills/spec/templates/graduate/hook.sh",
-      "plugins/productizer/skills/spec/templates/prepare-commit-msg.sh",
-      "plugins/productizer/skills/spec/templates/production-gate.sh",
-      "plugins/productizer/skills/spec/templates/publish-gate.sh",
-      "plugins/productizer/skills/spec/templates/session-start.sh",
-      "plugins/productizer/skills/spec/templates/threshold.sh",
-      "scripts/check-hygiene.sh"
+      ".claude/productizer/backlog.md",
+      "README.md",
+      "plugins/productizer/.claude-plugin/plugin.json",
+      "plugins/productizer/skills/spec/references/backlog.md"
     ],
-    "file_count": 46,
+    "file_count": 4,
     "tags": []
   },
-  "verdict": "pass",
-  "exit_code": 0,
+  "verdict": "refused",
+  "exit_code": 3,
   "counts": {
-    "declared": 15,
+    "declared": 17,
     "triggered": 15,
     "passed": 15,
     "blocking_failures": 0,
     "advisory_failures": 0,
     "disabled": 0,
-    "not_triggered": 0,
-    "spec_units_unsatisfied": null
+    "not_triggered": 2,
+    "spec_units_unsatisfied": 22
   },
   "spec_coverage": {
     "mode": "auto",
     "spec": ".claude/productizer/spec.md",
-    "status": "not_declared",
-    "detail": "no check names a requirement from .claude/productizer/spec.md, so no requirement was measured. Unmeasured, not covered. Declare `coverage.spec_units` on the checks that verify something, or set `policy.spec_coverage: off` if this repo deliberately does not.",
-    "enforced": false,
-    "units_total": null,
-    "counts": null,
-    "units": null,
-    "satisfied": null
+    "status": "measured",
+    "detail": null,
+    "enforced": true,
+    "units_total": 25,
+    "counts": {
+      "Covered": 1,
+      "Partial": 0,
+      "Missing": 22,
+      "n/a": 2
+    },
+    "units": [
+      {
+        "id": "R1",
+        "text": "The lifecycle shall hold exactly one living spec per product.",
+        "verdict": "Missing",
+        "note": "no check in this config names this requirement",
+        "exercised": false,
+        "claims": []
+      },
+      {
+        "id": "R2",
+        "text": "The lifecycle shall keep requirement ids permanent: never reused, never renumbered.",
+        "verdict": "Missing",
+        "note": "no check in this config names this requirement",
+        "exercised": false,
+        "claims": []
+      },
+      {
+        "id": "R3",
+        "text": "The lifecycle shall keep a replaced requirement's original text in the spec, marked superseded.",
+        "verdict": "Missing",
+        "note": "no check in this config names this requirement",
+        "exercised": false,
+        "claims": []
+      },
+      {
+        "id": "R4",
+        "text": "Every published view shall be read-only with respect to the spec.",
+        "verdict": "Missing",
+        "note": "no check in this config names this requirement",
+        "exercised": false,
+        "claims": []
+      },
+      {
+        "id": "R5",
+        "text": "Every check shall declare what it must have examined for its pass to count.",
+        "verdict": "Missing",
+        "note": "no check in this config names this requirement",
+        "exercised": false,
+        "claims": []
+      },
+      {
+        "id": "R6",
+        "text": "When an intent arrives, the lifecycle shall classify it against the whole living spec as exactly one of extend, refine, duplicate or contradict.",
+        "verdict": "Missing",
+        "note": "no check in this config names this requirement",
+        "exercised": false,
+        "claims": []
+      },
+      {
+        "id": "R7",
+        "text": "When an intent is classified, the lifecycle shall record the classification in the spec's change log.",
+        "verdict": "Missing",
+        "note": "no check in this config names this requirement",
+        "exercised": false,
+        "claims": []
+      },
+      {
+        "id": "R8",
+        "text": "When a requirement is added, the lifecycle shall allocate the next unused id and record it in the acceptance criteria table.",
+        "verdict": "Missing",
+        "note": "no check in this config names this requirement",
+        "exercised": false,
+        "claims": []
+      },
+      {
+        "id": "R9",
+        "text": "When a release is prepared, the lifecycle shall regenerate the user guide from the active requirements.",
+        "verdict": "Missing",
+        "note": "no check in this config names this requirement",
+        "exercised": false,
+        "claims": []
+      },
+      {
+        "id": "R10",
+        "text": "When a repository with history is imported, the lifecycle shall mark every drafted requirement inferred and unconfirmed.",
+        "verdict": "Missing",
+        "note": "no check in this config names this requirement",
+        "exercised": false,
+        "claims": []
+      },
+      {
+        "id": "R11",
+        "text": "When a published view is regenerated, the lifecycle shall read every figure in it from a file in the repository.",
+        "verdict": "Missing",
+        "note": "no check in this config names this requirement",
+        "exercised": false,
+        "claims": []
+      },
+      {
+        "id": "R12",
+        "text": "While a contradiction is unruled, the lifecycle shall merge no spec change that depends on it.",
+        "verdict": "Missing",
+        "note": "no check in this config names this requirement",
+        "exercised": false,
+        "claims": []
+      },
+      {
+        "id": "R13",
+        "text": "While a check tool named by the configuration is absent, the lifecycle shall report that check as missing rather than skipped.",
+        "verdict": "Missing",
+        "note": "no check in this config names this requirement",
+        "exercised": false,
+        "claims": []
+      },
+      {
+        "id": "R15",
+        "text": "If a check exits zero having examined less than it declared, then the lifecycle shall report it as hollow and treat it as a failure.",
+        "verdict": "Missing",
+        "note": "no check in this config names this requirement",
+        "exercised": false,
+        "claims": []
+      },
+      {
+        "id": "R17",
+        "text": "If a command would publish or deploy, then the gate shall block it until a person approves.",
+        "verdict": "Missing",
+        "note": "no check in this config names this requirement",
+        "exercised": false,
+        "claims": []
+      },
+      {
+        "id": "R18",
+        "text": "If a configured command names a shell or an interpreter with an inline program, then the lifecycle shall refuse to run it.",
+        "verdict": "Missing",
+        "note": "no check in this config names this requirement",
+        "exercised": false,
+        "claims": []
+      },
+      {
+        "id": "R19",
+        "text": "If the spec home is unreachable, then the lifecycle shall stop rather than classify against a remembered copy.",
+        "verdict": "Missing",
+        "note": "no check in this config names this requirement",
+        "exercised": false,
+        "claims": []
+      },
+      {
+        "id": "R20",
+        "text": "If a survey finds too little evidence to draft from, then the lifecycle shall refuse to draft a spec from it.",
+        "verdict": "Missing",
+        "note": "no check in this config names this requirement",
+        "exercised": false,
+        "claims": []
+      },
+      {
+        "id": "R23",
+        "text": "If an intent contradicts an active requirement, then the lifecycle shall stop and ask which wins.",
+        "verdict": "Missing",
+        "note": "no check in this config names this requirement",
+        "exercised": false,
+        "claims": []
+      },
+      {
+        "id": "R24",
+        "text": "If an intent contradicts an active requirement, then the lifecycle shall merge nothing.",
+        "verdict": "Missing",
+        "note": "no check in this config names this requirement",
+        "exercised": false,
+        "claims": []
+      },
+      {
+        "id": "R25",
+        "text": "If a value could not be measured, then the lifecycle shall report it as unmeasured.",
+        "verdict": "Missing",
+        "note": "no check in this config names this requirement",
+        "exercised": false,
+        "claims": []
+      },
+      {
+        "id": "R26",
+        "text": "If a value could not be measured, then the lifecycle shall not record it as zero.",
+        "verdict": "Covered",
+        "note": null,
+        "exercised": true,
+        "claims": [
+          {
+            "check": "no-fabricated-zero",
+            "claimed": "Covered",
+            "reason": null,
+            "evidence": "fixtures/fabricated-zero/ driven through run-checks.sh; seven assertions on the recorded result, falsified three ways",
+            "check_status": "pass",
+            "voided": null
+          }
+        ]
+      },
+      {
+        "id": "R22",
+        "text": "Where a repository declares its own check tools, the lifecycle shall run them only if the configuration explicitly opts in.",
+        "verdict": "Missing",
+        "note": "no check in this config names this requirement",
+        "exercised": false,
+        "claims": []
+      },
+      {
+        "id": "R27",
+        "text": "Where a backlog item names a Jira key, the lifecycle shall read that item's status from Jira.",
+        "verdict": "n/a",
+        "note": "jira-unbound: No backlog item names a Jira key and `jira` is null in the config, so the \"Where a backlog item names a Jira key\" guard never opens in this repository. This is measured from both files on every run, not asserted once: bind Jira or write a key into the backlog and this check fails, which voids this claim and puts R27 back to Missing.",
+        "exercised": true,
+        "claims": [
+          {
+            "check": "jira-unbound",
+            "claimed": "n/a",
+            "reason": "No backlog item names a Jira key and `jira` is null in the config, so the \"Where a backlog item names a Jira key\" guard never opens in this repository. This is measured from both files on every run, not asserted once: bind Jira or write a key into the backlog and this check fails, which voids this claim and puts R27 back to Missing.",
+            "evidence": ".claude/productizer/config.json and .claude/productizer/backlog.md, read each run",
+            "check_status": "pass",
+            "voided": null
+          }
+        ]
+      },
+      {
+        "id": "R28",
+        "text": "Where a backlog item names a Jira key, the lifecycle shall write nothing back to Jira.",
+        "verdict": "n/a",
+        "note": "jira-unbound: Same guard as R27, same measurement. With no Jira binding and no key in the backlog there is no Jira for the lifecycle to write back to, so the obligation not to write is unreachable rather than unimplemented. It returns to Missing the moment the guard can open.",
+        "exercised": true,
+        "claims": [
+          {
+            "check": "jira-unbound",
+            "claimed": "n/a",
+            "reason": "Same guard as R27, same measurement. With no Jira binding and no key in the backlog there is no Jira for the lifecycle to write back to, so the obligation not to write is unreachable rather than unimplemented. It returns to Missing the moment the guard can open.",
+            "evidence": ".claude/productizer/config.json and .claude/productizer/backlog.md, read each run",
+            "check_status": "pass",
+            "voided": null
+          }
+        ]
+      }
+    ],
+    "satisfied": false
   },
   "local_overrides_ignored": [],
   "checks": [
@@ -96,7 +287,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 46,
+      "files_in_scope": 4,
       "enabled": true,
       "tool": {
         "command": [
@@ -116,64 +307,22 @@
           "min_rules": 0
         },
         "observed": {
-          "covered": 46,
+          "covered": 4,
           "covered_items": [
-            ".claude/hooks/publish-gate.sh",
-            ".claude/productizer/checks-result.json",
-            "plugins/productizer/skills/spec/scripts/ab-harness.sh",
-            "plugins/productizer/skills/spec/scripts/build-guide.sh",
-            "plugins/productizer/skills/spec/scripts/build-release-notes.sh",
-            "plugins/productizer/skills/spec/scripts/build-view.sh",
-            "plugins/productizer/skills/spec/scripts/check-acceptance-rows.sh",
-            "plugins/productizer/skills/spec/scripts/check-classification-provenance.sh",
-            "plugins/productizer/skills/spec/scripts/check-hygiene.sh",
-            "plugins/productizer/skills/spec/scripts/check-import-marking.sh",
-            "plugins/productizer/skills/spec/scripts/check-missing-tool.sh",
-            "plugins/productizer/skills/spec/scripts/check-pending-ruling-scope.sh",
-            "plugins/productizer/skills/spec/scripts/check-ruling-requested.sh",
-            "plugins/productizer/skills/spec/scripts/check-spec-home.sh",
-            "plugins/productizer/skills/spec/scripts/check-stderr.sh",
-            "plugins/productizer/skills/spec/scripts/check-superseded-text.sh",
-            "plugins/productizer/skills/spec/scripts/check-view-readonly.sh",
-            "plugins/productizer/skills/spec/scripts/detect-context.sh",
-            "plugins/productizer/skills/spec/scripts/drift-reverse.sh",
-            "plugins/productizer/skills/spec/scripts/fixtures/root-resolution.sh",
-            "plugins/productizer/skills/spec/scripts/graduate.sh",
-            "plugins/productizer/skills/spec/scripts/import-survey.sh",
-            "plugins/productizer/skills/spec/scripts/init.sh",
-            "plugins/productizer/skills/spec/scripts/learnings.sh",
-            "plugins/productizer/skills/spec/scripts/pending-rulings.sh",
-            "plugins/productizer/skills/spec/scripts/record-classification.sh",
-            "plugins/productizer/skills/spec/scripts/req-trailer.sh",
-            "plugins/productizer/skills/spec/scripts/request-ruling.sh",
-            "plugins/productizer/skills/spec/scripts/retrieval-budget.sh",
-            "plugins/productizer/skills/spec/scripts/run-checks.sh",
-            "plugins/productizer/skills/spec/scripts/run-runner.sh",
-            "plugins/productizer/skills/spec/scripts/scaffold.sh",
-            "plugins/productizer/skills/spec/scripts/score.sh",
-            "plugins/productizer/skills/spec/scripts/signals.sh",
-            "plugins/productizer/skills/spec/scripts/spec-diff.sh",
-            "plugins/productizer/skills/spec/scripts/spec-requirements.sh",
-            "plugins/productizer/skills/spec/scripts/stage-snapshot.sh",
-            "plugins/productizer/skills/spec/scripts/stage-status.sh",
-            "plugins/productizer/skills/spec/scripts/usage-audit.sh",
-            "plugins/productizer/skills/spec/templates/graduate/hook.sh",
-            "plugins/productizer/skills/spec/templates/prepare-commit-msg.sh",
-            "plugins/productizer/skills/spec/templates/production-gate.sh",
-            "plugins/productizer/skills/spec/templates/publish-gate.sh",
-            "plugins/productizer/skills/spec/templates/session-start.sh",
-            "plugins/productizer/skills/spec/templates/threshold.sh",
-            "scripts/check-hygiene.sh"
+            ".claude/productizer/backlog.md",
+            "README.md",
+            "plugins/productizer/.claude-plugin/plugin.json",
+            "plugins/productizer/skills/spec/references/backlog.md"
           ],
           "rules_loaded": null,
-          "files_in_scope": 46,
+          "files_in_scope": 4,
           "not_examined": []
         },
         "satisfied": true,
         "reasons": []
       },
       "timed_out": false,
-      "output_tail": "ool.sh\nplugins/productizer/skills/spec/scripts/check-pending-ruling-scope.sh\nplugins/productizer/skills/spec/scripts/check-ruling-requested.sh\nplugins/productizer/skills/spec/scripts/check-spec-home.sh\nplugins/productizer/skills/spec/scripts/check-stderr.sh\nplugins/productizer/skills/spec/scripts/check-superseded-text.sh\nplugins/productizer/skills/spec/scripts/check-view-readonly.sh\nplugins/productizer/skills/spec/scripts/detect-context.sh\nplugins/productizer/skills/spec/scripts/drift-reverse.sh\nplugins/productizer/skills/spec/scripts/fixtures/root-resolution.sh\nplugins/productizer/skills/spec/scripts/graduate.sh\nplugins/productizer/skills/spec/scripts/import-survey.sh\nplugins/productizer/skills/spec/scripts/init.sh\nplugins/productizer/skills/spec/scripts/learnings.sh\nplugins/productizer/skills/spec/scripts/pending-rulings.sh\nplugins/productizer/skills/spec/scripts/record-classification.sh\nplugins/productizer/skills/spec/scripts/req-trailer.sh\nplugins/productizer/skills/spec/scripts/request-ruling.sh\nplugins/productizer/skills/spec/scripts/retrieval-budget.sh\nplugins/productizer/skills/spec/scripts/run-checks.sh\nplugins/productizer/skills/spec/scripts/run-runner.sh\nplugins/productizer/skills/spec/scripts/scaffold.sh\nplugins/productizer/skills/spec/scripts/score.sh\nplugins/productizer/skills/spec/scripts/signals.sh\nplugins/productizer/skills/spec/scripts/spec-diff.sh\nplugins/productizer/skills/spec/scripts/spec-requirements.sh\nplugins/productizer/skills/spec/scripts/stage-snapshot.sh\nplugins/productizer/skills/spec/scripts/stage-status.sh\nplugins/productizer/skills/spec/scripts/usage-audit.sh\nplugins/productizer/skills/spec/templates/graduate/hook.sh\nplugins/productizer/skills/spec/templates/prepare-commit-msg.sh\nplugins/productizer/skills/spec/templates/production-gate.sh\nplugins/productizer/skills/spec/templates/publish-gate.sh\nplugins/productizer/skills/spec/templates/session-start.sh\nplugins/productizer/skills/spec/templates/threshold.sh\nscripts/check-hygiene.sh\n",
+      "output_tail": ".claude/productizer/backlog.md\nREADME.md\nplugins/productizer/.claude-plugin/plugin.json\nplugins/productizer/skills/spec/references/backlog.md\n",
       "status": "pass"
     },
     {
@@ -189,88 +338,11 @@
         "{file}"
       ],
       "trigger_scope": "scoped",
-      "triggered": true,
-      "triggered_by": [
-        "path:**/*.sh"
-      ],
-      "files_in_scope": 45,
+      "triggered": false,
+      "triggered_by": [],
+      "files_in_scope": 0,
       "enabled": true,
-      "tool": {
-        "command": [
-          "shellcheck",
-          "--version"
-        ],
-        "version": "ShellCheck - shell script analysis tool version: 0.11.0 license: GNU General Public License, version 3 website: https://www.shellcheck.net",
-        "exit_code": 0
-      },
-      "exit_code": 0,
-      "duration_seconds": 46,
-      "coverage": {
-        "from": "per_file_exit",
-        "required": {
-          "min_covered": 1,
-          "must_cover": "all_triggering",
-          "min_rules": 0
-        },
-        "observed": {
-          "covered": 45,
-          "covered_items": [
-            ".claude/hooks/publish-gate.sh",
-            "plugins/productizer/skills/spec/scripts/ab-harness.sh",
-            "plugins/productizer/skills/spec/scripts/build-guide.sh",
-            "plugins/productizer/skills/spec/scripts/build-release-notes.sh",
-            "plugins/productizer/skills/spec/scripts/build-view.sh",
-            "plugins/productizer/skills/spec/scripts/check-acceptance-rows.sh",
-            "plugins/productizer/skills/spec/scripts/check-classification-provenance.sh",
-            "plugins/productizer/skills/spec/scripts/check-hygiene.sh",
-            "plugins/productizer/skills/spec/scripts/check-import-marking.sh",
-            "plugins/productizer/skills/spec/scripts/check-missing-tool.sh",
-            "plugins/productizer/skills/spec/scripts/check-pending-ruling-scope.sh",
-            "plugins/productizer/skills/spec/scripts/check-ruling-requested.sh",
-            "plugins/productizer/skills/spec/scripts/check-spec-home.sh",
-            "plugins/productizer/skills/spec/scripts/check-stderr.sh",
-            "plugins/productizer/skills/spec/scripts/check-superseded-text.sh",
-            "plugins/productizer/skills/spec/scripts/check-view-readonly.sh",
-            "plugins/productizer/skills/spec/scripts/detect-context.sh",
-            "plugins/productizer/skills/spec/scripts/drift-reverse.sh",
-            "plugins/productizer/skills/spec/scripts/fixtures/root-resolution.sh",
-            "plugins/productizer/skills/spec/scripts/graduate.sh",
-            "plugins/productizer/skills/spec/scripts/import-survey.sh",
-            "plugins/productizer/skills/spec/scripts/init.sh",
-            "plugins/productizer/skills/spec/scripts/learnings.sh",
-            "plugins/productizer/skills/spec/scripts/pending-rulings.sh",
-            "plugins/productizer/skills/spec/scripts/record-classification.sh",
-            "plugins/productizer/skills/spec/scripts/req-trailer.sh",
-            "plugins/productizer/skills/spec/scripts/request-ruling.sh",
-            "plugins/productizer/skills/spec/scripts/retrieval-budget.sh",
-            "plugins/productizer/skills/spec/scripts/run-checks.sh",
-            "plugins/productizer/skills/spec/scripts/run-runner.sh",
-            "plugins/productizer/skills/spec/scripts/scaffold.sh",
-            "plugins/productizer/skills/spec/scripts/score.sh",
-            "plugins/productizer/skills/spec/scripts/signals.sh",
-            "plugins/productizer/skills/spec/scripts/spec-diff.sh",
-            "plugins/productizer/skills/spec/scripts/spec-requirements.sh",
-            "plugins/productizer/skills/spec/scripts/stage-snapshot.sh",
-            "plugins/productizer/skills/spec/scripts/stage-status.sh",
-            "plugins/productizer/skills/spec/scripts/usage-audit.sh",
-            "plugins/productizer/skills/spec/templates/graduate/hook.sh",
-            "plugins/productizer/skills/spec/templates/prepare-commit-msg.sh",
-            "plugins/productizer/skills/spec/templates/production-gate.sh",
-            "plugins/productizer/skills/spec/templates/publish-gate.sh",
-            "plugins/productizer/skills/spec/templates/session-start.sh",
-            "plugins/productizer/skills/spec/templates/threshold.sh",
-            "scripts/check-hygiene.sh"
-          ],
-          "rules_loaded": null,
-          "files_in_scope": 45,
-          "not_examined": []
-        },
-        "satisfied": true,
-        "reasons": []
-      },
-      "timed_out": false,
-      "output_tail": "izer/skills/spec/scripts/check-stderr.sh\n\n===== plugins/productizer/skills/spec/scripts/check-superseded-text.sh\n\n===== plugins/productizer/skills/spec/scripts/check-view-readonly.sh\n\n===== plugins/productizer/skills/spec/scripts/detect-context.sh\n\n===== plugins/productizer/skills/spec/scripts/drift-reverse.sh\n\n===== plugins/productizer/skills/spec/scripts/fixtures/root-resolution.sh\n\n===== plugins/productizer/skills/spec/scripts/graduate.sh\n\n===== plugins/productizer/skills/spec/scripts/import-survey.sh\n\n===== plugins/productizer/skills/spec/scripts/init.sh\n\n===== plugins/productizer/skills/spec/scripts/learnings.sh\n\n===== plugins/productizer/skills/spec/scripts/pending-rulings.sh\n\n===== plugins/productizer/skills/spec/scripts/record-classification.sh\n\n===== plugins/productizer/skills/spec/scripts/req-trailer.sh\n\n===== plugins/productizer/skills/spec/scripts/request-ruling.sh\n\n===== plugins/productizer/skills/spec/scripts/retrieval-budget.sh\n\n===== plugins/productizer/skills/spec/scripts/run-checks.sh\n\n===== plugins/productizer/skills/spec/scripts/run-runner.sh\n\n===== plugins/productizer/skills/spec/scripts/scaffold.sh\n\n===== plugins/productizer/skills/spec/scripts/score.sh\n\n===== plugins/productizer/skills/spec/scripts/signals.sh\n\n===== plugins/productizer/skills/spec/scripts/spec-diff.sh\n\n===== plugins/productizer/skills/spec/scripts/spec-requirements.sh\n\n===== plugins/productizer/skills/spec/scripts/stage-snapshot.sh\n\n===== plugins/productizer/skills/spec/scripts/stage-status.sh\n\n===== plugins/productizer/skills/spec/scripts/usage-audit.sh\n\n===== plugins/productizer/skills/spec/templates/graduate/hook.sh\n\n===== plugins/productizer/skills/spec/templates/prepare-commit-msg.sh\n\n===== plugins/productizer/skills/spec/templates/production-gate.sh\n\n===== plugins/productizer/skills/spec/templates/publish-gate.sh\n\n===== plugins/productizer/skills/spec/templates/session-start.sh\n\n===== plugins/productizer/skills/spec/templates/threshold.sh\n\n===== scripts/check-hygiene.sh\n",
-      "status": "pass"
+      "status": "not_triggered"
     },
     {
       "id": "solver-corpus",
@@ -288,7 +360,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 46,
+      "files_in_scope": 4,
       "enabled": true,
       "tool": {
         "command": [
@@ -311,7 +383,7 @@
           "covered": 7,
           "covered_items": [],
           "rules_loaded": null,
-          "files_in_scope": 46,
+          "files_in_scope": 4,
           "not_examined": []
         },
         "satisfied": true,
@@ -340,88 +412,11 @@
         "{file}"
       ],
       "trigger_scope": "scoped",
-      "triggered": true,
-      "triggered_by": [
-        "path:**/*.sh"
-      ],
-      "files_in_scope": 45,
+      "triggered": false,
+      "triggered_by": [],
+      "files_in_scope": 0,
       "enabled": true,
-      "tool": {
-        "command": [
-          "./plugins/productizer/skills/spec/scripts/check-stderr.sh",
-          "--version"
-        ],
-        "version": "check-stderr 1.0",
-        "exit_code": 0
-      },
-      "exit_code": 0,
-      "duration_seconds": 45,
-      "coverage": {
-        "from": "per_file_exit",
-        "required": {
-          "min_covered": 1,
-          "must_cover": "all_triggering",
-          "min_rules": 0
-        },
-        "observed": {
-          "covered": 45,
-          "covered_items": [
-            ".claude/hooks/publish-gate.sh",
-            "plugins/productizer/skills/spec/scripts/ab-harness.sh",
-            "plugins/productizer/skills/spec/scripts/build-guide.sh",
-            "plugins/productizer/skills/spec/scripts/build-release-notes.sh",
-            "plugins/productizer/skills/spec/scripts/build-view.sh",
-            "plugins/productizer/skills/spec/scripts/check-acceptance-rows.sh",
-            "plugins/productizer/skills/spec/scripts/check-classification-provenance.sh",
-            "plugins/productizer/skills/spec/scripts/check-hygiene.sh",
-            "plugins/productizer/skills/spec/scripts/check-import-marking.sh",
-            "plugins/productizer/skills/spec/scripts/check-missing-tool.sh",
-            "plugins/productizer/skills/spec/scripts/check-pending-ruling-scope.sh",
-            "plugins/productizer/skills/spec/scripts/check-ruling-requested.sh",
-            "plugins/productizer/skills/spec/scripts/check-spec-home.sh",
-            "plugins/productizer/skills/spec/scripts/check-stderr.sh",
-            "plugins/productizer/skills/spec/scripts/check-superseded-text.sh",
-            "plugins/productizer/skills/spec/scripts/check-view-readonly.sh",
-            "plugins/productizer/skills/spec/scripts/detect-context.sh",
-            "plugins/productizer/skills/spec/scripts/drift-reverse.sh",
-            "plugins/productizer/skills/spec/scripts/fixtures/root-resolution.sh",
-            "plugins/productizer/skills/spec/scripts/graduate.sh",
-            "plugins/productizer/skills/spec/scripts/import-survey.sh",
-            "plugins/productizer/skills/spec/scripts/init.sh",
-            "plugins/productizer/skills/spec/scripts/learnings.sh",
-            "plugins/productizer/skills/spec/scripts/pending-rulings.sh",
-            "plugins/productizer/skills/spec/scripts/record-classification.sh",
-            "plugins/productizer/skills/spec/scripts/req-trailer.sh",
-            "plugins/productizer/skills/spec/scripts/request-ruling.sh",
-            "plugins/productizer/skills/spec/scripts/retrieval-budget.sh",
-            "plugins/productizer/skills/spec/scripts/run-checks.sh",
-            "plugins/productizer/skills/spec/scripts/run-runner.sh",
-            "plugins/productizer/skills/spec/scripts/scaffold.sh",
-            "plugins/productizer/skills/spec/scripts/score.sh",
-            "plugins/productizer/skills/spec/scripts/signals.sh",
-            "plugins/productizer/skills/spec/scripts/spec-diff.sh",
-            "plugins/productizer/skills/spec/scripts/spec-requirements.sh",
-            "plugins/productizer/skills/spec/scripts/stage-snapshot.sh",
-            "plugins/productizer/skills/spec/scripts/stage-status.sh",
-            "plugins/productizer/skills/spec/scripts/usage-audit.sh",
-            "plugins/productizer/skills/spec/templates/graduate/hook.sh",
-            "plugins/productizer/skills/spec/templates/prepare-commit-msg.sh",
-            "plugins/productizer/skills/spec/templates/production-gate.sh",
-            "plugins/productizer/skills/spec/templates/publish-gate.sh",
-            "plugins/productizer/skills/spec/templates/session-start.sh",
-            "plugins/productizer/skills/spec/templates/threshold.sh",
-            "scripts/check-hygiene.sh"
-          ],
-          "rules_loaded": null,
-          "files_in_scope": 45,
-          "not_examined": []
-        },
-        "satisfied": true,
-        "reasons": []
-      },
-      "timed_out": false,
-      "output_tail": "spec/scripts/retrieval-budget.sh\n\n===== plugins/productizer/skills/spec/scripts/run-checks.sh\nplugins/productizer/skills/spec/scripts/run-checks.sh\n\n===== plugins/productizer/skills/spec/scripts/run-runner.sh\nplugins/productizer/skills/spec/scripts/run-runner.sh\n\n===== plugins/productizer/skills/spec/scripts/scaffold.sh\nplugins/productizer/skills/spec/scripts/scaffold.sh\n\n===== plugins/productizer/skills/spec/scripts/score.sh\nplugins/productizer/skills/spec/scripts/score.sh\n\n===== plugins/productizer/skills/spec/scripts/signals.sh\nplugins/productizer/skills/spec/scripts/signals.sh\n\n===== plugins/productizer/skills/spec/scripts/spec-diff.sh\nplugins/productizer/skills/spec/scripts/spec-diff.sh\n\n===== plugins/productizer/skills/spec/scripts/spec-requirements.sh\nplugins/productizer/skills/spec/scripts/spec-requirements.sh\n\n===== plugins/productizer/skills/spec/scripts/stage-snapshot.sh\nplugins/productizer/skills/spec/scripts/stage-snapshot.sh\n\n===== plugins/productizer/skills/spec/scripts/stage-status.sh\nplugins/productizer/skills/spec/scripts/stage-status.sh\n\n===== plugins/productizer/skills/spec/scripts/usage-audit.sh\nplugins/productizer/skills/spec/scripts/usage-audit.sh\n\n===== plugins/productizer/skills/spec/templates/graduate/hook.sh\nplugins/productizer/skills/spec/templates/graduate/hook.sh\n\n===== plugins/productizer/skills/spec/templates/prepare-commit-msg.sh\nplugins/productizer/skills/spec/templates/prepare-commit-msg.sh\n\n===== plugins/productizer/skills/spec/templates/production-gate.sh\nplugins/productizer/skills/spec/templates/production-gate.sh\n\n===== plugins/productizer/skills/spec/templates/publish-gate.sh\nplugins/productizer/skills/spec/templates/publish-gate.sh\n\n===== plugins/productizer/skills/spec/templates/session-start.sh\nplugins/productizer/skills/spec/templates/session-start.sh\n\n===== plugins/productizer/skills/spec/templates/threshold.sh\nplugins/productizer/skills/spec/templates/threshold.sh\n\n===== scripts/check-hygiene.sh\nscripts/check-hygiene.sh\n",
-      "status": "pass"
+      "status": "not_triggered"
     },
     {
       "id": "spec-home",
@@ -439,7 +434,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 46,
+      "files_in_scope": 4,
       "enabled": true,
       "tool": {
         "command": [
@@ -462,7 +457,7 @@
           "covered": 1,
           "covered_items": [],
           "rules_loaded": null,
-          "files_in_scope": 46,
+          "files_in_scope": 4,
           "not_examined": []
         },
         "satisfied": true,
@@ -486,7 +481,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 46,
+      "files_in_scope": 4,
       "enabled": true,
       "tool": {
         "command": [
@@ -511,7 +506,7 @@
             ".claude/productizer/spec.md"
           ],
           "rules_loaded": null,
-          "files_in_scope": 46,
+          "files_in_scope": 4,
           "not_examined": []
         },
         "satisfied": true,
@@ -536,7 +531,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 46,
+      "files_in_scope": 4,
       "enabled": true,
       "tool": {
         "command": [
@@ -560,7 +555,7 @@
           "covered": 2,
           "covered_items": [],
           "rules_loaded": null,
-          "files_in_scope": 46,
+          "files_in_scope": 4,
           "not_examined": []
         },
         "satisfied": true,
@@ -585,7 +580,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 46,
+      "files_in_scope": 4,
       "enabled": true,
       "tool": {
         "command": [
@@ -608,7 +603,7 @@
           "covered": 25,
           "covered_items": [],
           "rules_loaded": null,
-          "files_in_scope": 46,
+          "files_in_scope": 4,
           "not_examined": []
         },
         "satisfied": true,
@@ -632,7 +627,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 46,
+      "files_in_scope": 4,
       "enabled": true,
       "tool": {
         "command": [
@@ -652,7 +647,7 @@
           "min_rules": 0
         },
         "observed": {
-          "covered": 342,
+          "covered": 349,
           "covered_items": [
             ".claude-plugin/marketplace.json",
             ".claude/hooks/publish-gate.sh",
@@ -856,14 +851,14 @@
             "evals/cases/P15-vocabulary-drift-dunning-abandon/prompt.md"
           ],
           "rules_loaded": null,
-          "files_in_scope": 46,
+          "files_in_scope": 4,
           "not_examined": []
         },
         "satisfied": true,
         "reasons": []
       },
       "timed_out": false,
-      "output_tail": "lugins/productizer/skills/spec/templates/import.md\nplugins/productizer/skills/spec/templates/intake.md\nplugins/productizer/skills/spec/templates/intent.md\nplugins/productizer/skills/spec/templates/interview.md\nplugins/productizer/skills/spec/templates/jira-intent.md\nplugins/productizer/skills/spec/templates/learnings.md\nplugins/productizer/skills/spec/templates/managed-settings.json\nplugins/productizer/skills/spec/templates/plan.md\nplugins/productizer/skills/spec/templates/prepare-commit-msg.sh\nplugins/productizer/skills/spec/templates/production-gate.sh\nplugins/productizer/skills/spec/templates/publish-gate.sh\nplugins/productizer/skills/spec/templates/release-blog.md\nplugins/productizer/skills/spec/templates/release-email.md\nplugins/productizer/skills/spec/templates/ruling.md\nplugins/productizer/skills/spec/templates/runners/gate-bypass.json\nplugins/productizer/skills/spec/templates/runners/publish-blast.json\nplugins/productizer/skills/spec/templates/runners/spec-mutation.json\nplugins/productizer/skills/spec/templates/scheduled-bands.md\nplugins/productizer/skills/spec/templates/scheduled-evals.md\nplugins/productizer/skills/spec/templates/session-start.sh\nplugins/productizer/skills/spec/templates/spec-command.md\nplugins/productizer/skills/spec/templates/spec-delta.md\nplugins/productizer/skills/spec/templates/spec.md\nplugins/productizer/skills/spec/templates/threshold.sh\nplugins/productizer/skills/spec/templates/triage-step.yml\nplugins/productizer/skills/spec/templates/user-guide.md\nplugins/productizer/skills/spec/templates/verification-section.md\nplugins/productizer/skills/spec/templates/view.html\nscripts/check-hygiene.sh\n  repository files hashed before and after: 342\n  files the generator moved: 0\n  page bytes read: 429216\n  capability declarations read: 1\n  declares `downloads` - output: it hands the viewer a file and reads nothing back\n  R4 satisfied: the generator moved no repository file, and the page declares nothing that can publish a new version of itself.\n",
+      "output_tail": "lugins/productizer/skills/spec/templates/import.md\nplugins/productizer/skills/spec/templates/intake.md\nplugins/productizer/skills/spec/templates/intent.md\nplugins/productizer/skills/spec/templates/interview.md\nplugins/productizer/skills/spec/templates/jira-intent.md\nplugins/productizer/skills/spec/templates/learnings.md\nplugins/productizer/skills/spec/templates/managed-settings.json\nplugins/productizer/skills/spec/templates/plan.md\nplugins/productizer/skills/spec/templates/prepare-commit-msg.sh\nplugins/productizer/skills/spec/templates/production-gate.sh\nplugins/productizer/skills/spec/templates/publish-gate.sh\nplugins/productizer/skills/spec/templates/release-blog.md\nplugins/productizer/skills/spec/templates/release-email.md\nplugins/productizer/skills/spec/templates/ruling.md\nplugins/productizer/skills/spec/templates/runners/gate-bypass.json\nplugins/productizer/skills/spec/templates/runners/publish-blast.json\nplugins/productizer/skills/spec/templates/runners/spec-mutation.json\nplugins/productizer/skills/spec/templates/scheduled-bands.md\nplugins/productizer/skills/spec/templates/scheduled-evals.md\nplugins/productizer/skills/spec/templates/session-start.sh\nplugins/productizer/skills/spec/templates/spec-command.md\nplugins/productizer/skills/spec/templates/spec-delta.md\nplugins/productizer/skills/spec/templates/spec.md\nplugins/productizer/skills/spec/templates/threshold.sh\nplugins/productizer/skills/spec/templates/triage-step.yml\nplugins/productizer/skills/spec/templates/user-guide.md\nplugins/productizer/skills/spec/templates/verification-section.md\nplugins/productizer/skills/spec/templates/view.html\nscripts/check-hygiene.sh\n  repository files hashed before and after: 349\n  files the generator moved: 0\n  page bytes read: 432088\n  capability declarations read: 1\n  declares `downloads` - output: it hands the viewer a file and reads nothing back\n  R4 satisfied: the generator moved no repository file, and the page declares nothing that can publish a new version of itself.\n",
       "status": "pass"
     },
     {
@@ -880,7 +875,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 46,
+      "files_in_scope": 4,
       "enabled": true,
       "tool": {
         "command": [
@@ -907,7 +902,7 @@
             "plugins/productizer/skills/spec/fixtures/missing-tool/changed.txt"
           ],
           "rules_loaded": null,
-          "files_in_scope": 46,
+          "files_in_scope": 4,
           "not_examined": []
         },
         "satisfied": true,
@@ -931,7 +926,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 46,
+      "files_in_scope": 4,
       "enabled": true,
       "tool": {
         "command": [
@@ -954,7 +949,7 @@
           "covered": 28,
           "covered_items": [],
           "rules_loaded": null,
-          "files_in_scope": 46,
+          "files_in_scope": 4,
           "not_examined": []
         },
         "satisfied": true,
@@ -978,7 +973,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 46,
+      "files_in_scope": 4,
       "enabled": true,
       "tool": {
         "command": [
@@ -1001,7 +996,7 @@
           "covered": 28,
           "covered_items": [],
           "rules_loaded": null,
-          "files_in_scope": 46,
+          "files_in_scope": 4,
           "not_examined": []
         },
         "satisfied": true,
@@ -1025,7 +1020,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 46,
+      "files_in_scope": 4,
       "enabled": true,
       "tool": {
         "command": [
@@ -1050,7 +1045,7 @@
             ".claude/productizer/spec.md"
           ],
           "rules_loaded": null,
-          "files_in_scope": 46,
+          "files_in_scope": 4,
           "not_examined": []
         },
         "satisfied": true,
@@ -1074,7 +1069,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 46,
+      "files_in_scope": 4,
       "enabled": true,
       "tool": {
         "command": [
@@ -1106,7 +1101,7 @@
             ".claude/productizer/spec.md@842b5cc"
           ],
           "rules_loaded": null,
-          "files_in_scope": 46,
+          "files_in_scope": 4,
           "not_examined": []
         },
         "satisfied": true,
@@ -1130,7 +1125,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 46,
+      "files_in_scope": 4,
       "enabled": true,
       "tool": {
         "command": [
@@ -1155,7 +1150,7 @@
             ".claude/productizer/spec.md"
           ],
           "rules_loaded": null,
-          "files_in_scope": 46,
+          "files_in_scope": 4,
           "not_examined": []
         },
         "satisfied": true,
@@ -1163,6 +1158,107 @@
       },
       "timed_out": false,
       "output_tail": ".claude/productizer/spec.md\nrulings examined: 0\npending rulings: 0\nnote: no .claude/productizer/rulings directory - no contradiction has ever been raised here, so R12 governs a state this repo has not entered. Nothing is blocked. That is an absence, and it is reported as one rather than as a measured zero.\nPASS: no unruled contradiction, so no spec change can depend on one.\n",
+      "status": "pass"
+    },
+    {
+      "id": "jira-unbound",
+      "why": "an n/a nobody can expire is an excuse; this one is re-measured from the two files that decide it, every run",
+      "severity": "block",
+      "blocking": true,
+      "mode": "batch",
+      "command": [
+        "./plugins/productizer/skills/spec/scripts/check-jira-unbound.sh"
+      ],
+      "trigger_scope": "always",
+      "triggered": true,
+      "triggered_by": [
+        "always"
+      ],
+      "files_in_scope": 4,
+      "enabled": true,
+      "tool": {
+        "command": [
+          "./plugins/productizer/skills/spec/scripts/check-jira-unbound.sh",
+          "--version"
+        ],
+        "version": "check-jira-unbound 1.0",
+        "exit_code": 0
+      },
+      "exit_code": 0,
+      "duration_seconds": 1,
+      "coverage": {
+        "from": "stdout_paths",
+        "required": {
+          "min_covered": 1,
+          "must_cover": "none",
+          "min_rules": 0
+        },
+        "observed": {
+          "covered": 2,
+          "covered_items": [
+            ".claude/productizer/config.json",
+            ".claude/productizer/backlog.md"
+          ],
+          "rules_loaded": null,
+          "files_in_scope": 4,
+          "not_examined": []
+        },
+        "satisfied": true,
+        "reasons": []
+      },
+      "timed_out": false,
+      "output_tail": ".claude/productizer/config.json\n  `jira` is null - the recorded decision to run GitHub-only. Jira is not bound.\n.claude/productizer/backlog.md\n  no row in this file names anything shaped like a Jira key.\n  backlog files scanned: 1\n  Jira-key-shaped tokens found: 0\n  R27 and R28 are out of force in this repository: Jira is unbound and no backlog row names a key. Their n/a claims stand for this run only, and are re-measured on the next one.\n",
+      "status": "pass"
+    },
+    {
+      "id": "no-fabricated-zero",
+      "why": "a fabricated zero is the only failure here that is invisible - a month later it reads exactly like a real zero, and nobody can tell which they are looking at",
+      "severity": "block",
+      "blocking": true,
+      "mode": "batch",
+      "command": [
+        "./plugins/productizer/skills/spec/scripts/check-no-fabricated-zero.sh"
+      ],
+      "trigger_scope": "always",
+      "triggered": true,
+      "triggered_by": [
+        "always"
+      ],
+      "files_in_scope": 4,
+      "enabled": true,
+      "tool": {
+        "command": [
+          "./plugins/productizer/skills/spec/scripts/check-no-fabricated-zero.sh",
+          "--version"
+        ],
+        "version": "check-no-fabricated-zero 1.0",
+        "exit_code": 0
+      },
+      "exit_code": 0,
+      "duration_seconds": 1,
+      "coverage": {
+        "from": "stdout_paths",
+        "required": {
+          "min_covered": 3,
+          "must_cover": "none",
+          "min_rules": 0
+        },
+        "observed": {
+          "covered": 3,
+          "covered_items": [
+            "plugins/productizer/skills/spec/scripts/run-checks.sh",
+            "plugins/productizer/skills/spec/fixtures/fabricated-zero/checks.yaml",
+            "plugins/productizer/skills/spec/fixtures/fabricated-zero/changed.txt"
+          ],
+          "rules_loaded": null,
+          "files_in_scope": 4,
+          "not_examined": []
+        },
+        "satisfied": true,
+        "reasons": []
+      },
+      "timed_out": false,
+      "output_tail": "plugins/productizer/skills/spec/scripts/run-checks.sh\nplugins/productizer/skills/spec/fixtures/fabricated-zero/checks.yaml\nplugins/productizer/skills/spec/fixtures/fabricated-zero/changed.txt\n  premises held: the denominator is 'unreadable' (not measured) and `unmeasurable` is 'missing_tool' (no verdict).\n  note (R25, not asserted here): the printed line reads UNMEASURED\n  three-state classification of every field that would carry an unmeasured count:\n  spec_coverage.units_total              state=null   null\n  spec_coverage.counts                   state=null   null\n  spec_coverage.units                    state=null   null\n  spec_coverage.satisfied                state=null   null\n  counts.spec_units_unsatisfied          state=null   null\n  checks[unmeasurable].coverage          state=absent -\n  held: spec_coverage.units_total is null, the state for a value nobody could measure; it is null\n  held: spec_coverage.counts is null, the state for a value nobody could measure; it is null\n  held: spec_coverage.units is null, the state for a value nobody could measure; it is null\n  held: spec_coverage.satisfied is null, the state for a value nobody could measure; it is null\n  held: counts.spec_units_unsatisfied is null, the state for a value nobody could measure; it is null\n  held: checks[unmeasurable].coverage is absent, the state for a value nobody could measure; it is absent\n  held: no check that reached no verdict records a coverage count\n  assertions evaluated: 7, upheld: 7\n  R26 satisfied: a value that could not be measured is recorded as absent or null, never as zero.\n",
       "status": "pass"
     }
   ]
