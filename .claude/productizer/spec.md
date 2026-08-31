@@ -9,13 +9,13 @@ site generators, doc builds and packaging all skip that directory, so the spec
 is never rendered as a page or shipped in a release.
 
 Next requirement id
-: `R30` — allocate from here, then increment. This is the highest id the spec
+: `R32` — allocate from here, then increment. This is the highest id the spec
 has ever used, not a count of the rows on screen. Ids are never reused and
 never renumbered, and stay unique across the whole repo even if this spec is
 later split into several files.
 
 Requirements
-: 26 active, 3 superseded, 0 withdrawn.
+: 28 active, 3 superseded, 0 withdrawn.
 
 Audit trail
 : `git log -p .claude/productizer/spec.md`. Each commit is one change, joined to the
@@ -127,6 +127,7 @@ file stays skimmable at two hundred. One row per requirement, in id order.
 - **R25** — If a value could not be measured, then the lifecycle shall report it as unmeasured.
 - **R26** — If a value could not be measured, then the lifecycle shall not record it as zero.
 - **R29** — If a configured command would let the repository being examined select an executable in any argv position, then the lifecycle shall refuse to run it.
+- **R31** — If a published view declares a capability that can publish new versions of itself, then the lifecycle shall refuse to publish it.
 
 ### Optional
 
@@ -136,6 +137,7 @@ file stays skimmable at two hundred. One row per requirement, in id order.
 - **R22** — Where a repository declares its own check tools, the lifecycle shall run them only if the configuration explicitly opts in.
 - **R27** — Where a backlog item names a Jira key, the lifecycle shall read that item's status from Jira.
 - **R28** — Where a backlog item names a Jira key, the lifecycle shall write nothing back to Jira.
+- **R30** — Where a published view hands over its evidence as a file, the lifecycle shall use a capability that writes only to the viewer's own device.
 
 ## Design
 
@@ -176,6 +178,8 @@ until a human rules on it.
 | R27 | **Out of force here, and re-measured every run.** `jira-unbound` check reads `config.json` and the backlog and claims `n/a` only while `jira` is null and no row names a key. The claim is bound to the check passing, so binding Jira or writing a key into the backlog fails it, voids the claim, and returns R27 to `Missing`. Nothing asserts the guarded behaviour, because nothing here implements it — building the integration is a backlog item |
 | R28 | **Out of force here, and re-measured every run.** Same guard and same measurement as R27, via the same `jira-unbound` check. With no binding and no key there is no Jira to write back to, so the obligation not to write is unreachable rather than unimplemented |
 | R29 | `run-checks.sh` argv validation over EVERY element, not `value[0]`. Falsified against HEAD with a marker file: `awk` with a positional program, `python3` naming a repo-local script as an ARGUMENT, and `make` each exited 0 with the payload executed; all three now refuse at validation with the payload absent. The repo's own config still passes under `allow_repo_local_tools: true`, and is refused with it false. |
+| R30 | **Nothing yet.** The capability is not declared by any view today - `views.publish_as_artifact` is on and no page asks for `downloads`. A verifier would assert that a view offering a file uses only a capability that writes to the viewer's device, and that the offer is refusable by the viewer. Not built |
+| R31 | `view-read-only` check - already asserts the published page declares no capability that can publish a new version of itself, and fails on an unrecognised capability name because one that has not been shown to be output-only has not been shown to be safe. Falsified 2026-08-30 against a page declaring the self-publishing capability, and against one declaring only `downloads`, which passes |
 | R3 | `superseded-text` check over `check-superseded-text.sh` — diffs each superseded requirement's text against the last commit at which it was still active, choosing that baseline per requirement. The first check here to read git history. Falsified by editing a superseded sentence and watching it go red; a shallow clone is refused, never passed. |
 | R4 | `view-read-only` check — both halves. The generator moves no repository file (every file hashed before and after, content and mtime), and the page declares no capability that can publish a new version of itself. Falsified four ways on the first half and three on the second; a page that could not be built is exit 2, never zero capabilities. |
 | R6 | `classification-provenance` check — asserts every active requirement id was in the context the classification was made from, and that exactly one classification was recorded. Falsified by dropping an active id from a record's scope list. |
@@ -205,6 +209,7 @@ someone edits one and not the other.
 | <YYYY-MM-DD> | <#123 / PROJ-123> | `<branch>` / <pr> | R41–R43 | R12 | R7 → R41 | <what changed and why> |
 | 2026-08-29 | — | — | R23–R28 | — | R14 → R23, R24; R16 → R25, R26; R21 → R27, R28 | Each of the three carried two `shall` clauses under one id. Split so every obligation has its own id and neither half can be half-tested. Originals retained verbatim, marked superseded. |
 | 2026-08-30 | [#2](https://github.com/gitayg/productizer/issues/2) | `feature/2-argv-any-position` / PR | R29 | — | — | R18 is narrower than P4, the principle it is listed as enforcing: it names a shell or an interpreter with an inline program, and says nothing about the other argv positions. Three bypasses were reproduced against it. Classified `extend` at Stage 1 and kept as extend by ruling: R18 stays active and true. **Recorded against that choice:** R29 subsumes R18, so a test satisfying R18 proves nothing about R29 - the same shape as the defect that split R14, R16 and R21, and the reason supersede was the alternative considered. |
+| 2026-08-30 | [#1](https://github.com/gitayg/productizer/issues/1) | `feature/1-view-hands-over-evidence` / PR | R30, R31 | — | — | A published view may hand over its evidence as a file. Two ids, not one: the permission is Optional and the refusal is unwanted behaviour, different EARS categories, and one id would let a test prove the permission while nothing asserted the refusal - the half that protects the spec. R31 is asserted on arrival by the existing `view-read-only` check; R30 is not, and its row says so. |
 
 ## Decision record
 
