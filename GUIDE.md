@@ -43,6 +43,7 @@ remembering the sentence that triggers it.
 | `/productizer:check` | run the declared checks over the current change |
 | `/productizer:backlog` | the queue in front of the lifecycle — see it, add to it, start an item |
 | `/productizer:answer` | every question the repo is holding open for a person, one at a time |
+| `/productizer:import` | onboard a repo that already exists — survey it, draft from the evidence |
 | `/productizer:spec` | the whole lifecycle — intake, classification, deltas, releases |
 
 Type `/productizer` and the menu lists them. The bare forms — `/dashboard`,
