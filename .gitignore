@@ -20,3 +20,16 @@ evals/results/
 # The canonical copy lives outside every repository, under the home directory.
 .claude/productizer/hygiene-local.txt
 .claude/productizer/publish-checklist.md
+
+# The check runner writes this. It is NOT committed, and that is deliberate: it
+# records one run on one machine, so a committed copy describes somebody's local
+# working state rather than a property of the tree you cloned. The version that
+# used to sit here named files that do not exist in a fresh clone, and a fresh
+# clone's dashboard presented that as "the last check run" for the tree in front
+# of you - a recorded measurement nobody took, with no merge involved.
+#
+# Nothing is lost by its absence. Every reader was checked and already degrades
+# honestly: build-view.sh renders the unmeasured marker, stage-status.sh says
+# "not run", signals.sh reports ABSENT, and CI never reads it at all - the
+# workflow writes its own copy to a temp directory.
+.claude/productizer/checks-result.json

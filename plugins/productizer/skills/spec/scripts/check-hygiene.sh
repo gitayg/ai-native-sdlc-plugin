@@ -74,11 +74,31 @@ VERSION="check-hygiene 2.0"
 
 # ONE ALTERNATIVE PER PATTERN, AND NO `|` INSIDE AN ALTERNATIVE. The single
 # line is deliberate: other tools read the list as data without executing this
+# THE SLUG FORM IS NOT REDUNDANT. Tooling that turns a working directory into a
+# cache or scratch key replaces every separator with a hyphen, so a home-
+# directory path becomes a single hyphenated run carrying the same username.
+# The separator-anchored patterns cannot see it. Measured, not anticipated: a
+# scratch path in that form reached a committed result file in this repository
+# and the gate passed it clean, while the identical path in ordinary form was
+# caught.
+#
+# ONLY THE CAPITALISED USER-DIRECTORY FORM IS LISTED, AND THE OMISSION IS
+# DELIBERATE. The lowercase counterpart was tried and withdrawn: it fires on
+# ordinary hyphenated prose, and the first run flagged a check's own name as a
+# personal path. A rule that cries wolf on a word is a rule somebody switches
+# off, which costs more than the case it would have caught. The capitalised form
+# carries a capital letter in the middle of a hyphenated run, which prose does
+# not produce. A Linux scratch path in slug form is therefore NOT caught, and
+# that is a known hole rather than an oversight.
+#
+# Nothing in this comment spells either pattern out, deliberately: this file is
+# scanned by its own rules, and an example would be a finding.
+#
 # script. It is also split on `|` at run time for reporting, and
 # PATTERN_CLASSES names each alternative in the same order - a length mismatch
 # refuses the run rather than mislabelling a finding.
-PATTERNS='/Users/[A-Za-z][A-Za-z0-9._-]*|/home/[A-Za-z][A-Za-z0-9._-]*|C:\\Users\\[A-Za-z][A-Za-z0-9._-]*|[A-Za-z0-9][A-Za-z0-9-]*\.local[^A-Za-z0-9_.-]|[A-Za-z0-9][A-Za-z0-9-]*\.local$|-----BEGIN [A-Z ]*PRIVATE KEY|gh[opsur]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|A[KS]IA[0-9A-Z]{16}|sk-ant-[A-Za-z0-9_-]{16,}|sk-proj-[A-Za-z0-9_-]{16,}|^sk-[A-Za-z0-9]{20,}|[^A-Za-z0-9]sk-[A-Za-z0-9]{20,}|xox[abprs]-[A-Za-z0-9-]{10,}|[sr]k_live_[A-Za-z0-9]{10,}|AIza[A-Za-z0-9_-]{20,}|npm_[A-Za-z0-9]{20,}|eyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}'
-PATTERN_CLASSES='personal filesystem path|personal filesystem path|personal filesystem path|machine hostname|machine hostname|private key material|GitHub token|GitHub personal access token|AWS access key id|Anthropic API key|OpenAI project API key|OpenAI API key|OpenAI API key|Slack token|Stripe live key|Google API key|npm token|JSON Web Token'
+PATTERNS='/Users/[A-Za-z][A-Za-z0-9._-]*|/home/[A-Za-z][A-Za-z0-9._-]*|C:\\Users\\[A-Za-z][A-Za-z0-9._-]*|-Users-[A-Za-z][A-Za-z0-9._-]*|[A-Za-z0-9][A-Za-z0-9-]*\.local[^A-Za-z0-9_.-]|[A-Za-z0-9][A-Za-z0-9-]*\.local$|-----BEGIN [A-Z ]*PRIVATE KEY|gh[opsur]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|A[KS]IA[0-9A-Z]{16}|sk-ant-[A-Za-z0-9_-]{16,}|sk-proj-[A-Za-z0-9_-]{16,}|^sk-[A-Za-z0-9]{20,}|[^A-Za-z0-9]sk-[A-Za-z0-9]{20,}|xox[abprs]-[A-Za-z0-9-]{10,}|[sr]k_live_[A-Za-z0-9]{10,}|AIza[A-Za-z0-9_-]{20,}|npm_[A-Za-z0-9]{20,}|eyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}'
+PATTERN_CLASSES='personal filesystem path|personal filesystem path|personal filesystem path|personal filesystem path, slug form|machine hostname|machine hostname|private key material|GitHub token|GitHub personal access token|AWS access key id|Anthropic API key|OpenAI project API key|OpenAI API key|OpenAI API key|Slack token|Stripe live key|Google API key|npm token|JSON Web Token'
 
 usage() {
   printf 'usage: check-hygiene.sh [--version] [--help] [--patterns FILE] [--print-patterns] <file>...\n'
@@ -249,6 +269,7 @@ classify() {
 }
 
 found=0
+examined=0
 for f in "${FILES[@]}"; do
   if [ ! -e "$f" ]; then
     printf '    %s: does not exist (deleted in this change?) - NOT examined\n' "$f"
@@ -268,6 +289,7 @@ for f in "${FILES[@]}"; do
   fi
 
   printf '%s\n' "$f"          # coverage: one bare path per file examined
+  examined=$((examined + 1))
 
   skip_line=""
   if [ -n "$SELF_ID" ] && [ -n "$SELF_DEF_LINE" ]; then
@@ -302,4 +324,19 @@ for f in "${FILES[@]}"; do
   fi
 done
 
+# NOTHING EXAMINED IS NOT A CLEAN SCAN, and this file already said so - for
+# zero ARGUMENTS. It did not say so for arguments that all turned out to be
+# unexaminable: two paths that do not exist scanned nothing and exited 0, which
+# is a clean bill of health over a set the tool never opened. Measured, not
+# argued - it is how a caller that mangles its file list gets a green.
+#
+# Missing files are individually fine: a change set legitimately names a file it
+# deleted. What is not fine is EVERY one of them being unexaminable, because
+# then the run has no evidence in it at all.
+if [ "$examined" -eq 0 ]; then
+  printf 'check-hygiene: %d path(s) given and none could be examined - all missing, directories, or binary. Nothing was scanned, so nothing is clean. Unmeasured, not a pass.\n' "${#FILES[@]}" >&2
+  exit 2
+fi
+
+printf '    files examined: %d of %d given\n' "$examined" "${#FILES[@]}"
 exit "$found"

@@ -6,26 +6,53 @@
   "root_source": "--root, given on the command line",
   "change": {
     "files": [
-      ".claude/productizer/checks-result.json",
+      ".claude/hooks/artifact-gate.sh",
+      ".claude/productizer/backlog.md",
       ".claude/productizer/checks.yaml",
-      ".claude/productizer/spec.md",
-      "GUIDE.md",
-      "[redacted: out-of-repo scratch path]"
+      ".claude/settings.json",
+      ".gitattributes",
+      ".gitignore",
+      "README.md",
+      "plugins/productizer/.claude-plugin/plugin.json",
+      "plugins/productizer/skills/spec/fixtures/changelog-row/selftest.sh",
+      "plugins/productizer/skills/spec/fixtures/changelog-row/spec/1-founding.md",
+      "plugins/productizer/skills/spec/fixtures/changelog-row/spec/2-word-only.md",
+      "plugins/productizer/skills/spec/fixtures/changelog-row/spec/3-classified-recorded.md",
+      "plugins/productizer/skills/spec/fixtures/changelog-row/spec/4-classified-unrecorded.md",
+      "plugins/productizer/skills/spec/fixtures/changelog-row/spec/5-counter-only.md",
+      "plugins/productizer/skills/spec/fixtures/missing-tool/checks-executable-path.yaml",
+      "plugins/productizer/skills/spec/fixtures/missing-tool/checks-per-file.yaml",
+      "plugins/productizer/skills/spec/fixtures/view-publish-refused/cases.tsv",
+      "plugins/productizer/skills/spec/fixtures/view-publish-refused/pages/page-computed-name.html",
+      "plugins/productizer/skills/spec/fixtures/view-publish-refused/pages/page-downloads.html",
+      "plugins/productizer/skills/spec/fixtures/view-publish-refused/pages/page-empty.html",
+      "plugins/productizer/skills/spec/fixtures/view-publish-refused/pages/page-forged-decision.html",
+      "plugins/productizer/skills/spec/fixtures/view-publish-refused/pages/page-plain.html",
+      "plugins/productizer/skills/spec/fixtures/view-publish-refused/pages/page-self-alias.html",
+      "plugins/productizer/skills/spec/fixtures/view-publish-refused/pages/page-self-publishing.html",
+      "plugins/productizer/skills/spec/fixtures/view-publish-refused/pages/page-unclassified.html",
+      "plugins/productizer/skills/spec/references/checks.md",
+      "plugins/productizer/skills/spec/scripts/check-changelog-row.sh",
+      "plugins/productizer/skills/spec/scripts/check-hygiene.sh",
+      "plugins/productizer/skills/spec/scripts/check-missing-tool.sh",
+      "plugins/productizer/skills/spec/scripts/check-view-publish-refused.sh",
+      "plugins/productizer/skills/spec/scripts/merge-checks-result.sh",
+      "plugins/productizer/skills/spec/templates/artifact-gate.sh"
     ],
-    "file_count": 5,
+    "file_count": 32,
     "tags": []
   },
   "verdict": "pass",
   "exit_code": 0,
   "counts": {
-    "declared": 26,
-    "triggered": 24,
-    "passed": 24,
+    "declared": 28,
+    "triggered": 28,
+    "passed": 28,
     "blocking_failures": 0,
     "advisory_failures": 0,
     "disabled": 0,
-    "not_triggered": 2,
-    "spec_units_unsatisfied": 12
+    "not_triggered": 0,
+    "spec_units_unsatisfied": 11
   },
   "spec_coverage": {
     "mode": "report",
@@ -35,9 +62,9 @@
     "enforced": false,
     "units_total": 28,
     "counts": {
-      "Covered": 14,
+      "Covered": 15,
       "Partial": 11,
-      "Missing": 1,
+      "Missing": 0,
       "n/a": 2
     },
     "units": [
@@ -222,10 +249,19 @@
       {
         "id": "R32",
         "text": "When a classification changes the spec, the lifecycle shall record it in the spec's change log.",
-        "verdict": "Missing",
-        "note": "no check in this config names this requirement",
-        "exercised": false,
-        "claims": []
+        "verdict": "Partial",
+        "note": "changelog-row: Asserts the CONSEQUENCE completely and the TRIGGER partially. Every commit at which an id appeared or a requirement went superseded or withdrawn is checked for a row recording that id in the column for that kind of change, in the commit that made the change - four assertions, each counted where its loop runs, each falsified alone. What is NOT asserted is the rest of the trigger: a REFINE that keeps its id and rewrites the sentence changes the spec and is invisible here, because no evidence in the repository separates it from a typo fix. So a classification of that shape can merge with no row and this stays green. Also unasserted: that a row's issue, branch and PR cells are TRUE - only the ids are matched.",
+        "exercised": true,
+        "claims": [
+          {
+            "check": "changelog-row",
+            "claimed": "Partial",
+            "reason": "Asserts the CONSEQUENCE completely and the TRIGGER partially. Every commit at which an id appeared or a requirement went superseded or withdrawn is checked for a row recording that id in the column for that kind of change, in the commit that made the change - four assertions, each counted where its loop runs, each falsified alone. What is NOT asserted is the rest of the trigger: a REFINE that keeps its id and rewrites the sentence changes the spec and is invisible here, because no evidence in the repository separates it from a typo fix. So a classification of that shape can merge with no row and this stays green. Also unasserted: that a row's issue, branch and PR cells are TRUE - only the ids are matched.",
+            "evidence": null,
+            "check_status": "pass",
+            "voided": null
+          }
+        ]
       },
       {
         "id": "R12",
@@ -247,15 +283,15 @@
       {
         "id": "R13",
         "text": "While a check tool named by the configuration is absent, the lifecycle shall report that check as missing rather than skipped.",
-        "verdict": "Partial",
-        "note": "missing-tool-reported: Falsifies the missing-tool report only for a bare-name `requires:` resolved via PATH; the executable-path branch - which most of this repo's `requires:` entries use - can regress to a silent skip with all six assertions still holding.",
+        "verdict": "Covered",
+        "note": null,
         "exercised": true,
         "claims": [
           {
             "check": "missing-tool-reported",
-            "claimed": "Partial",
-            "reason": "Falsifies the missing-tool report only for a bare-name `requires:` resolved via PATH; the executable-path branch - which most of this repo's `requires:` entries use - can regress to a silent skip with all six assertions still holding.",
-            "evidence": null,
+            "claimed": "Covered",
+            "reason": null,
+            "evidence": "Falsifies the missing-tool report on BOTH resolution branches run-checks.sh has - a bare name resolved with `command -v`, and a `./`-relative executable path tested with `[ -x ]` - each in its OWN run so neither borrows the other's refusal, and each reported separately so a regression names the branch. Six assertions per branch, including that an absent tool changes the VERDICT rather than only a status field. Proven against the defect it exists for: with the executable-path branch regressed to a silent skip, version 1.0 exited 0 saying `R13 satisfied` with 6 of 6 upheld, and 2.0 exits 1 naming the branch. Residue: absolute-path entries, a present-but-non-executable path, and `severity: advise`.",
             "check_status": "pass",
             "voided": null
           }
@@ -459,13 +495,21 @@
         "id": "R31",
         "text": "If a published view declares a capability that can publish new versions of itself, then the lifecycle shall refuse to publish it.",
         "verdict": "Partial",
-        "note": "view-read-only: Asserts that the generated page declares no capability able to publish new versions of itself, and refuses any name it cannot classify. What it does NOT assert is R31's actual consequence - that the lifecycle would refuse to PUBLISH such a page. Nothing observes the publish step declining; the check observes the page not asking.",
+        "note": "view-read-only: Asserts that the GENERATED PAGE declares no capability able to publish new versions of itself, and refuses any name it cannot classify - by matching the literal source pattern, so another spelling of the same call goes through. R31's actual consequence, the publish step declining, is asserted by `view-publish-refused` against the real hook; this check observes the page not asking, which is the earlier and weaker of the two.; view-publish-refused: Drives the real PreToolUse hook and asserts it REFUSES, which is R31's obligation and the half nothing observed before. Both surfaces: the capability asked for inside the page, and the capability granted by the publish CALL - the second being the one `view-read-only` states in its own limitations that it cannot see. Six assertion groups, each falsified on its own against patched copies of the hook and of settings.json. A6 closes the wiring gap: settings.json names this hook on the Artifact matcher, the named file exists and is executable, and it is byte-identical to the one the other assertions drove - so a registration pointing at a stale or different copy is a finding rather than a pass. THE WIRING IS ASSERTED, THE FIRING IS NOT. Nothing here proves the Artifact tool actually calls the hook, because proving that needs a real publish, which is the act this gate exists to refuse. Also unasserted: a capability granted by an earlier publish and inherited by a later call that omits `capabilities`, since that declaration is held by the publishing service and not by this repository.",
         "exercised": true,
         "claims": [
           {
             "check": "view-read-only",
             "claimed": "Partial",
-            "reason": "Asserts that the generated page declares no capability able to publish new versions of itself, and refuses any name it cannot classify. What it does NOT assert is R31's actual consequence - that the lifecycle would refuse to PUBLISH such a page. Nothing observes the publish step declining; the check observes the page not asking.",
+            "reason": "Asserts that the GENERATED PAGE declares no capability able to publish new versions of itself, and refuses any name it cannot classify - by matching the literal source pattern, so another spelling of the same call goes through. R31's actual consequence, the publish step declining, is asserted by `view-publish-refused` against the real hook; this check observes the page not asking, which is the earlier and weaker of the two.",
+            "evidence": null,
+            "check_status": "pass",
+            "voided": null
+          },
+          {
+            "check": "view-publish-refused",
+            "claimed": "Partial",
+            "reason": "Drives the real PreToolUse hook and asserts it REFUSES, which is R31's obligation and the half nothing observed before. Both surfaces: the capability asked for inside the page, and the capability granted by the publish CALL - the second being the one `view-read-only` states in its own limitations that it cannot see. Six assertion groups, each falsified on its own against patched copies of the hook and of settings.json. A6 closes the wiring gap: settings.json names this hook on the Artifact matcher, the named file exists and is executable, and it is byte-identical to the one the other assertions drove - so a registration pointing at a stale or different copy is a finding rather than a pass. THE WIRING IS ASSERTED, THE FIRING IS NOT. Nothing here proves the Artifact tool actually calls the hook, because proving that needs a real publish, which is the act this gate exists to refuse. Also unasserted: a capability granted by an earlier publish and inherited by a later call that omits `capabilities`, since that declaration is held by the publishing service and not by this repository.",
             "evidence": null,
             "check_status": "pass",
             "voided": null
@@ -560,7 +604,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 5,
+      "files_in_scope": 32,
       "enabled": true,
       "tool": {
         "command": [
@@ -580,23 +624,50 @@
           "min_rules": 0
         },
         "observed": {
-          "covered": 5,
+          "covered": 32,
           "covered_items": [
-            ".claude/productizer/checks-result.json",
+            ".claude/hooks/artifact-gate.sh",
+            ".claude/productizer/backlog.md",
             ".claude/productizer/checks.yaml",
-            ".claude/productizer/spec.md",
-            "GUIDE.md",
-            "[redacted: out-of-repo scratch path]"
+            ".claude/settings.json",
+            ".gitattributes",
+            ".gitignore",
+            "README.md",
+            "plugins/productizer/.claude-plugin/plugin.json",
+            "plugins/productizer/skills/spec/fixtures/changelog-row/selftest.sh",
+            "plugins/productizer/skills/spec/fixtures/changelog-row/spec/1-founding.md",
+            "plugins/productizer/skills/spec/fixtures/changelog-row/spec/2-word-only.md",
+            "plugins/productizer/skills/spec/fixtures/changelog-row/spec/3-classified-recorded.md",
+            "plugins/productizer/skills/spec/fixtures/changelog-row/spec/4-classified-unrecorded.md",
+            "plugins/productizer/skills/spec/fixtures/changelog-row/spec/5-counter-only.md",
+            "plugins/productizer/skills/spec/fixtures/missing-tool/checks-executable-path.yaml",
+            "plugins/productizer/skills/spec/fixtures/missing-tool/checks-per-file.yaml",
+            "plugins/productizer/skills/spec/fixtures/view-publish-refused/cases.tsv",
+            "plugins/productizer/skills/spec/fixtures/view-publish-refused/pages/page-computed-name.html",
+            "plugins/productizer/skills/spec/fixtures/view-publish-refused/pages/page-downloads.html",
+            "plugins/productizer/skills/spec/fixtures/view-publish-refused/pages/page-empty.html",
+            "plugins/productizer/skills/spec/fixtures/view-publish-refused/pages/page-forged-decision.html",
+            "plugins/productizer/skills/spec/fixtures/view-publish-refused/pages/page-plain.html",
+            "plugins/productizer/skills/spec/fixtures/view-publish-refused/pages/page-self-alias.html",
+            "plugins/productizer/skills/spec/fixtures/view-publish-refused/pages/page-self-publishing.html",
+            "plugins/productizer/skills/spec/fixtures/view-publish-refused/pages/page-unclassified.html",
+            "plugins/productizer/skills/spec/references/checks.md",
+            "plugins/productizer/skills/spec/scripts/check-changelog-row.sh",
+            "plugins/productizer/skills/spec/scripts/check-hygiene.sh",
+            "plugins/productizer/skills/spec/scripts/check-missing-tool.sh",
+            "plugins/productizer/skills/spec/scripts/check-view-publish-refused.sh",
+            "plugins/productizer/skills/spec/scripts/merge-checks-result.sh",
+            "plugins/productizer/skills/spec/templates/artifact-gate.sh"
           ],
           "rules_loaded": null,
-          "files_in_scope": 5,
+          "files_in_scope": 32,
           "not_examined": []
         },
         "satisfied": true,
         "reasons": []
       },
       "timed_out": false,
-      "output_tail": ".claude/productizer/checks-result.json\n.claude/productizer/checks.yaml\n.claude/productizer/spec.md\nGUIDE.md\n[redacted: out-of-repo scratch path]\n",
+      "output_tail": "oductizer/checks.yaml\n.claude/settings.json\n.gitattributes\n.gitignore\nREADME.md\nplugins/productizer/.claude-plugin/plugin.json\nplugins/productizer/skills/spec/fixtures/changelog-row/selftest.sh\nplugins/productizer/skills/spec/fixtures/changelog-row/spec/1-founding.md\nplugins/productizer/skills/spec/fixtures/changelog-row/spec/2-word-only.md\nplugins/productizer/skills/spec/fixtures/changelog-row/spec/3-classified-recorded.md\nplugins/productizer/skills/spec/fixtures/changelog-row/spec/4-classified-unrecorded.md\nplugins/productizer/skills/spec/fixtures/changelog-row/spec/5-counter-only.md\nplugins/productizer/skills/spec/fixtures/missing-tool/checks-executable-path.yaml\nplugins/productizer/skills/spec/fixtures/missing-tool/checks-per-file.yaml\nplugins/productizer/skills/spec/fixtures/view-publish-refused/cases.tsv\nplugins/productizer/skills/spec/fixtures/view-publish-refused/pages/page-computed-name.html\nplugins/productizer/skills/spec/fixtures/view-publish-refused/pages/page-downloads.html\nplugins/productizer/skills/spec/fixtures/view-publish-refused/pages/page-empty.html\nplugins/productizer/skills/spec/fixtures/view-publish-refused/pages/page-forged-decision.html\nplugins/productizer/skills/spec/fixtures/view-publish-refused/pages/page-plain.html\nplugins/productizer/skills/spec/fixtures/view-publish-refused/pages/page-self-alias.html\nplugins/productizer/skills/spec/fixtures/view-publish-refused/pages/page-self-publishing.html\nplugins/productizer/skills/spec/fixtures/view-publish-refused/pages/page-unclassified.html\nplugins/productizer/skills/spec/references/checks.md\nplugins/productizer/skills/spec/scripts/check-changelog-row.sh\nplugins/productizer/skills/spec/scripts/check-hygiene.sh\nplugins/productizer/skills/spec/scripts/check-missing-tool.sh\nplugins/productizer/skills/spec/scripts/check-view-publish-refused.sh\nplugins/productizer/skills/spec/scripts/merge-checks-result.sh\nplugins/productizer/skills/spec/templates/artifact-gate.sh\n    files examined: 32 of 32 given\n",
       "status": "pass"
     },
     {
@@ -612,11 +683,51 @@
         "{file}"
       ],
       "trigger_scope": "scoped",
-      "triggered": false,
-      "triggered_by": [],
-      "files_in_scope": 0,
+      "triggered": true,
+      "triggered_by": [
+        "path:**/*.sh"
+      ],
+      "files_in_scope": 8,
       "enabled": true,
-      "status": "not_triggered"
+      "tool": {
+        "command": [
+          "shellcheck",
+          "--version"
+        ],
+        "version": "ShellCheck - shell script analysis tool version: 0.11.0 license: GNU General Public License, version 3 website: https://www.shellcheck.net",
+        "exit_code": 0
+      },
+      "exit_code": 0,
+      "duration_seconds": 8,
+      "coverage": {
+        "from": "per_file_exit",
+        "required": {
+          "min_covered": 1,
+          "must_cover": "all_triggering",
+          "min_rules": 0
+        },
+        "observed": {
+          "covered": 8,
+          "covered_items": [
+            ".claude/hooks/artifact-gate.sh",
+            "plugins/productizer/skills/spec/fixtures/changelog-row/selftest.sh",
+            "plugins/productizer/skills/spec/scripts/check-changelog-row.sh",
+            "plugins/productizer/skills/spec/scripts/check-hygiene.sh",
+            "plugins/productizer/skills/spec/scripts/check-missing-tool.sh",
+            "plugins/productizer/skills/spec/scripts/check-view-publish-refused.sh",
+            "plugins/productizer/skills/spec/scripts/merge-checks-result.sh",
+            "plugins/productizer/skills/spec/templates/artifact-gate.sh"
+          ],
+          "rules_loaded": null,
+          "files_in_scope": 8,
+          "not_examined": []
+        },
+        "satisfied": true,
+        "reasons": []
+      },
+      "timed_out": false,
+      "output_tail": "\n===== .claude/hooks/artifact-gate.sh\n\n===== plugins/productizer/skills/spec/fixtures/changelog-row/selftest.sh\n\n===== plugins/productizer/skills/spec/scripts/check-changelog-row.sh\n\n===== plugins/productizer/skills/spec/scripts/check-hygiene.sh\n\n===== plugins/productizer/skills/spec/scripts/check-missing-tool.sh\n\n===== plugins/productizer/skills/spec/scripts/check-view-publish-refused.sh\n\n===== plugins/productizer/skills/spec/scripts/merge-checks-result.sh\n\n===== plugins/productizer/skills/spec/templates/artifact-gate.sh\n",
+      "status": "pass"
     },
     {
       "id": "solver-corpus",
@@ -634,7 +745,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 5,
+      "files_in_scope": 32,
       "enabled": true,
       "tool": {
         "command": [
@@ -657,7 +768,7 @@
           "covered": 7,
           "covered_items": [],
           "rules_loaded": null,
-          "files_in_scope": 5,
+          "files_in_scope": 32,
           "not_examined": []
         },
         "satisfied": true,
@@ -686,11 +797,51 @@
         "{file}"
       ],
       "trigger_scope": "scoped",
-      "triggered": false,
-      "triggered_by": [],
-      "files_in_scope": 0,
+      "triggered": true,
+      "triggered_by": [
+        "path:**/*.sh"
+      ],
+      "files_in_scope": 8,
       "enabled": true,
-      "status": "not_triggered"
+      "tool": {
+        "command": [
+          "./plugins/productizer/skills/spec/scripts/check-stderr.sh",
+          "--version"
+        ],
+        "version": "check-stderr 1.0",
+        "exit_code": 0
+      },
+      "exit_code": 0,
+      "duration_seconds": 8,
+      "coverage": {
+        "from": "per_file_exit",
+        "required": {
+          "min_covered": 1,
+          "must_cover": "all_triggering",
+          "min_rules": 0
+        },
+        "observed": {
+          "covered": 8,
+          "covered_items": [
+            ".claude/hooks/artifact-gate.sh",
+            "plugins/productizer/skills/spec/fixtures/changelog-row/selftest.sh",
+            "plugins/productizer/skills/spec/scripts/check-changelog-row.sh",
+            "plugins/productizer/skills/spec/scripts/check-hygiene.sh",
+            "plugins/productizer/skills/spec/scripts/check-missing-tool.sh",
+            "plugins/productizer/skills/spec/scripts/check-view-publish-refused.sh",
+            "plugins/productizer/skills/spec/scripts/merge-checks-result.sh",
+            "plugins/productizer/skills/spec/templates/artifact-gate.sh"
+          ],
+          "rules_loaded": null,
+          "files_in_scope": 8,
+          "not_examined": []
+        },
+        "satisfied": true,
+        "reasons": []
+      },
+      "timed_out": false,
+      "output_tail": "\n===== .claude/hooks/artifact-gate.sh\n.claude/hooks/artifact-gate.sh\n\n===== plugins/productizer/skills/spec/fixtures/changelog-row/selftest.sh\nplugins/productizer/skills/spec/fixtures/changelog-row/selftest.sh\n\n===== plugins/productizer/skills/spec/scripts/check-changelog-row.sh\nplugins/productizer/skills/spec/scripts/check-changelog-row.sh\n\n===== plugins/productizer/skills/spec/scripts/check-hygiene.sh\nplugins/productizer/skills/spec/scripts/check-hygiene.sh\n\n===== plugins/productizer/skills/spec/scripts/check-missing-tool.sh\nplugins/productizer/skills/spec/scripts/check-missing-tool.sh\n\n===== plugins/productizer/skills/spec/scripts/check-view-publish-refused.sh\nplugins/productizer/skills/spec/scripts/check-view-publish-refused.sh\n\n===== plugins/productizer/skills/spec/scripts/merge-checks-result.sh\nplugins/productizer/skills/spec/scripts/merge-checks-result.sh\n\n===== plugins/productizer/skills/spec/templates/artifact-gate.sh\nplugins/productizer/skills/spec/templates/artifact-gate.sh\n",
+      "status": "pass"
     },
     {
       "id": "spec-home",
@@ -708,7 +859,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 5,
+      "files_in_scope": 32,
       "enabled": true,
       "tool": {
         "command": [
@@ -731,7 +882,7 @@
           "covered": 1,
           "covered_items": [],
           "rules_loaded": null,
-          "files_in_scope": 5,
+          "files_in_scope": 32,
           "not_examined": []
         },
         "satisfied": true,
@@ -755,7 +906,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 5,
+      "files_in_scope": 32,
       "enabled": true,
       "tool": {
         "command": [
@@ -780,7 +931,7 @@
             ".claude/productizer/spec.md"
           ],
           "rules_loaded": null,
-          "files_in_scope": 5,
+          "files_in_scope": 32,
           "not_examined": []
         },
         "satisfied": true,
@@ -805,7 +956,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 5,
+      "files_in_scope": 32,
       "enabled": true,
       "tool": {
         "command": [
@@ -829,7 +980,7 @@
           "covered": 2,
           "covered_items": [],
           "rules_loaded": null,
-          "files_in_scope": 5,
+          "files_in_scope": 32,
           "not_examined": []
         },
         "satisfied": true,
@@ -854,7 +1005,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 5,
+      "files_in_scope": 32,
       "enabled": true,
       "tool": {
         "command": [
@@ -877,7 +1028,7 @@
           "covered": 28,
           "covered_items": [],
           "rules_loaded": null,
-          "files_in_scope": 5,
+          "files_in_scope": 32,
           "not_examined": []
         },
         "satisfied": true,
@@ -901,7 +1052,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 5,
+      "files_in_scope": 32,
       "enabled": true,
       "tool": {
         "command": [
@@ -921,9 +1072,10 @@
           "min_rules": 0
         },
         "observed": {
-          "covered": 406,
+          "covered": 428,
           "covered_items": [
             ".claude-plugin/marketplace.json",
+            ".claude/hooks/artifact-gate.sh",
             ".claude/hooks/publish-gate.sh",
             ".claude/productizer/backlog.md",
             ".claude/productizer/checks-result.json",
@@ -936,6 +1088,7 @@
             ".claude/productizer/hygiene-local.txt",
             ".claude/productizer/spec.md",
             ".claude/settings.json",
+            ".gitattributes",
             ".github/ISSUE_TEMPLATE/bug.yml",
             ".github/ISSUE_TEMPLATE/config.yml",
             ".github/ISSUE_TEMPLATE/intent.yml",
@@ -1120,19 +1273,17 @@
             "evals/cases/P14-guard-narrowing-opposed-response/prompt.md",
             "evals/cases/P15-vocabulary-drift-dunning-abandon/graders/01-contradiction-detected.md",
             "evals/cases/P15-vocabulary-drift-dunning-abandon/graders/02-work-halted.md",
-            "evals/cases/P15-vocabulary-drift-dunning-abandon/graders/03-both-sides-cited.md",
-            "evals/cases/P15-vocabulary-drift-dunning-abandon/graders/04-no-silent-supersede.md",
-            "evals/cases/P15-vocabulary-drift-dunning-abandon/graders/05-conflict-stated.md"
+            "evals/cases/P15-vocabulary-drift-dunning-abandon/graders/03-both-sides-cited.md"
           ],
           "rules_loaded": null,
-          "files_in_scope": 5,
+          "files_in_scope": 32,
           "not_examined": []
         },
         "satisfied": true,
         "reasons": []
       },
       "timed_out": false,
-      "output_tail": "pec/templates/intent.md\nplugins/productizer/skills/spec/templates/interview.md\nplugins/productizer/skills/spec/templates/jira-intent.md\nplugins/productizer/skills/spec/templates/learnings.md\nplugins/productizer/skills/spec/templates/managed-settings.json\nplugins/productizer/skills/spec/templates/plan.md\nplugins/productizer/skills/spec/templates/prepare-commit-msg.sh\nplugins/productizer/skills/spec/templates/production-gate.sh\nplugins/productizer/skills/spec/templates/publish-gate.sh\nplugins/productizer/skills/spec/templates/release-blog.md\nplugins/productizer/skills/spec/templates/release-email.md\nplugins/productizer/skills/spec/templates/ruling.md\nplugins/productizer/skills/spec/templates/runners/gate-bypass.json\nplugins/productizer/skills/spec/templates/runners/publish-blast.json\nplugins/productizer/skills/spec/templates/runners/spec-mutation.json\nplugins/productizer/skills/spec/templates/scheduled-bands.md\nplugins/productizer/skills/spec/templates/scheduled-evals.md\nplugins/productizer/skills/spec/templates/session-start.sh\nplugins/productizer/skills/spec/templates/spec-command.md\nplugins/productizer/skills/spec/templates/spec-delta.md\nplugins/productizer/skills/spec/templates/spec.md\nplugins/productizer/skills/spec/templates/threshold.sh\nplugins/productizer/skills/spec/templates/triage-step.yml\nplugins/productizer/skills/spec/templates/user-guide.md\nplugins/productizer/skills/spec/templates/verification-section.md\nplugins/productizer/skills/spec/templates/view.html\n[redacted: out-of-repo scratch path]\nscripts/check-hygiene.sh\n  repository files hashed before and after: 406\n  files the generator moved: 0\n  page bytes read: 502586\n  capability declarations read: 1\n  declares `downloads` - output: it hands the viewer a file and reads nothing back\n  R4 satisfied: the generator moved no repository file, and the page declares nothing that can publish a new version of itself.\n",
+      "output_tail": "lugins/productizer/skills/spec/templates/import.md\nplugins/productizer/skills/spec/templates/intake.md\nplugins/productizer/skills/spec/templates/intent.md\nplugins/productizer/skills/spec/templates/interview.md\nplugins/productizer/skills/spec/templates/jira-intent.md\nplugins/productizer/skills/spec/templates/learnings.md\nplugins/productizer/skills/spec/templates/managed-settings.json\nplugins/productizer/skills/spec/templates/plan.md\nplugins/productizer/skills/spec/templates/prepare-commit-msg.sh\nplugins/productizer/skills/spec/templates/production-gate.sh\nplugins/productizer/skills/spec/templates/publish-gate.sh\nplugins/productizer/skills/spec/templates/release-blog.md\nplugins/productizer/skills/spec/templates/release-email.md\nplugins/productizer/skills/spec/templates/ruling.md\nplugins/productizer/skills/spec/templates/runners/gate-bypass.json\nplugins/productizer/skills/spec/templates/runners/publish-blast.json\nplugins/productizer/skills/spec/templates/runners/spec-mutation.json\nplugins/productizer/skills/spec/templates/scheduled-bands.md\nplugins/productizer/skills/spec/templates/scheduled-evals.md\nplugins/productizer/skills/spec/templates/session-start.sh\nplugins/productizer/skills/spec/templates/spec-command.md\nplugins/productizer/skills/spec/templates/spec-delta.md\nplugins/productizer/skills/spec/templates/spec.md\nplugins/productizer/skills/spec/templates/threshold.sh\nplugins/productizer/skills/spec/templates/triage-step.yml\nplugins/productizer/skills/spec/templates/user-guide.md\nplugins/productizer/skills/spec/templates/verification-section.md\nplugins/productizer/skills/spec/templates/view.html\nscripts/check-hygiene.sh\n  repository files hashed before and after: 428\n  files the generator moved: 0\n  page bytes read: 513359\n  capability declarations read: 1\n  declares `downloads` - output: it hands the viewer a file and reads nothing back\n  R4 satisfied: the generator moved no repository file, and the page declares nothing that can publish a new version of itself.\n",
       "status": "pass"
     },
     {
@@ -1149,14 +1300,14 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 5,
+      "files_in_scope": 32,
       "enabled": true,
       "tool": {
         "command": [
           "./plugins/productizer/skills/spec/scripts/check-missing-tool.sh",
           "--version"
         ],
-        "version": "check-missing-tool 1.0",
+        "version": "check-missing-tool 2.0",
         "exit_code": 0
       },
       "exit_code": 0,
@@ -1169,21 +1320,23 @@
           "min_rules": 0
         },
         "observed": {
-          "covered": 3,
+          "covered": 5,
           "covered_items": [
             "plugins/productizer/skills/spec/scripts/run-checks.sh",
+            "plugins/productizer/skills/spec/fixtures/missing-tool/changed.txt",
             "plugins/productizer/skills/spec/fixtures/missing-tool/checks.yaml",
-            "plugins/productizer/skills/spec/fixtures/missing-tool/changed.txt"
+            "plugins/productizer/skills/spec/fixtures/missing-tool/checks-executable-path.yaml",
+            "plugins/productizer/skills/spec/fixtures/missing-tool/checks-per-file.yaml"
           ],
           "rules_loaded": null,
-          "files_in_scope": 5,
+          "files_in_scope": 32,
           "not_examined": []
         },
         "satisfied": true,
         "reasons": []
       },
       "timed_out": false,
-      "output_tail": "plugins/productizer/skills/spec/scripts/run-checks.sh\nplugins/productizer/skills/spec/fixtures/missing-tool/checks.yaml\nplugins/productizer/skills/spec/fixtures/missing-tool/changed.txt\n  held: the run exits 3 (refused); it exited 3\n  held: the reported line reads MISSING_TOOL for `ghost`\n  held: that report says in words that the check was not skipped\n  held: the result records status `missing_tool`; it records 'missing_tool'\n  held: the check is triggered and its status is none of disabled, not_triggered, pass, skip, skipped - the statuses a skip would leave behind\n  held: it counts as a blocking failure and the verdict is `refused`; verdict 'refused', blocking failures 1\n  assertions evaluated: 6, upheld: 6\n  R13 satisfied: an absent tool is reported as missing and refuses the stage; it is not skipped.\n",
+      "output_tail": "nts as a blocking failure and the verdict is `refused`, with `ghost` named in the run's REFUSED line; verdict 'refused', blocking failures 1, named True\n  [bare-name] assertions evaluated: 6, upheld: 6\n  [executable-path] held: the run exits 3 (refused); it exited 3\n  [executable-path] held: the reported line reads MISSING_TOOL for `ghost-path`\n  [executable-path] held: that report says in words that the check was not skipped, and names `./definitely-not-a-real-tool.sh`\n  [executable-path] held: the result records status `missing_tool`; it records 'missing_tool'\n  [executable-path] held: the check is triggered and its status is none of disabled, not_triggered, pass, skip, skipped - the statuses a skip would leave behind\n  [executable-path] held: it counts as a blocking failure and the verdict is `refused`, with `ghost-path` named in the run's REFUSED line; verdict 'refused', blocking failures 1, named True\n  [executable-path] assertions evaluated: 6, upheld: 6\n  [per-file] held: the run exits 3 (refused); it exited 3\n  [per-file] held: the reported line reads MISSING_TOOL for `ghost-per-file`\n  [per-file] held: that report says in words that the check was not skipped, and names `./definitely-not-a-real-per-file-tool.sh`\n  [per-file] held: the result records status `missing_tool`; it records 'missing_tool'\n  [per-file] held: the check is triggered and its status is none of disabled, not_triggered, pass, skip, skipped - the statuses a skip would leave behind\n  [per-file] held: it counts as a blocking failure and the verdict is `refused`, with `ghost-per-file` named in the run's REFUSED line; verdict 'refused', blocking failures 1, named True\n  [per-file] assertions evaluated: 6, upheld: 6\n  per branch: bare-name: 6/6 upheld | executable-path: 6/6 upheld | per-file: 6/6 upheld\n  R13 satisfied on every resolution branch: an absent tool is reported as missing and refuses the stage, whether the configuration named it by bare name or by executable path. It is not skipped.\n",
       "status": "pass"
     },
     {
@@ -1200,7 +1353,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 5,
+      "files_in_scope": 32,
       "enabled": true,
       "tool": {
         "command": [
@@ -1223,7 +1376,7 @@
           "covered": 32,
           "covered_items": [],
           "rules_loaded": null,
-          "files_in_scope": 5,
+          "files_in_scope": 32,
           "not_examined": []
         },
         "satisfied": true,
@@ -1247,7 +1400,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 5,
+      "files_in_scope": 32,
       "enabled": true,
       "tool": {
         "command": [
@@ -1270,7 +1423,7 @@
           "covered": 32,
           "covered_items": [],
           "rules_loaded": null,
-          "files_in_scope": 5,
+          "files_in_scope": 32,
           "not_examined": []
         },
         "satisfied": true,
@@ -1294,7 +1447,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 5,
+      "files_in_scope": 32,
       "enabled": true,
       "tool": {
         "command": [
@@ -1323,7 +1476,7 @@
             ".claude/productizer/backlog.md"
           ],
           "rules_loaded": null,
-          "files_in_scope": 5,
+          "files_in_scope": 32,
           "not_examined": []
         },
         "satisfied": true,
@@ -1347,7 +1500,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 5,
+      "files_in_scope": 32,
       "enabled": true,
       "tool": {
         "command": [
@@ -1370,9 +1523,9 @@
           "covered": 13,
           "covered_items": [
             ".claude/productizer/spec.md",
-            ".claude/productizer/spec.md@20d39c8",
-            ".claude/productizer/spec.md@1a85f9e",
-            ".claude/productizer/spec.md@bd34bd1",
+            ".claude/productizer/spec.md@ef3fded",
+            ".claude/productizer/spec.md@c8336a7",
+            ".claude/productizer/spec.md@f66dd66",
             ".claude/productizer/spec.md@3495c5e",
             ".claude/productizer/spec.md@4148cef",
             ".claude/productizer/spec.md@a6a9e71",
@@ -1384,14 +1537,14 @@
             ".claude/productizer/spec.md@842b5cc"
           ],
           "rules_loaded": null,
-          "files_in_scope": 5,
+          "files_in_scope": 32,
           "not_examined": []
         },
         "satisfied": true,
         "reasons": []
       },
       "timed_out": false,
-      "output_tail": ".claude/productizer/spec.md\n.claude/productizer/spec.md@20d39c8\n.claude/productizer/spec.md@1a85f9e\n.claude/productizer/spec.md@bd34bd1\n.claude/productizer/spec.md@3495c5e\n.claude/productizer/spec.md@4148cef\n.claude/productizer/spec.md@a6a9e71\n.claude/productizer/spec.md@f5bfdae\n.claude/productizer/spec.md@dad2ce9\n.claude/productizer/spec.md@28d138f\n.claude/productizer/spec.md@9993a93\n.claude/productizer/spec.md@8b03b65\n.claude/productizer/spec.md@842b5cc\nspec versions examined: 12\n  R7 superseded baseline 1a85f9e (pre-supersede)  text unchanged\n  R14 superseded baseline 8b03b65 (pre-supersede)  text unchanged\n  R16 superseded baseline 8b03b65 (pre-supersede)  text unchanged\n  R21 superseded baseline 8b03b65 (pre-supersede)  text unchanged\nsuperseded ids checked for presence: 0 missing\nrequirements examined: 32\nsuperseded or withdrawn: 4\ntext compared against history: 4\nPASS: every superseded or withdrawn requirement still carries the sentence it had at the commit before it was replaced, and every forward pointer resolves to an active id.\n",
+      "output_tail": ".claude/productizer/spec.md\n.claude/productizer/spec.md@ef3fded\n.claude/productizer/spec.md@c8336a7\n.claude/productizer/spec.md@f66dd66\n.claude/productizer/spec.md@3495c5e\n.claude/productizer/spec.md@4148cef\n.claude/productizer/spec.md@a6a9e71\n.claude/productizer/spec.md@f5bfdae\n.claude/productizer/spec.md@dad2ce9\n.claude/productizer/spec.md@28d138f\n.claude/productizer/spec.md@9993a93\n.claude/productizer/spec.md@8b03b65\n.claude/productizer/spec.md@842b5cc\nspec versions examined: 12\n  R7 superseded baseline c8336a7 (pre-supersede)  text unchanged\n  R14 superseded baseline 8b03b65 (pre-supersede)  text unchanged\n  R16 superseded baseline 8b03b65 (pre-supersede)  text unchanged\n  R21 superseded baseline 8b03b65 (pre-supersede)  text unchanged\nsuperseded ids checked for presence: 0 missing\nrequirements examined: 32\nsuperseded or withdrawn: 4\ntext compared against history: 4\nPASS: every superseded or withdrawn requirement still carries the sentence it had at the commit before it was replaced, and every forward pointer resolves to an active id.\n",
       "status": "pass"
     },
     {
@@ -1408,7 +1561,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 5,
+      "files_in_scope": 32,
       "enabled": true,
       "tool": {
         "command": [
@@ -1433,7 +1586,7 @@
             ".claude/productizer/spec.md"
           ],
           "rules_loaded": null,
-          "files_in_scope": 5,
+          "files_in_scope": 32,
           "not_examined": []
         },
         "satisfied": true,
@@ -1457,7 +1610,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 5,
+      "files_in_scope": 32,
       "enabled": true,
       "tool": {
         "command": [
@@ -1483,7 +1636,7 @@
             ".claude/productizer/backlog.md"
           ],
           "rules_loaded": null,
-          "files_in_scope": 5,
+          "files_in_scope": 32,
           "not_examined": []
         },
         "satisfied": true,
@@ -1507,7 +1660,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 5,
+      "files_in_scope": 32,
       "enabled": true,
       "tool": {
         "command": [
@@ -1534,7 +1687,7 @@
             "plugins/productizer/skills/spec/fixtures/fabricated-zero/changed.txt"
           ],
           "rules_loaded": null,
-          "files_in_scope": 5,
+          "files_in_scope": 32,
           "not_examined": []
         },
         "satisfied": true,
@@ -1558,7 +1711,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 5,
+      "files_in_scope": 32,
       "enabled": true,
       "tool": {
         "command": [
@@ -1586,7 +1739,7 @@
             "plugins/productizer/skills/spec/scripts/request-ruling.sh"
           ],
           "rules_loaded": null,
-          "files_in_scope": 5,
+          "files_in_scope": 32,
           "not_examined": []
         },
         "satisfied": true,
@@ -1610,7 +1763,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 5,
+      "files_in_scope": 32,
       "enabled": true,
       "tool": {
         "command": [
@@ -1637,7 +1790,7 @@
             "plugins/productizer/skills/spec/fixtures/timeout-zero/changed.txt"
           ],
           "rules_loaded": null,
-          "files_in_scope": 5,
+          "files_in_scope": 32,
           "not_examined": []
         },
         "satisfied": true,
@@ -1661,7 +1814,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 5,
+      "files_in_scope": 32,
       "enabled": true,
       "tool": {
         "command": [
@@ -1689,7 +1842,7 @@
             "plugins/productizer/skills/spec/fixtures/declared-scope/no-coverage.yaml"
           ],
           "rules_loaded": null,
-          "files_in_scope": 5,
+          "files_in_scope": 32,
           "not_examined": []
         },
         "satisfied": true,
@@ -1713,7 +1866,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 5,
+      "files_in_scope": 32,
       "enabled": true,
       "tool": {
         "command": [
@@ -1746,9 +1899,9 @@
             ".claude/productizer/spec.md@a6a9e71",
             ".claude/productizer/spec.md@4148cef",
             ".claude/productizer/spec.md@3495c5e",
-            ".claude/productizer/spec.md@bd34bd1",
-            ".claude/productizer/spec.md@1a85f9e",
-            ".claude/productizer/spec.md@20d39c8",
+            ".claude/productizer/spec.md@f66dd66",
+            ".claude/productizer/spec.md@c8336a7",
+            ".claude/productizer/spec.md@ef3fded",
             ".claude/productizer/backlog.md",
             ".claude/productizer/classifications/1.md",
             ".claude/productizer/classifications/2.md",
@@ -1756,7 +1909,7 @@
             ".claude/productizer/constitution.md"
           ],
           "rules_loaded": null,
-          "files_in_scope": 5,
+          "files_in_scope": 32,
           "not_examined": []
         },
         "satisfied": true,
@@ -1780,7 +1933,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 5,
+      "files_in_scope": 32,
       "enabled": true,
       "tool": {
         "command": [
@@ -1828,7 +1981,7 @@
             "plugins/productizer/skills/spec/fixtures/unmeasured-report/hygiene/clean.txt"
           ],
           "rules_loaded": null,
-          "files_in_scope": 5,
+          "files_in_scope": 32,
           "not_examined": []
         },
         "satisfied": true,
@@ -1854,7 +2007,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 5,
+      "files_in_scope": 32,
       "enabled": true,
       "tool": {
         "command": [
@@ -1865,7 +2018,7 @@
         "exit_code": 0
       },
       "exit_code": 0,
-      "duration_seconds": 7,
+      "duration_seconds": 6,
       "coverage": {
         "from": "stdout_paths",
         "required": {
@@ -1886,7 +2039,7 @@
             "plugins/productizer/skills/spec/fixtures/untrusted-execution/tool.sh"
           ],
           "rules_loaded": null,
-          "files_in_scope": 5,
+          "files_in_scope": 32,
           "not_examined": []
         },
         "satisfied": true,
@@ -1912,7 +2065,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 5,
+      "files_in_scope": 32,
       "enabled": true,
       "tool": {
         "command": [
@@ -1938,7 +2091,7 @@
             "plugins/productizer/skills/spec/templates/publish-gate.sh"
           ],
           "rules_loaded": null,
-          "files_in_scope": 5,
+          "files_in_scope": 32,
           "not_examined": []
         },
         "satisfied": true,
@@ -1962,7 +2115,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 5,
+      "files_in_scope": 32,
       "enabled": true,
       "tool": {
         "command": [
@@ -2001,7 +2154,7 @@
             "plugins/productizer/skills/spec/fixtures/spec-home-stop/04-reachable-and-recorded/.claude/productizer/classifications/301.md"
           ],
           "rules_loaded": null,
-          "files_in_scope": 5,
+          "files_in_scope": 32,
           "not_examined": []
         },
         "satisfied": true,
@@ -2025,7 +2178,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 5,
+      "files_in_scope": 32,
       "enabled": true,
       "tool": {
         "command": [
@@ -2045,20 +2198,142 @@
           "min_rules": 0
         },
         "observed": {
-          "covered": 2,
+          "covered": 4,
           "covered_items": [
+            "plugins/productizer/skills/spec/templates/artifact-gate.sh",
+            ".claude/hooks/artifact-gate.sh",
             "plugins/productizer/skills/spec/templates/publish-gate.sh",
             ".claude/hooks/publish-gate.sh"
           ],
           "rules_loaded": null,
-          "files_in_scope": 5,
+          "files_in_scope": 32,
           "not_examined": []
         },
         "satisfied": true,
         "reasons": []
       },
       "timed_out": false,
-      "output_tail": "plugins/productizer/skills/spec/templates/publish-gate.sh\n.claude/hooks/publish-gate.sh\n  held: publish-gate.sh matches its template byte for byte\n  pairs compared: 1\n  assertions evaluated: 2, upheld: 2\n  Every installed executable is its template, and every one of them runs.\n",
+      "output_tail": "plugins/productizer/skills/spec/templates/artifact-gate.sh\n.claude/hooks/artifact-gate.sh\n  held: artifact-gate.sh matches its template byte for byte\nplugins/productizer/skills/spec/templates/publish-gate.sh\n.claude/hooks/publish-gate.sh\n  held: publish-gate.sh matches its template byte for byte\n  pairs compared: 2\n  assertions evaluated: 4, upheld: 4\n  Every installed executable is its template, and every one of them runs.\n",
+      "status": "pass"
+    },
+    {
+      "id": "changelog-row",
+      "why": "a requirement that moved with no change-log row has no join to the commit, branch or issue that moved it, and nobody can reconstruct one a year later",
+      "severity": "block",
+      "blocking": true,
+      "mode": "batch",
+      "command": [
+        "./plugins/productizer/skills/spec/scripts/check-changelog-row.sh"
+      ],
+      "trigger_scope": "always",
+      "triggered": true,
+      "triggered_by": [
+        "always"
+      ],
+      "files_in_scope": 32,
+      "enabled": true,
+      "tool": {
+        "command": [
+          "./plugins/productizer/skills/spec/scripts/check-changelog-row.sh",
+          "--version"
+        ],
+        "version": "check-changelog-row 1.0",
+        "exit_code": 0
+      },
+      "exit_code": 0,
+      "duration_seconds": 1,
+      "coverage": {
+        "from": "stdout_paths",
+        "required": {
+          "min_covered": 3,
+          "must_cover": "none",
+          "min_rules": 0
+        },
+        "observed": {
+          "covered": 13,
+          "covered_items": [
+            ".claude/productizer/spec.md",
+            ".claude/productizer/spec.md@842b5cc",
+            ".claude/productizer/spec.md@8b03b65",
+            ".claude/productizer/spec.md@9993a93",
+            ".claude/productizer/spec.md@28d138f",
+            ".claude/productizer/spec.md@dad2ce9",
+            ".claude/productizer/spec.md@f5bfdae",
+            ".claude/productizer/spec.md@a6a9e71",
+            ".claude/productizer/spec.md@4148cef",
+            ".claude/productizer/spec.md@3495c5e",
+            ".claude/productizer/spec.md@f66dd66",
+            ".claude/productizer/spec.md@c8336a7",
+            ".claude/productizer/spec.md@ef3fded"
+          ],
+          "rules_loaded": null,
+          "files_in_scope": 32,
+          "not_examined": []
+        },
+        "satisfied": true,
+        "reasons": []
+      },
+      "timed_out": false,
+      "output_tail": "day: 4, naming 14 id(s)\n    `Next requirement id` readable on both sides of 11 of 11 commit pairs\n    commits after the founding one: 11 - 4 changed the spec, 7 changed no id, status or counter, 0 moved the counter alone\n    SPEC-CHANGING COMMITS (a row is demanded for each):\n      9993a93  added R23, R24, R25, R26, R27, R28 replaced R14, R16, R21  counter moved\n      f66dd66  added R29                replaced -              counter moved\n      c8336a7  added R30, R31           replaced -              counter moved\n      ef3fded  added R32                replaced R7             counter moved\n    SPEC COMMITS EXCLUDED (word-only: no id appeared, no status moved, the counter did not move - so no row is demanded):\n      8b03b65  (vs 842b5cc)\n      28d138f  (vs 9993a93)\n      dad2ce9  (vs 28d138f)\n      f5bfdae  (vs dad2ce9)\n      a6a9e71  (vs f5bfdae)\n      4148cef  (vs a6a9e71)\n      3495c5e  (vs 4148cef)\n    R32.1  recorded-in-the-change-log               examined   4  upheld   4  held: every commit that added an id or replaced a requirement has a row recording that id under the column for that kind of change\n    R32.2  addition-recorded-as-an-addition         examined  10  upheld  10  held: every id that appeared at a spec-changing commit is in the `Added` column of a row\n    R32.3  supersession-recorded-as-a-supersession  examined   4  upheld   4  held: every id replaced at a spec-changing commit is on the left of the `Superseded / withdrawn` column of a row\n    R32.4  recorded-in-the-same-commit              examined   4  upheld   4  held: the row was already in the change log at the commit that made the change, not added afterwards\n    assertions upheld: 4 of 4\n    files examined: 13\nPASS: every commit at which a classification changed the spec - an id appeared, or a requirement was replaced - is recorded in the `## Change log` table, in the right column, in the commit that made the change. Word-only spec commits are listed above and no row is demanded for them.\n",
+      "status": "pass"
+    },
+    {
+      "id": "view-publish-refused",
+      "why": "a page that can save new versions of itself is a second source of truth that can disagree with the repo; the only place a capability GRANTED BY THE PUBLISH CALL is visible is the publish call, and a correct gate nothing invokes is not a gate",
+      "severity": "block",
+      "blocking": true,
+      "mode": "batch",
+      "command": [
+        "./plugins/productizer/skills/spec/scripts/check-view-publish-refused.sh"
+      ],
+      "trigger_scope": "always",
+      "triggered": true,
+      "triggered_by": [
+        "always"
+      ],
+      "files_in_scope": 32,
+      "enabled": true,
+      "tool": {
+        "command": [
+          "./plugins/productizer/skills/spec/scripts/check-view-publish-refused.sh",
+          "--version"
+        ],
+        "version": "check-view-publish-refused 1.0",
+        "exit_code": 0
+      },
+      "exit_code": 0,
+      "duration_seconds": 2,
+      "coverage": {
+        "from": "stdout_paths",
+        "required": {
+          "min_covered": 1,
+          "must_cover": "none",
+          "min_rules": 0
+        },
+        "observed": {
+          "covered": 11,
+          "covered_items": [
+            ".claude/hooks/artifact-gate.sh",
+            "plugins/productizer/skills/spec/fixtures/view-publish-refused/cases.tsv",
+            ".claude/settings.json",
+            "plugins/productizer/skills/spec/fixtures/view-publish-refused/pages/page-self-publishing.html",
+            "plugins/productizer/skills/spec/fixtures/view-publish-refused/pages/page-self-alias.html",
+            "plugins/productizer/skills/spec/fixtures/view-publish-refused/pages/page-computed-name.html",
+            "plugins/productizer/skills/spec/fixtures/view-publish-refused/pages/page-unclassified.html",
+            "plugins/productizer/skills/spec/fixtures/view-publish-refused/pages/page-forged-decision.html",
+            "plugins/productizer/skills/spec/fixtures/view-publish-refused/pages/page-plain.html",
+            "plugins/productizer/skills/spec/fixtures/view-publish-refused/pages/page-downloads.html",
+            "plugins/productizer/skills/spec/fixtures/view-publish-refused/pages/page-empty.html"
+          ],
+          "rules_loaded": null,
+          "files_in_scope": 32,
+          "not_examined": []
+        },
+        "satisfied": true,
+        "reasons": []
+      },
+      "timed_out": false,
+      "output_tail": "/productizer/skills/spec/fixtures/view-publish-refused/pages/page-empty.html\n  case page-is-empty: expected deny, got deny\n  case no-file-path: expected deny, got deny\n  case unknown-action: expected deny, got deny\n  case payload-not-json: expected blocked, got blocked\n    the gate wrote to stderr: artifact-gate: the hook payload was not the shape this gate expects (jq: parse error: Invalid literal at line 1, column \n  case payload-is-an-array: expected blocked, got blocked\n    the gate wrote to stderr: artifact-gate: the hook payload was not the shape this gate expects (jq: error (at <stdin>:0): payload is not a JSON obj\n  case payload-wrong-matcher: expected blocked, got blocked\n    the gate wrote to stderr: artifact-gate: the hook payload was not the shape this gate expects (jq: error (at <stdin>:0): fired on tool Bash \u2014 re\n  case allow-plain-page: expected allow, got allow\n  case allow-downloads-in-page: expected allow, got allow\n  case allow-downloads-granted: expected allow, got allow\n  case allow-read-action: expected allow, got allow\n  registrations on the Artifact matcher: 1, resolving to an executable file: 1, identical to the hook driven here: 1\n  A1 a page declaring a self-publishing capability is refused: cases 5, upheld 5\n  A2 a self-publishing capability granted in the publish call is refused: cases 3, upheld 3\n  A3 a publish the gate cannot read is refused, not guessed at: cases 8, upheld 8\n  A4 a publish declaring only output is allowed: cases 4, upheld 4\n  A5 one decision field, carrying the gate's own verdict: cases 17, upheld 17\n  A6 the hook driven here is the one settings.json wires to the Artifact tool: cases 3, upheld 3\n  cases run: 20\n  assertion groups: 6, upheld: 6\n  R31 satisfied: every publish declaring a capability that can publish new versions of the page was refused - asked for in the page and granted in the call alike - every output-only publish went through, and the hook that did the refusing is the one the harness is wired to run.\n",
       "status": "pass"
     }
   ]

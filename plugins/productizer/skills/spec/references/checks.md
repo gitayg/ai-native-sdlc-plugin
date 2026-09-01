@@ -125,6 +125,106 @@ Exit codes follow the same convention as the rest of the skill
 3 and 1 stay distinct because a gate that exits the same way when it says no as
 when it falls over is unreadable in a log, and the wrong thing gets fixed.
 
+## Merging the result file
+
+The result file is committed, because `build-view.sh` reads it out of the
+repository and the dashboard has to render offline from a fresh clone. The
+price is that any two branches that both ran the suite differ in it, and every
+merge of the two conflicts. That is not a papercut: it happened on a
+cherry-pick and on all three rebases of a three-PR stack in one day.
+
+**Every ordinary resolution of that conflict fabricates a measurement.** Taking
+one side keeps a `change.files` naming that side's files while the merged tree
+carries both. Taking the other is the same lie mirrored. Editing the markers
+assembles a run nobody performed. All three write a number nobody measured,
+which is P1 broken with a merge tool holding the pen — and the result is
+indistinguishable, a month later, from a real one.
+
+So `.gitattributes` hands the path to `scripts/merge-checks-result.sh`, which
+resolves it the only honest way — by re-measuring the merged tree — and refuses
+whenever it cannot. It never picks a side. Its full reasoning is in its header.
+
+**A fresh clone does NOT have it.** This is the part to be plain about. Git
+will not let a repository define a merge driver, for exactly the reason P4
+gives: a repository that could name a program to run would be choosing what
+executes on the machine that cloned it. `merge.<name>.driver` is therefore
+local config only, and `.gitattributes` on its own is inert. **Git says nothing
+when it is missing** — the merge simply takes the ordinary conflict. That
+failure is safe, and it is the one to design for. What is not safe is believing
+the driver is active when it is not, so the script reports what git actually
+sees rather than what the repository says:
+
+```
+plugins/productizer/skills/spec/scripts/merge-checks-result.sh --status
+```
+
+Two lines activate it per clone, and the second is a decision, not boilerplate:
+
+```
+git config merge.productizer-checks-result.driver \
+  "$(git rev-parse --show-toplevel)/plugins/productizer/skills/spec/scripts/merge-checks-result.sh %O %A %B %L %P %X %Y"
+git config merge.productizer-checks-result.trustrepo true
+```
+
+`trustrepo` is the P4 decision in the same shape as `allow_repo_local_tools`.
+Measuring the merged tree means running the merged tree's `checks.yaml` and its
+check scripts, and the branch being merged wrote them. Those cannot be
+separated — measuring a tree is running its tooling. So the grant is explicit,
+lives in `.git/config` where no branch can write it, and is off until a person
+sets it. Without it every merge refuses.
+
+### What it refuses, and why each refusal is right
+
+| It refuses when | Because |
+|---|---|
+| `trustrepo` is unset | it would run the incoming branch's check scripts on the strength of nothing (P4) |
+| it cannot identify and verify both sides | `%X`/`%Y` are conflict LABELS, not revisions; during a rebase or cherry-pick git passes a sentence. Each candidate is proved by hashing the blob it holds at this path against the temp file git supplied, and an unproved candidate is discarded |
+| it cannot identify the ancestor the operation is using | a merge's is `merge-base`, a cherry-pick's is the parent of the picked commit; off the wrong ancestor it would rebuild a different tree |
+| **anything else in the merge also conflicts** | a person is about to hand-edit those, so the tree it just rebuilt is not the tree that will be committed. Measuring it would record a result for a tree that never existed — the same fabrication, differently spelled |
+| the suite exits 1 or 2 | no verdict was reached, so there is nothing measured to write. Exit 3 is a real verdict and IS recorded: a merged tree that fails its checks must be committed as failing them |
+
+Every refusal writes the ordinary conflict markers into the file before exiting
+non-zero. That is not cosmetic. Git uses whatever the driver leaves in `%A`
+whatever its exit status, and `%A` arrives holding our side verbatim — so a
+driver that exits 1 without touching it leaves a file flagged unresolved that
+reads as perfectly clean, which somebody stages.
+
+### Known limitations, measured
+
+- **It costs a full suite run per invocation** — about 70 seconds for this
+  repo, once per conflicting merge, and once per commit in a rebase.
+- **It measures the tree, not the commit.** The merge commit does not exist
+  while the driver runs, so the driver measures a synthetic commit wrapping the
+  merged tree. Anything a check derives from git history differs slightly from
+  what the same tree measures after the merge lands. Compared against an
+  independent run of the merged tree, 1419 of 1422 recorded values matched;
+  the three that did not were two check durations and one page-byte count that
+  depends on the commit's identity.
+- **A path containing a newline could be missed** by the other-conflicts scan.
+  It parses `git merge-tree -z` with `tr`, because BSD awk cannot split on NUL
+  — `RS="\0"` is read as the empty string, which is awk's paragraph mode.
+- It does nothing for a fresh clone, CI, or anyone who has not run the two
+  config lines. Whether that is enough is the open question below.
+
+### The alternative this does not close
+
+Not committing the file at all remains on the table, and the measurement
+favours it more than it favours this driver.
+
+Three things read the committed copy, and all three already distinguish absent
+from unreadable from a measured zero. Removed from a fresh clone:
+`build-view.sh` exits 0 and renders `—` with "not run · nothing has been
+checked"; `stage-status.sh` reports Stage 5 as "not run · no
+checks-result.json"; `signals.sh` exits 0 and records `local_checks` as
+`ABSENT` with "Nothing locally verified — which is not the same as locally
+clean." CI does not read it at all — `.github/workflows/checks.yml` writes its
+own result to `$RUNNER_TEMP`. Every one of those is what P1 asks for anyway,
+and none of it needs a line of new code.
+
+Against that, the conflict then cannot occur on any machine, configured or
+not — whereas this driver protects only the clones whose owners ran two
+commands, at about 70 seconds each time.
+
 ## Who owns the file
 
 One named person accountable for the checks stage — in most orgs a security or

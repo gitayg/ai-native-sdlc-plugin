@@ -1,0 +1,36 @@
+# The checks result is REGENERATED on merge, never merged.
+#
+# `.claude/productizer/checks-result.json` records one run of the checks stage:
+# which files it examined, what each check found, what the verdict was. Two
+# branches that both ran the suite differ in it, so every merge of the two
+# conflicts — it happened on a cherry-pick and on all three rebases of a
+# three-PR stack in a single day.
+#
+# Every ordinary resolution of that conflict is a fabrication. Taking one side
+# keeps a `change.files` naming that side's files while the tree now carries
+# both; hand-editing the markers assembles a run nobody performed. Either way
+# the file ends up describing a measurement that was never taken, which is P1
+# — "a value that was not measured is never recorded as a measurement" — with
+# a merge tool holding the pen.
+#
+# So this path is handed to a driver that resolves it the only honest way, by
+# measuring the merged tree, and refuses whenever it cannot.
+#
+# THIS LINE ON ITS OWN DOES NOTHING. A merge driver has to be DEFINED in local
+# config, and `.gitattributes` cannot define one — that is git's design, not an
+# oversight: a repository that could name a program to run would be choosing
+# what executes on the machine that cloned it, which is P4. So a fresh clone
+# has no driver and this line is inert. Git says nothing about it and the merge
+# takes the ordinary conflict, which is the safe failure. Activate it per
+# clone, and read the header of the driver first — the second line grants it
+# permission to run the merged tree's own check scripts:
+#
+#   git config merge.productizer-checks-result.driver \
+#     "$(git rev-parse --show-toplevel)/plugins/productizer/skills/spec/scripts/merge-checks-result.sh %O %A %B %L %P %X %Y"
+#   git config merge.productizer-checks-result.trustrepo true
+#
+# Check what git can actually see, rather than assuming it is on:
+#
+#   plugins/productizer/skills/spec/scripts/merge-checks-result.sh --status
+#
+.claude/productizer/checks-result.json merge=productizer-checks-result
