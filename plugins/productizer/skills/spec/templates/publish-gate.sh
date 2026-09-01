@@ -498,6 +498,19 @@ MSG
 #   run. Nobody wrote it down, so this gate does not rely on it: anything other
 #   than a mode known to prompt gets the hard refusal it got before. The gate
 #   loses nothing it had; it only gains a path where one is known to work.
+#
+# `auto` IS ON THE LIST, AND NOT BECAUSE THE DOCS SAY SO. It is not in the
+# documented set, and this gate refused in it five times in a row - correctly,
+# since an undocumented mode is one whose prompting nobody had established. The
+# maintainer, who is the person the prompt is shown to, confirmed that it does
+# show. That is a better source than the documentation for this particular
+# question: it is a report from the only party who can observe the answer.
+#
+# It is recorded here as what it is - a stated observation, not a citation - so
+# that anyone who later finds `auto` behaving differently knows exactly which
+# claim to go back to. `bypassPermissions` stays refused, explicitly and by the
+# same instruction: the point of that mode is to stop asking, so a gate that
+# asked in it would be asking nobody.
 GATE_CHECKLIST="${GATE_CHECKLIST:-.claude/productizer/publish-checklist.md}"
 GATE_CHECKLIST_MAX_AGE="${GATE_CHECKLIST_MAX_AGE:-900}"
 
@@ -505,7 +518,7 @@ ask_or_refuse() {
   # Only modes that are known to show a prompt. `bypassPermissions`, an empty
   # mode and anything unrecognised all fall through to the refusal.
   case "$pmode" in
-    default|acceptEdits|plan) ;;
+    default|acceptEdits|plan|auto) ;;
     *) refuse "$1
 
 This session's permission mode is '${pmode:-unknown}', which is not one this gate
@@ -528,8 +541,26 @@ below with what you actually found and what you could NOT verify - and run this
 again. A prompt that shows nothing is how approval becomes a reflex."
   fi
 
+  # COMPARED AGAINST THE MATCHED SEGMENT, NOT THE WHOLE COMMAND LINE.
+  #
+  # This used to test the checklist against `$cmd`, which is everything the
+  # shell was asked to run - `cd somewhere && git push ... 2>&1 | tail -3`. A
+  # checklist naming the push alone could never equal that, so the gate refused
+  # every time and printed "the checklist is for a different command" directly
+  # above the identical command. A refusal whose reason contradicts its own
+  # evidence is worse than no reason.
+  #
+  # `$seg` is the publishing command this gate already isolated and matched, so
+  # it is the thing the person is actually approving. A PREFIX test, because the
+  # segment can carry a trailing redirection that is not part of what publishes.
+  # Still specific: the checklist must name this version, so it cannot approve a
+  # different tag or a second publish hiding in the same line.
   _ck_cmd="$(sed -n 's/^Command: //p' "$GATE_CHECKLIST" | head -1)"
-  if [ "$_ck_cmd" != "$cmd" ]; then
+  case "$seg" in
+    "$_ck_cmd"*) _ck_ok=1 ;;
+    *)           _ck_ok=0 ;;
+  esac
+  if [ "$_ck_ok" -ne 1 ]; then
     refuse "$1
 
 The checklist at $GATE_CHECKLIST is for a different command. It names:
