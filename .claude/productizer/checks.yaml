@@ -1274,3 +1274,44 @@ checks:
       - It observes records, never the act of classifying. The writer's refusal path is the other half of the mechanism.
       - Reachability is decided locally. A home unreachable for a reason only the network could report reads as reachable here.
       - Running as a user who can read anything defeats the unreadable-spec and unlistable-store premise guards, as it defeats every such test.
+
+  # --- an installed executable must still be its template -------------------
+  #
+  # The publish gate exists twice: the template every repo installing this
+  # plugin receives, and this repo's own copy under `.claude/hooks/`. They were
+  # byte-identical and nothing said so. Editing one drifted them instantly, and
+  # the drift stayed invisible until a check that drives the TEMPLATE failed
+  # against a fix that had only landed in the hook.
+  #
+  # The dangerous direction is the reverse: this repo hardening its own gate
+  # while every consumer keeps the weaker copy, with the suite green because it
+  # only ever tests the template.
+  #
+  # SEEDS ARE NOT COMPARED, deliberately. `templates/` also holds spec.md,
+  # backlog.md, config.json, constitution.md and checks.yaml, which are copied
+  # once and then edited - they differ from their template the moment the repo
+  # is used, and comparing them would go red on five files for doing exactly
+  # what they are for. Only executables landing under the hooks directory are
+  # compared: a hook is code, not a seed, and carries no per-repo edit.
+  - id: installed-copies
+    why: a gate hardened in one copy and not the other leaves every consumer running the weaker one, and the suite stays green because it tests only the copy that changed
+    when:
+      always: true
+    severity: block
+    requires: [./plugins/productizer/skills/spec/scripts/check-installed-copies.sh]
+    version_command: [./plugins/productizer/skills/spec/scripts/check-installed-copies.sh, --version]
+    mode: batch
+    command: [./plugins/productizer/skills/spec/scripts/check-installed-copies.sh]
+    timeout_seconds: 60
+    exit_codes:
+      pass: [0]
+      fail: [1]        # a copy drifted, or lost its executable bit
+      refused: [2]     # a missing directory, an unreadable file, or no pair to compare
+    coverage:
+      from: stdout_paths
+      pattern: '^(\S+)$'
+      must_cover: none
+      min_covered: 2
+    limitations:
+      - It compares only `*.sh` under the hooks directory. A template installed anywhere else, or under a different name, is not seen.
+      - It asserts the two copies AGREE, never that either is correct. Both being wrong in the same way passes.
