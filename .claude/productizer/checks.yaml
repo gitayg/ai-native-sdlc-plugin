@@ -399,6 +399,20 @@ checks:
       refused: [2]     # no work tree, no builder, or a page that could not be generated
     coverage:
       spec_units:
+        - id: R30
+          verdict: Partial
+          reason: >-
+            Classifies the capability a published view declares and accepts only `downloads`, which
+            writes to the viewer's own device and reads nothing back. It asserts what the page ASKS
+            for, by matching the literal source pattern - so a capability reached by another spelling,
+            or granted in the publish call rather than requested by the page, is unasserted.
+        - id: R31
+          verdict: Partial
+          reason: >-
+            Asserts that the generated page declares no capability able to publish new versions of
+            itself, and refuses any name it cannot classify. What it does NOT assert is R31's actual
+            consequence - that the lifecycle would refuse to PUBLISH such a page. Nothing observes the
+            publish step declining; the check observes the page not asking.
         - id: R4
           verdict: Partial
           reason: >-
@@ -1150,6 +1164,13 @@ checks:
       refused: [2]
     coverage:
       spec_units:
+        - id: R29
+          verdict: Covered
+          evidence: >-
+            The three bypasses R29 was written for are each constructed and each refused: a program
+            taken positionally, a repo-local script passed as an argument, and a build tool named by
+            neither list - while a legitimate command still runs. R18 is the narrower sentence this
+            supersedes in practice; R29 is the obligation actually asserted.
         - id: R17
           verdict: Partial
           reason: >-
