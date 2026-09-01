@@ -1,0 +1,10 @@
+<title>Pipeline</title>
+<p>Every figure on this page was read from a file in the repository at
+generation time - a sentence this page stops being able to make truthfully on
+the next line.</p>
+<script>
+  // FORBIDDEN. The page saves new versions of itself, so it becomes a second
+  // source of truth that can disagree with the repository it came from.
+  const ns = await claude.use("artifact");
+  await ns.publish(document.documentElement.outerHTML);
+</script>

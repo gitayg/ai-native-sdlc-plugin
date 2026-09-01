@@ -409,10 +409,11 @@ checks:
         - id: R31
           verdict: Partial
           reason: >-
-            Asserts that the generated page declares no capability able to publish new versions of
-            itself, and refuses any name it cannot classify. What it does NOT assert is R31's actual
-            consequence - that the lifecycle would refuse to PUBLISH such a page. Nothing observes the
-            publish step declining; the check observes the page not asking.
+            Asserts that the GENERATED PAGE declares no capability able to publish new versions of
+            itself, and refuses any name it cannot classify - by matching the literal source pattern,
+            so another spelling of the same call goes through. R31's actual consequence, the publish
+            step declining, is asserted by `view-publish-refused` against the real hook; this check
+            observes the page not asking, which is the earlier and weaker of the two.
         - id: R4
           verdict: Partial
           reason: >-
@@ -466,13 +467,16 @@ checks:
     coverage:
       spec_units:
         - id: R13
-          verdict: Partial
-          reason: >-
-            Falsifies the missing-tool report only for a bare-name `requires:` resolved via PATH;
-            the executable-path branch - which most of this repo's `requires:` entries use - can
-            regress to a silent skip with all six assertions still holding.
-      # The three files it opened: the runner under test and the two fixture
-      # files. A run that printed fewer opened fewer, and did not run the case.
+          verdict: Covered
+          evidence: >-
+            Falsifies the missing-tool report on BOTH resolution branches run-checks.sh has - a bare
+            name resolved with `command -v`, and a `./`-relative executable path tested with `[ -x ]` -
+            each in its OWN run so neither borrows the other's refusal, and each reported separately so
+            a regression names the branch. Six assertions per branch, including that an absent tool
+            changes the VERDICT rather than only a status field. Proven against the defect it exists
+            for: with the executable-path branch regressed to a silent skip, version 1.0 exited 0
+            saying `R13 satisfied` with 6 of 6 upheld, and 2.0 exits 1 naming the branch. Residue:
+            absolute-path entries, a present-but-non-executable path, and `severity: advise`.
       from: stdout_paths
       pattern: '^(\S+)$'
       must_cover: none
@@ -1336,3 +1340,124 @@ checks:
     limitations:
       - It compares only `*.sh` under the hooks directory. A template installed anywhere else, or under a different name, is not seen.
       - It asserts the two copies AGREE, never that either is correct. Both being wrong in the same way passes.
+
+  # --- a classification that changed the spec and left no record -------------
+  #
+  # R32, the narrowed R7. THE TRIGGER IS THE HARD HALF and it is STRUCTURAL: an
+  # id appeared, a requirement went superseded or withdrawn, or the counter
+  # moved - each measured against the previous commit that touched the spec.
+  #
+  # A word-only spec commit - typo, reword, reflow - is NOT a classification and
+  # no row is demanded for it. Measured on this repo: of 11 post-founding spec
+  # commits, 4 are structural and 7 are word-only, so a text-diff trigger would
+  # have demanded 11 rows and been wrong 7 times. A check that goes red on the
+  # next typo is a check somebody switches off. Both lists print on every run,
+  # so the LIST can be argued with rather than the verdict.
+  #
+  # THE FIRST VERSION OF THIS CHECK WAS WRONG AND ITS OWN FIXTURE CAUGHT IT.
+  # It asked whether some row named one of the moved ids, and passed a history
+  # where a commit superseded one requirement, added another, and wrote no row
+  # at all - because a much older row happened to name that id for a different
+  # event. Every id reaches the log eventually, so "named anywhere" converges on
+  # "always satisfied". It now matches in the COLUMN for that kind of change.
+  - id: changelog-row
+    why: a requirement that moved with no change-log row has no join to the commit, branch or issue that moved it, and nobody can reconstruct one a year later
+    when:
+      always: true
+    severity: block
+    requires:
+      - ./plugins/productizer/skills/spec/scripts/check-changelog-row.sh
+      - ./plugins/productizer/skills/spec/scripts/spec-requirements.sh
+      - git
+      - python3
+    version_command: [./plugins/productizer/skills/spec/scripts/check-changelog-row.sh, --version]
+    mode: batch
+    command: [./plugins/productizer/skills/spec/scripts/check-changelog-row.sh]
+    timeout_seconds: 120
+    exit_codes:
+      pass: [0]
+      fail: [1]        # a spec-changing classification with no row recording it
+      refused: [2]     # a shallow clone, an untracked spec, a one-commit history, a counter-only commit
+    coverage:
+      spec_units:
+        - id: R32
+          verdict: Partial
+          reason: >-
+            Asserts the CONSEQUENCE completely and the TRIGGER partially. Every commit at which an id
+            appeared or a requirement went superseded or withdrawn is checked for a row recording that
+            id in the column for that kind of change, in the commit that made the change - four
+            assertions, each counted where its loop runs, each falsified alone. What is NOT asserted is
+            the rest of the trigger: a REFINE that keeps its id and rewrites the sentence changes the
+            spec and is invisible here, because no evidence in the repository separates it from a typo
+            fix. So a classification of that shape can merge with no row and this stays green. Also
+            unasserted: that a row's issue, branch and PR cells are TRUE - only the ids are matched.
+      from: stdout_paths
+      pattern: '^(\S+)$'
+      must_cover: none
+      min_covered: 3
+    limitations:
+      - A refine that keeps a requirement's id and rewrites its sentence is not detected, on purpose - no evidence in the repository separates it from a typo fix.
+      - A shallow clone is refused rather than passed, so CI must fetch full history for this to measure anything.
+      - Attribution is by ID, never by date; the change-log dates in this repo already disagree with the commit dates by a day.
+      - The founding commit is exempt - it introduced every id it holds at once, and demanding rows for those would go permanently red against this repo's own correct spec.
+
+  # --- a view that could republish itself must not reach the publish step ----
+  #
+  # R31's obligation is that the lifecycle REFUSES TO PUBLISH. `view-read-only`
+  # observes the page not ASKING, which is a different sentence. Until
+  # `artifact-gate.sh` there was no refusal to observe at all: an artifact is
+  # published through the Artifact tool, and `publish-gate.sh` is registered on
+  # the Bash matcher, so it never saw one. R31 was not merely unverified - half
+  # of it did not exist, exactly as R17 was this morning.
+  #
+  # This drives the real hook with fixture payloads, watches it decline, and
+  # then checks that the hook it drove is the one `settings.json` actually wires
+  # to that tool. Nothing is ever published.
+  #
+  # THE STALE-COPY CASE IS THE ONE WORTH HAVING. Point the registration at a
+  # real, executable, correctly-registered hook that happens to be the WRONG
+  # FILE and the first five groups stay green while A6 names it: the gate gets
+  # hardened, the registration keeps pointing at the old file, and every
+  # assertion above measures something the harness will not run.
+  - id: view-publish-refused
+    why: a page that can save new versions of itself is a second source of truth that can disagree with the repo; the only place a capability GRANTED BY THE PUBLISH CALL is visible is the publish call, and a correct gate nothing invokes is not a gate
+    when:
+      always: true
+    severity: block
+    requires:
+      - ./plugins/productizer/skills/spec/scripts/check-view-publish-refused.sh
+      - jq
+    version_command: [./plugins/productizer/skills/spec/scripts/check-view-publish-refused.sh, --version]
+    mode: batch
+    command: [./plugins/productizer/skills/spec/scripts/check-view-publish-refused.sh]
+    timeout_seconds: 60
+    exit_codes:
+      pass: [0]
+      fail: [1]        # a publish that had to be refused was not, one that had to go through did not, or the registered hook is not the one driven
+      refused: [2]     # no hook, no fixture, an unreadable settings file, or a premise never exercised
+    coverage:
+      spec_units:
+        - id: R31
+          verdict: Partial
+          reason: >-
+            Drives the real PreToolUse hook and asserts it REFUSES, which is R31's obligation and the
+            half nothing observed before. Both surfaces: the capability asked for inside the page, and
+            the capability granted by the publish CALL - the second being the one `view-read-only`
+            states in its own limitations that it cannot see. Six assertion groups, each falsified on
+            its own against patched copies of the hook and of settings.json. A6 closes the wiring gap:
+            settings.json names this hook on the Artifact matcher, the named file exists and is
+            executable, and it is byte-identical to the one the other assertions drove - so a
+            registration pointing at a stale or different copy is a finding rather than a pass. THE
+            WIRING IS ASSERTED, THE FIRING IS NOT. Nothing here proves the Artifact tool actually
+            calls the hook, because proving that needs a real publish, which is the act this gate
+            exists to refuse. Also unasserted: a capability granted by an earlier publish and
+            inherited by a later call that omits `capabilities`, since that declaration is held by
+            the publishing service and not by this repository.
+      from: stdout_paths
+      pattern: '^(\S+)$'
+      must_cover: none
+      min_covered: 1
+    limitations:
+      - It asserts the wiring, not the firing. A6 proves settings.json names this hook and that the named file is the one driven; nothing proves the Artifact tool invokes it, which would take a real publish.
+      - The matcher must be spelled exactly `Artifact`. A harness that also honours a regex spelling such as `Artifact|Bash` would be correctly wired and reported here as a finding - loud rather than silent, since the finding names the matcher it did find.
+      - The capability taxonomy is duplicated between this hook and check-view-readonly.sh. A name classified in one and not the other lets the two disagree about what a view may declare, and nothing detects that today.

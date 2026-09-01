@@ -1,0 +1,56 @@
+# Fixture: an absent tool on a check that runs PER FILE.
+#
+# R13 - WHILE A CHECK TOOL NAMED BY THE CONFIGURATION IS ABSENT, THE LIFECYCLE
+# SHALL REPORT THAT CHECK AS MISSING RATHER THAN SKIPPED.
+#
+# WHAT THIS ONE IS AND IS NOT. `mode: per_file` is the third shape the audit
+# named as unexercised. It is NOT a third resolution branch: in run-checks.sh
+# the `requires:` loop and its `continue` run BEFORE `mode` is ever branched
+# on - the value is read a few lines earlier, but the `per_file` branch sits
+# well below the `continue` - so a per-file check with an absent tool reaches
+# exactly the lines a batch one does. That ordering is the whole reason the
+# case is cheap - and the only reason it is worth committing. If someone moves
+# the requires loop inside the mode branch, batch keeps working and per_file
+# quietly stops reporting; this case is what goes red then. Claiming it as a
+# separately-covered branch would be overstating it, so it is not claimed that
+# way anywhere.
+#
+# ONE CHECK PER CONFIG, as with the other two: a run that refuses because some
+# OTHER check refused is not evidence about this one.
+version: 1
+
+policy:
+  empty_run: refuse
+  spec_coverage: "off"
+  # Needed for the same reason as in the executable-path fixture: a
+  # path-shaped `requires:` entry is refused at parse time without it, and a
+  # config that never parses never reaches the branch under test.
+  allow_repo_local_tools: true
+
+defaults:
+  timeout_seconds: 30
+  mode: batch
+  severity: block
+
+checks:
+  - id: ghost-per-file
+    why: an absent tool has to be reported missing whatever the mode; the requires loop runs before mode is consulted, and this case is what goes red if that ordering is ever reversed
+    when:
+      always: true
+    severity: block
+    requires: [./definitely-not-a-real-per-file-tool.sh]
+    version_command: [./definitely-not-a-real-per-file-tool.sh, --version]
+    mode: per_file
+    command: [./definitely-not-a-real-per-file-tool.sh, --scan, "{file}"]
+    exit_codes:
+      pass: [0]
+      fail: [1]
+      refused: [2]
+    # per_file mode is the only mode that can declare `per_file_exit`, so the
+    # fixture declares it: a coverage block copied from a batch check would
+    # have left the mode untested in the one place the config can express it.
+    # It is never exercised - the run stops at the absent tool.
+    coverage:
+      from: per_file_exit
+      must_cover: none
+      min_covered: 1

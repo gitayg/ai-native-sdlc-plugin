@@ -1,0 +1,77 @@
+# Fixture: a check whose declared tool is an EXECUTABLE PATH that is not there.
+#
+# R13 - WHILE A CHECK TOOL NAMED BY THE CONFIGURATION IS ABSENT, THE LIFECYCLE
+# SHALL REPORT THAT CHECK AS MISSING RATHER THAN SKIPPED.
+#
+# WHY THIS FILE EXISTS BESIDE `checks.yaml`. run-checks.sh resolves a
+# `requires:` entry TWO ways, and the shape of the string picks the branch:
+#
+#     */*) [ -x "$req" ] || MISSING="$MISSING $req" ;;
+#     *)   command -v "$req" >/dev/null 2>&1 || MISSING="$MISSING $req" ;;
+#
+# `checks.yaml` beside this file declares a BARE NAME, so it only ever reached
+# the second line. Nothing exercised the first. That was measured, not
+# suspected: regressing ONLY the path branch to a silent skip left all six of
+# the old assertions holding and the check exiting 0. And the path branch is
+# the one nearly every real check goes through - the large majority of the
+# `requires:` entries in this repo's own checks.yaml are `./plugins/...`
+# paths. The untested branch was the one that carries the traffic.
+#
+# ONE CHECK PER CONFIG, ON PURPOSE. Put both cases in one config and the run
+# exits 3 because SOME check refused, which is not evidence about THIS one: a
+# regressed path branch would still ride the bare-name check's refusal to a
+# green assertion. Each case gets its own run so its refusal is its own.
+#
+# SELF-CONTAINED. It names no path outside itself and no absolute path, so it
+# behaves the same in a fresh clone on any machine and from any working
+# directory: the path is `./`-relative, the runner resolves it against the
+# temporary copy it is pointed at, and nothing is ever there.
+version: 1
+
+policy:
+  empty_run: refuse
+  # No spec beside this fixture, and there should not be one: the subject is
+  # the runner's handling of an absent TOOL, and a missing denominator would
+  # refuse the run for a second, unrelated reason - making the test pass for
+  # the wrong cause.
+  spec_coverage: "off"
+  # REQUIRED HERE, AND ABSENT FROM THE BARE-NAME FIXTURE. A `requires:` entry
+  # shaped like a repo-local path is refused at config-parse time unless the
+  # config opts in, and a config that is refused never reaches the branch
+  # under test - the run would refuse for the wrong reason and the test would
+  # look like it passed. The repo's own checks.yaml sets the same flag, which
+  # is exactly why its checks take this branch.
+  allow_repo_local_tools: true
+
+defaults:
+  timeout_seconds: 30
+  mode: batch
+  severity: block
+
+checks:
+  # A `./`-relative path, never an absolute one. An absolute path would be a
+  # claim about one machine's filesystem; this one is resolved against the
+  # temporary directory the runner is pointed at, where it is absent by
+  # construction. The check that runs this fixture verifies that absence
+  # before believing anything the run reports.
+  - id: ghost-path
+    why: the declared tool is a path that is not there, so this check can only ever report missing_tool - and if it reports anything else, the runner has started skipping the resolution branch that nearly every real check uses
+    when:
+      always: true
+    severity: block
+    requires: [./definitely-not-a-real-tool.sh]
+    version_command: [./definitely-not-a-real-tool.sh, --version]
+    mode: batch
+    command: [./definitely-not-a-real-tool.sh, --scan, "{files}"]
+    exit_codes:
+      pass: [0]
+      fail: [1]
+      refused: [2]
+    # run-checks.sh refuses a check that declares no coverage block, so the
+    # fixture carries one. It is never exercised: the run stops at the absent
+    # tool, which is the whole point.
+    coverage:
+      from: stdout_paths
+      pattern: '^(\S+)$'
+      must_cover: none
+      min_covered: 1

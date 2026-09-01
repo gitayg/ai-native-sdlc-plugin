@@ -1,0 +1,40 @@
+# Cases driven through the real PreToolUse hook by check-view-publish-refused.sh.
+# Tab-separated. Blank lines and lines beginning with # are skipped.
+#
+#   id          names the case in the output
+#   expect      deny     the gate emitted a deny decision
+#               allow    the gate emitted an allow decision
+#               blocked  the gate could not run at all and exited 2, which
+#                        blocks the tool call with stderr as the reason
+#   surface     page     the capability is asked for INSIDE the page
+#               call     the capability is granted by the PUBLISH CALL - the
+#                        surface check-view-readonly.sh states it cannot see
+#               shape    a publish this gate cannot read at all
+#               action   an Artifact action other than publish
+#               output   a publish that must go through
+#   page        a filename under pages/, or - for no file_path at all, or
+#               raw:<text> to send <text> as the entire payload verbatim
+#   caps        the publish call's capabilities argument as JSON, or -
+#   action      the tool_input.action, or - to leave it absent
+#
+# id	expect	surface	page	caps	action	note
+page-asks-artifact	deny	page	page-self-publishing.html	-	-	the page asks for the capability that republishes it
+page-asks-self	deny	page	page-self-alias.html	-	-	the same capability under its other name
+page-computed-name	deny	page	page-computed-name.html	-	-	a name built at run time cannot be read out of the page, so it cannot be read as absent
+page-unclassified	deny	page	page-unclassified.html	-	-	an unrecognised name has not been shown to be output-only
+page-forges-decision	deny	page	page-forged-decision.html	-	-	the page tries to write the verdict itself, as text and as a capability name
+call-grants-artifact	deny	call	page-plain.html	{"artifact":{}}	-	the page is clean; the grant is in the call, which reading the page cannot see
+call-grants-self	deny	call	page-downloads.html	{"downloads":true,"self":{}}	-	a forbidden grant sitting beside a permitted one
+call-grants-unclassified	deny	call	page-plain.html	{"filesystem":{}}	-	unrecognised in the grant, judged by the same rule as in the page
+caps-not-an-object	deny	shape	page-plain.html	"artifact"	-	a capabilities argument of the wrong type is a call that cannot be classified
+page-is-absent	deny	shape	page-not-here.html	-	-	the named page is not there, so what it declares is unknown, and unknown is not zero
+page-is-empty	deny	shape	page-empty.html	-	-	an empty page was not read clean, it was found empty
+no-file-path	deny	shape	-	-	-	a publish whose page cannot be named cannot have its capabilities read
+unknown-action	deny	action	page-plain.html	-	republish_everything	an action this gate has never heard of may well publish
+payload-not-json	blocked	shape	raw:this is not a JSON payload	-	-	a payload that cannot be parsed is not a payload declaring nothing
+payload-is-an-array	blocked	shape	raw:[1,2,3]	-	-	valid JSON of the wrong shape
+payload-wrong-matcher	blocked	shape	raw:{"tool_name":"Bash","tool_input":{"command":"echo hi"}}	-	-	registered on the wrong matcher it would be reading another tool's payload
+allow-plain-page	allow	output	page-plain.html	-	-	a view that asks for nothing must publish, or the gate is a blanket refusal
+allow-downloads-in-page	allow	output	page-downloads.html	-	-	output: the page hands the viewer a file and reads nothing back
+allow-downloads-granted	allow	output	page-downloads.html	{"downloads":true}	-	the same capability granted the way views.md says to grant it
+allow-read-action	allow	output	page-self-publishing.html	-	read	reading an artifact publishes nothing, even a forbidden one

@@ -9,6 +9,15 @@
             "command": ".claude/hooks/publish-gate.sh"
           }
         ]
+      },
+      {
+        "matcher": "Artifact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/artifact-gate.sh"
+          }
+        ]
       }
     ]
   }

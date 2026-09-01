@@ -1,0 +1,10 @@
+<title>Pipeline</title>
+<p>Every figure on this page was read from a file in the repository at
+generation time.</p>
+<script>
+  // Output, and the only capability a view may have: the page hands the viewer
+  // a file built from its own bytes and reads nothing back. The button is
+  // hidden until this resolves, so a page opened from disk offers nothing.
+  const ns = await claude.use("downloads");
+  if (ns) document.getElementById("evidence").hidden = false;
+</script>
