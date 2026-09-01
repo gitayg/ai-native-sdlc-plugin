@@ -542,20 +542,27 @@ rubber stamp this gate exists to prevent."
 
   # Staleness is measured, not assumed. An old checklist describes a state that
   # has since moved - a version that was live, a scrape that was clean.
-  _now="$(date +%s)"
-  _mt="$(stat -f %m "$GATE_CHECKLIST" 2>/dev/null || stat -c %Y "$GATE_CHECKLIST" 2>/dev/null || printf '')"  # stderr-ok: BSD stat then GNU stat; the first one's failure on the other platform IS how the fallback is selected, and an empty result is refused as unknown age
-  if [ -z "$_mt" ]; then
+  #
+  # NOT `stat`. This used to try BSD `stat -f %m` and fall back to GNU
+  # `stat -c %Y`, which is wrong in the one way a fallback cannot catch: on GNU
+  # coreutils `-f` means FILESYSTEM status and SUCCEEDS, printing block counts
+  # rather than a timestamp. The fallback never fired, the age arithmetic got a
+  # non-number, and `set -e` killed the gate mid-decision. It was green on macOS
+  # and red in CI, which is exactly the shape of bug a portability fallback is
+  # supposed to prevent. Measured against a GNU-behaving shim, not reasoned.
+  #
+  # `find -mmin` is in both userlands and answers the only question being asked:
+  # is this file younger than the limit. Minutes, so a sub-minute limit rounds
+  # up to one rather than to zero - a limit of zero would refuse everything.
+  _max_min=$(( GATE_CHECKLIST_MAX_AGE / 60 ))
+  [ "$_max_min" -ge 1 ] || _max_min=1
+  _fresh="$(find "$GATE_CHECKLIST" -mmin -"$_max_min" 2>/dev/null || printf '')"  # stderr-ok: asking whether the file is younger than the limit; find's complaint about an unreadable path IS the answer, and an empty result is refused as unknown below
+  if [ -z "$_fresh" ]; then
     refuse "$1
 
-The checklist's age could not be read, so whether it describes the current state
-is UNKNOWN. Unknown is not fresh."
-  fi
-  _age=$(( _now - _mt ))
-  if [ "$_age" -gt "$GATE_CHECKLIST_MAX_AGE" ]; then
-    refuse "$1
-
-The checklist at $GATE_CHECKLIST is ${_age}s old, past the ${GATE_CHECKLIST_MAX_AGE}s limit. It
-describes a state that has since moved. Re-run the checks and rewrite it."
+The checklist at $GATE_CHECKLIST is older than ${_max_min} minute(s), or its age could
+not be read. Either way it describes a state that has since moved. Re-run the
+checks and rewrite it."
   fi
 
   # jq -Rs builds the JSON string, so a checklist containing quotes, newlines or
