@@ -784,7 +784,7 @@ checks:
     limitations:
       - It names six fields plus a sweep over cannot-run rows. A zero fabricated into a seventh field would not be caught; a blanket "no 0 anywhere" would go red on real counts like `passed: 0`.
       - Two of P1's four sources are exercised - an absent tool and an unreadable file. A failed API call and a refused permission are not reached by any fixture.
-      - The runner's `timeout` path builds a coverage block with `covered` initialised to 0 while the status means no verdict. Assertion 7 would flag it, but no timeout fixture exists, so that is unmeasured and is backlog item B29.
+      - Assertion 7 sweeps cannot-run rows, and this fixture produces only a `missing_tool` row, which never carried a coverage block - so that assertion sees an empty set here. The positive case lives in the `cannot-run-coverage` check over `fixtures/timeout-zero/`.
       - It covers run-checks.sh only. P1 also names import-survey.sh, build-view.sh and track-traffic.sh, and none of those is touched here.
 
   # --- a contradiction must merge nothing -----------------------------------
@@ -848,3 +848,53 @@ checks:
           The `record-classification.sh` path is not exercised; it needs a work tree with the spec
           committed at HEAD. "Recording a contradict classification merges nothing" is therefore unasserted.
       - A file the merge path CREATES elsewhere in the sandbox is not noticed. The comparison is scoped to the spec, which is what R24 is about, but a merge that landed somewhere else entirely would not show here.
+
+  # --- no verdict, no count -------------------------------------------------
+  #
+  # R26's other half, and the reason it needed one. `no-fabricated-zero`'s
+  # seventh assertion sweeps every cannot-run row for a recorded coverage count.
+  # It was correct, and it had been sweeping an EMPTY SET since the day it was
+  # written: its fixture produces only a `missing_tool` row, and `missing_tool`
+  # is the single status that never carried a coverage block. The assertion had
+  # never once seen the thing it was looking for.
+  #
+  # Measured on the runner as it stood: four of the five cannot-run statuses
+  # recorded `covered: 0` - timeout, no_version, refused and unmapped_exit. A
+  # scanner killed at its limit printed nothing, and nothing is not zero.
+  #
+  # So this fixture reaches the state by a DIFFERENT mechanism - a command that
+  # sleeps past its limit - and the premise guard enforces exactly that: point
+  # this at the absent-tool fixture and it refuses, because that would be the
+  # same empty set again.
+  #
+  # Two assertions, and the second matters as much as the first: a check that
+  # RAN and genuinely covered nothing must still record its zero. That is a
+  # measurement, and deleting it would be this same bug pointed the other way.
+  - id: cannot-run-coverage
+    why: an assertion that has never seen a positive case is not evidence, and this one had been sweeping an empty set since it was written
+    when:
+      always: true
+    severity: block
+    requires:
+      - ./plugins/productizer/skills/spec/scripts/check-cannot-run-coverage.sh
+      - python3
+    version_command: [./plugins/productizer/skills/spec/scripts/check-cannot-run-coverage.sh, --version]
+    mode: batch
+    command: [./plugins/productizer/skills/spec/scripts/check-cannot-run-coverage.sh]
+    timeout_seconds: 120
+    exit_codes:
+      pass: [0]
+      fail: [1]        # a check that reached no verdict recorded a coverage count
+      refused: [2]     # no fixture, no runner, an unreadable result, or a premise that did not hold
+    coverage:
+      from: stdout_paths
+      pattern: '^(\S+)$'
+      must_cover: none
+      min_covered: 3
+      spec_units:
+        - id: R26
+          verdict: Covered
+          evidence: fixtures/timeout-zero/ driven through run-checks.sh; falsified by pointing it at the pre-fix runner, which records covered=0 on a killed check
+    limitations:
+      - The fixture costs about six wall seconds, three of which are the runner's own TERM-then-KILL grace period and cannot be shortened from the config.
+      - It asserts the SHAPE - no coverage key on a no-verdict row. It does not assert that the other evidence on that row (files_in_scope, exit_code, timed_out, output_tail) is still there, though all four survive today.

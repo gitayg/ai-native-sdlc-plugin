@@ -1,0 +1,100 @@
+# Fixture: a check that is killed at its timeout while declaring a COUNT.
+#
+# R26 - IF A VALUE COULD NOT BE MEASURED, THEN THE LIFECYCLE SHALL NOT RECORD
+# IT AS ZERO. `fixtures/fabricated-zero/` already stands for the absent-tool
+# shape of that claim, where the runner never reaches the coverage block at
+# all. This fixture stands for the other shape: a check that DID start, was
+# killed before it could print the number it was going to print, and so
+# reached no verdict either. `timeout` sits in the runner's own CANNOT_RUN set
+# beside `missing_tool`, so the two rows are the same kind of nothing - but
+# they travel different code paths, and only one of them was ever measured.
+#
+# WHY `stdout_count` SPECIFICALLY. The other coverage forms count things the
+# runner watched happen: `per_file_exit` counts files whose invocation really
+# exited, `stdout_paths` and `command` count lines really printed. Their zero
+# on a killed run is at least a tally of what was observed before the kill.
+# `stdout_count` has no such fallback - the number lives entirely inside output
+# the tool never got to write - so a 0 there is a number nobody produced.
+#
+# TWO CHECKS, AND BOTH HALVES MATTER:
+#
+#   killed-count   sleeps past its 1s limit and is killed with nothing
+#                  printed. Its count could not be measured, so the result
+#                  must not carry one.
+#
+#   real-zero      runs to completion, prints its count, and the count it
+#                  prints is ZERO. That IS a measurement and must still be
+#                  recorded as 0. A runner that suppressed this one would have
+#                  swapped the defect for its mirror image and still be wrong.
+#
+# SELF-CONTAINED ON PURPOSE. It names no path outside itself and runs nothing
+# but `sleep` and `echo`, so it behaves the same in a fresh clone on any
+# machine. Neither command is a shell, an interpreter or an awk, which the
+# runner refuses in every argv position - which is also why `killed-count`
+# only sleeps instead of sleeping and then printing: there is no way to
+# sequence two commands without the shell this config is forbidden to name,
+# and the point is what gets recorded when the number never arrives.
+#
+# The sleep is one second past a one-second limit deliberately: long enough to
+# be killed, short enough that nobody inherits a slow suite and deletes the
+# fixture for it.
+version: 1
+
+policy:
+  empty_run: refuse
+  # There is no spec beside this fixture and there should not be one. The
+  # subject is what a killed check RECORDS; an underivable denominator would
+  # refuse the run for a second, unrelated reason and would make the fixture
+  # pass for the wrong cause.
+  spec_coverage: "off"
+
+defaults:
+  mode: batch
+  severity: block
+
+checks:
+  - id: killed-count
+    why: it is killed before it can print the count it declares, so the number of things it examined was never produced - and must be absent from the result rather than recorded as 0
+    when:
+      always: true
+    severity: block
+    timeout_seconds: 1
+    requires: [sleep]
+    # `sleep 0` is this tool stating it is there and working. There is no
+    # --version on every platform's sleep, and a version flag that errors on
+    # BSD would report `no_version` on one machine and `timeout` on another.
+    version_command: [sleep, "0"]
+    mode: batch
+    command: [sleep, "2"]
+    exit_codes:
+      pass: [0]
+      fail: [1]
+      refused: [2]
+    coverage:
+      from: stdout_count
+      pattern: '^examined ([0-9]+) files$'
+      must_cover: none
+      min_covered: 1
+
+  - id: real-zero
+    why: it runs to completion and truthfully reports that it examined zero things - which is a measurement, and must still be recorded as 0, so that a fix for the killed check above cannot be a blanket suppression of every zero
+    when:
+      always: true
+    severity: block
+    timeout_seconds: 30
+    requires: [echo]
+    version_command: [echo, "fixture-echo"]
+    mode: batch
+    command: [echo, "examined 0 files"]
+    exit_codes:
+      pass: [0]
+      fail: [1]
+      refused: [2]
+    coverage:
+      from: stdout_count
+      pattern: '^examined ([0-9]+) files$'
+      must_cover: none
+      # Zero is the honest answer here, so zero has to be allowed to satisfy
+      # the assertion. With a minimum of 1 this row would come back `hollow`
+      # and prove nothing about what a MEASURED zero records.
+      min_covered: 0

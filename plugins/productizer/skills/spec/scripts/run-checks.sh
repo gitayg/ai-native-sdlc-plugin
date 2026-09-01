@@ -1375,6 +1375,31 @@ for c in plan["checks"]:
     else:
         row["status"] = "pass"
 
+    # A CHECK THAT REACHED NO VERDICT MEASURED NOTHING, so it records no count.
+    #
+    # `covered` is initialised to 0 above and the coverage block is assembled
+    # before the status is known, which is fine for every status that is a
+    # verdict: a `fail`, a `hollow` and a `pass` all ran, and their 0 is a
+    # tally of what was really observed. For the CANNOT_RUN statuses it is
+    # not. A `stdout_count` check killed at its limit never printed the number
+    # it was going to print, so the 0 recorded for it was produced by this
+    # line and by nothing else - and a month later it reads exactly like a
+    # real zero. P1: an absent measurement is never a measurement of zero.
+    #
+    # DELETED, NOT NULLED, because absence is already this file's convention
+    # for a row that could not run - the `missing_tool` row above reaches
+    # `continue` before this block exists at all, and a reader who can tell
+    # `missing_tool` from `timeout` should not have to tell absent from null
+    # as well. The spec denominator further down keeps `units_total` and
+    # `counts` null instead, because those keys sit in an object that is
+    # always present and has no absence to express.
+    #
+    # This changes nothing about the verdict. A CANNOT_RUN status is decided
+    # by the kill, the version, the exit code or the map - never by coverage -
+    # and it already blocks whatever the severity says.
+    if row["status"] in CANNOT_RUN:
+        del row["coverage"]
+
     if row["status"] != "pass":
         record_failure(row)
     elif not row["coverage"]["satisfied"]:
