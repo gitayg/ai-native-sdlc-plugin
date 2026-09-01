@@ -1,0 +1,12 @@
+Case: the spec home is unreachable and nothing was classified
+Asserts: A1
+Home: unreachable
+Records: 0
+Expect: clean
+Findings: 0
+Why: R19 obeyed. The spec named by this tree's own config is not there, and no
+  classification was recorded against a remembered copy - the lifecycle
+  stopped. This tree and 02-classified-anyway are identical but for the one
+  record, which is the two-tree experiment that showed check-spec-home.sh
+  cannot tell R19 obeyed from R19 violated. A check that only ever proves it
+  can say no is half a check, so this case is the honest inverse.

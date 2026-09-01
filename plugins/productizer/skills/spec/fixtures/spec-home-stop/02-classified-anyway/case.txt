@@ -1,0 +1,11 @@
+Case: the spec home is unreachable and a classification was recorded anyway
+Asserts: A2
+Home: unreachable
+Records: 1
+Expect: finding
+Findings: 1
+Why: R19 violated, and this is the whole point of the check. The tree is
+  01-stopped with one classification record added: the spec is not there, so
+  whatever this classification was made against, it was not the living spec.
+  The record's own provenance is well formed on purpose - a valid commit and a
+  valid hash - so that A3 cannot fire here and the finding can only be A2.

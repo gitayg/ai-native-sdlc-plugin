@@ -129,7 +129,7 @@
 #      a spec with no requirements, or a baseline out of reach. Never 0.
 set -euo pipefail
 
-VERSION="check-superseded-text 1.0"
+VERSION="check-superseded-text 2.0"
 ROOT=""
 
 usage() {
@@ -303,6 +303,38 @@ while IFS="$(printf '\t')" read -r id line status target text; do
     finding "$SPECREL:$line: $id is $status, and its sentence is not the sentence it carried at $base_sha - the last commit at which it was still active. The original text was rewritten at or after the point the requirement was replaced, so the spec no longer records what was agreed, only what someone would prefer it had said. The text is deliberately not quoted here; read it with: git show $base_sha:$SPECGIT"
   fi
 done < "$WORK/cur.tsv"
+
+# ---- 3: a requirement that is not there at all --------------------------
+#
+# The loop above walks requirements PRESENT IN THE SPEC TODAY, so a
+# requirement that was deleted outright is simply not in it. Measured, not
+# argued: deleting a superseded entry - sentence, marker and all - dropped the
+# counts from 3 to 2 and the run stayed green, because the denominator was
+# taken from what survived rather than from what should have.
+#
+# R3 says the original text is KEPT IN THE SPEC. Deletion is the largest
+# possible violation of that, and it was the one this check could not see. So
+# every id history ever recorded as superseded or withdrawn must still be
+# defined today.
+# Computed with awk over BOTH files rather than a `while read` loop. A first
+# attempt used `IFS=<tab> read`, which silently gave the wrong answer: a tab is
+# an IFS whitespace character, so runs of tabs collapse and an empty field
+# shifts every column after it. The status column was then never `superseded`,
+# the loop body never fired, and the check reported `0 missing` over a spec with
+# a requirement deleted from it. Caught by falsifying, not by reading.
+gone=0
+: > "$WORK/missing.tsv"
+awk -F'\t' '
+  NR == FNR { cur[$1] = 1; next }
+  ($4 == "superseded" || $4 == "withdrawn") && !($2 in cur) && !seen[$2]++ { print $2 "\t" $4 "\t" $1 }
+' "$WORK/cur.tsv" "$WORK/hist.tsv" > "$WORK/missing.tsv"
+
+while IFS="$(printf '\t')" read -r hid hstatus hsha; do
+  [ -n "$hid" ] || continue
+  gone=$((gone + 1))
+  finding "$SPECREL: $hid was recorded $hstatus at $hsha and is not defined in $SPECREL at all. A replaced requirement is RETAINED with its marker - deleting it is the largest way to stop keeping the original text, and every plan, test, review finding and PR title citing $hid now resolves to nothing."
+done < "$WORK/missing.tsv"
+printf 'superseded ids checked for presence: %d missing\n' "$gone"
 
 printf 'requirements examined: %d\n' "$(wc -l < "$WORK/cur.tsv" | tr -d ' ')"
 printf 'superseded or withdrawn: %d\n' "$retained"

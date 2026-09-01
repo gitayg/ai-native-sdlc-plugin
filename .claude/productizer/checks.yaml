@@ -103,6 +103,16 @@ checks:
       from: stdout_count
       pattern: 'true positives[^0-9]*([0-9]+)'
       min_covered: 1
+      spec_units:
+        - id: R23
+          verdict: Partial
+          reason: >-
+            Asserts the STOP half only - the solver halts on a real contradiction and stays quiet
+            on a non-conflict, at precision 1.00 over the committed corpus. The ASK half is
+            asserted by `ruling-requested`. No single check asserts both, and the runner takes the
+            best single claim rather than a union, so R23 reads Partial while both halves are in
+            fact asserted. See B31 - the honest fix is to split R23, which is what this repo
+            already did to R14, R16 and R21 for carrying two obligations under one id.
 
   # --- suppressed stderr ---------------------------------------------------
   #
@@ -619,6 +629,18 @@ checks:
       fail: [1]        # a truncated scope list, a hash that does not match, a missing or placeholder hash, two records for one intent, or a fifth classification value
       refused: [2]     # no work tree, no spec, an unreadable store or record, or a recorded commit this clone cannot resolve
     coverage:
+      spec_units:
+        - id: R6
+          verdict: Partial
+          reason: >-
+            Asserts, per provenance record, that the ids in scope are exactly the set active in the
+            spec at the commit the record names, and that the classification is exactly one of the
+            four - the half a graded eval on outcomes cannot see. It asserts the RECORD, never the
+            act: what stands behind an honest record is the writer, not this check. The empty-set
+            hole is closed one step and not shut - an empty store is a finding when the backlog
+            records a classification and unmeasured when it does not - but a classification that
+            left neither a record nor a backlog line is invisible to both halves, and the
+            corroborator matches only the backticked spelling.
       # Files actually opened, one per line. The spec is always one of them, so
       # a run that opened nothing is a bug rather than a repo with no records.
       # `must_cover` omitted deliberately: an `always` check taking no {files},
@@ -673,11 +695,13 @@ checks:
     coverage:
       spec_units:
         - id: R3
-          verdict: Partial
-          reason: >-
-            Asserts that a superseded requirement still present in the spec carries its original
-            text and marker; does not assert that it is still present at all - deleting the entry
-            outright passes. Measured: the count drops from 3 to 2 and the run stays green.
+          verdict: Covered
+          evidence: >-
+            A superseded requirement keeps the sentence it carried at the last commit at which it
+            was still active, keeps its marker, and is still THERE. The presence half was added
+            after an audit showed that deleting the entry outright passed - the loop walked what
+            survived rather than what should have. Falsified three ways: rewrite the sentence,
+            remove the marker, delete the entry.
       from: stdout_paths
       pattern: '^(\S+)$'
       min_covered: 2
@@ -1185,3 +1209,57 @@ checks:
       min_covered: 1
     limitations:
       - It is RED on purpose and will stay red until B30 is closed. If it ever goes green without B30 being fixed, something has weakened the assertion rather than the gate having gained an approval path.
+
+  # --- an unreachable spec home must stop the lifecycle ---------------------
+  #
+  # R19 had no check. The acceptance table pointed at `check-spec-home.sh`,
+  # whose own header says it asserts R1 - and measured, an unreachable spec
+  # home produced BYTE-IDENTICAL output and the same exit code whether nothing
+  # had been classified or a classification had been recorded from a remembered
+  # copy. Its verdict is independent of whether R19 was obeyed.
+  #
+  # `classification-provenance` cannot own it either: it reads the spec first
+  # and exits 2 the moment the home is unreachable, so the one situation R19 is
+  # about is the one it refuses to render a verdict in.
+  #
+  # Four constructed trees. Cases 01 and 02 are the SAME tree differing only in
+  # whether one classification record exists - the two-tree experiment, made
+  # standing. The negative controls matter as much: a detector that fired on
+  # any record, or on unreachability alone, would pass the positive cases.
+  - id: spec-home-stop
+    why: an unreachable spec home is exactly when a classification is worth least and easiest to make anyway, and nothing asserted the stop
+    when:
+      always: true
+    severity: block
+    requires:
+      - ./plugins/productizer/skills/spec/scripts/check-spec-home-stop.sh
+      - python3
+    version_command: [./plugins/productizer/skills/spec/scripts/check-spec-home-stop.sh, --version]
+    mode: batch
+    command: [./plugins/productizer/skills/spec/scripts/check-spec-home-stop.sh]
+    timeout_seconds: 60
+    exit_codes:
+      pass: [0]
+      fail: [1]        # an unreachable home no longer stops a classification, or the detector fires where it must not
+      refused: [2]     # no fixture, a case whose premise did not hold, or an assertion no case exercised
+    coverage:
+      spec_units:
+        - id: R19
+          verdict: Partial
+          reason: >-
+            Asserts the obligation over four constructed trees - an unreachable home with nothing
+            classified is clean, the same tree with one record is a finding, a record that cannot
+            name its spec commit is a finding, and a reachable home with a well-formed record stays
+            clean. Three things are NOT asserted. It reads a tree's STATE, not a timeline, so a
+            record written before the home broke is indistinguishable from one written after. It
+            does not resolve a well-formed commit against an object store - that is
+            `classification-provenance`'s half. And the configured command examines the fixture,
+            not this repository, so whether THIS repo stopped is asserted by nothing.
+      from: stdout_paths
+      pattern: '^(\S+)$'
+      must_cover: none
+      min_covered: 15
+    limitations:
+      - It observes records, never the act of classifying. The writer's refusal path is the other half of the mechanism.
+      - Reachability is decided locally. A home unreachable for a reason only the network could report reads as reachable here.
+      - Running as a user who can read anything defeats the unreadable-spec and unlistable-store premise guards, as it defeats every such test.

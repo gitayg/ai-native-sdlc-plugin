@@ -1,0 +1,13 @@
+Case: records that cannot name the spec they were made against
+Asserts: A3
+Home: reachable
+Records: 3
+Expect: finding
+Findings: 3
+Why: The spec home is READABLE here, so nothing about reachability is at stake
+  and A2 must stay silent. Each record fails to name a spec in a different
+  way - no `Spec commit` line at all, a blank one, and a placeholder - and all
+  three are the same failure: a record that cannot say which spec it was made
+  against cannot show it was made against the live one. Three records rather
+  than one because a detector that catches only the missing line would still
+  produce "a finding" from a single-record case.

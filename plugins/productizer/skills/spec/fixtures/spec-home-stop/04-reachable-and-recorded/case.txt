@@ -1,0 +1,10 @@
+Case: the spec home is reachable and one well-formed classification exists
+Asserts: A4
+Home: reachable
+Records: 1
+Expect: clean
+Findings: 0
+Why: The negative control. Without it, a detector that fired on the mere
+  existence of a classification record would satisfy A2 and A3 and be
+  worthless - every repo that has ever classified anything would be a finding.
+  Reachable home, valid commit, valid hash: nothing to say.

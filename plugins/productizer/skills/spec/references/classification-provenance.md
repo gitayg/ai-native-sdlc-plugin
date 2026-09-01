@@ -160,6 +160,10 @@ scripts/record-classification.sh --intent PROJ-123 --classification extend
 ```
 
 At the moment intake settles on one of the four, before the delta is written.
+**Stage 2 names this as a step of the stage**, not as a nicety at the end of
+it, because a script that exists and is never invoked is written rather than
+wired — and this one spent its whole first life that way, with a check quietly
+passing over the empty store it left behind.
 The writer reads the spec, hashes it, computes the active id set with the same
 parser the check uses, and moves a fully-built file into place in one step — so
 an interrupted run leaves the store exactly as it found it.
@@ -205,9 +209,22 @@ without parsing the spec. The contract for anything that does:
   command as its own literal text. Distinguish the cases with an explicit
   directory test, never by trusting a count.
 
-- **A clean run with no records asserts nothing.** The check says so in its own
-  pass line rather than claiming every record held up. A green summary line over
-  an empty store is the exact failure Stage 5 exists to distrust.
+- **A run with no records must not exit clean.** Through the check's 1.0 it
+  did — it said in its own pass line that it had asserted nothing, and exited
+  `0` anyway. The sentence was true and the exit code was not: a clean exit
+  from a blocking check is read as *the requirement holds here*, and this one
+  had swept an empty set every run since the day it was written, because Stage
+  2 never called the writer. Written, and never wired.
+
+  Failing outright is the other wrong answer — a repo scaffolded this morning
+  has classified nothing and violated nothing. So the empty store is judged
+  against evidence held **outside** the store, and the two cases are two
+  sentences and two exit codes:
+
+  | Empty store, and… | Verdict |
+  |---|---|
+  | something corroborates that this repo classified | a **finding**, exit 1 |
+  | nothing does | **unmeasured**, exit 2 — never a pass |
 
 - **Emit ids, never text.** Same rule the session-start hook applies to the
   spec, for the same reason.
@@ -241,6 +258,47 @@ Per record:
    recomputed from the refetched spec and compared with the record's list. A
    missing id is the truncation case. An id in the list the spec does not have
    active is the same failure inverted.
+
+Once for the store as a whole:
+
+6. **The store is not an empty one in a repo that demonstrably classified.**
+   The corroborating source is **the backlog** — `backlog.md`, scanned for the
+   classification word itself, the backticked `extend`, `refine`, `duplicate`
+   or `contradict` following the word `classified`. Stage 1 already writes that
+   line onto an item when it goes through intake, so the evidence is committed
+   in the repo, readable offline, in a file the lifecycle maintains anyway. It
+   names the classification rather than an effect of one, and it is written for
+   all four outcomes.
+
+   The spec's `## Change log` was considered and **rejected**: it records
+   *merges*, not classifications. Duplicate and contradict merge nothing by
+   definition, so a lifecycle refusing what it should refuse leaves an empty
+   change log — evidence that vanishes exactly when the requirement is working
+   hardest is not evidence. Its rows also cover spec edits that were never an
+   arriving intent at all, so reading a row as *an intent was classified*
+   asserts something the row does not say.
+
+   Tracker labels were considered and **rejected**: they live behind a network
+   and a token, so a check that reads them reports unmeasured every time it
+   runs offline, and they leave with the tracker at the next migration — the
+   same reason this store is committed beside the spec rather than kept in
+   issue comments.
+
+   Known limitation, and the direction of its error: the pattern requires the
+   backticked spelling, so a backlog saying *classified as extend* in running
+   prose is not matched. A missed match yields exit 2, unmeasured, and never a
+   pass. The backticks are required deliberately — an unbackticked pattern also
+   matches prose about what intake *will* classify, and a corroborator that
+   fires on a future-tense sentence manufactures findings.
+
+Every assertion is **counted on its own**, and the check prints how many
+records upheld each, how many failed it, and how many did not assert it at all
+— a record whose commit cannot be resolved asserts nothing about its hash and
+is counted in neither column. One `ok` flag divided at the end is how a check
+comes to report a denominator it never measured. Assertions 1, 4 and 5 share
+one counter and say so: they are raised inside the shared parser, which does
+not label which of the three a finding came from, and a second copy of its
+rules in the check is how two parsers come to disagree.
 
 When the hash does not match, or the commit cannot be resolved, **the scope
 comparison is not made and is reported as not made**. Comparing the list
@@ -281,9 +339,9 @@ Both scripts use the repo's three, so no caller has to translate.
 
 | | `record-classification.sh` | `check-classification-provenance.sh` |
 |---|---|---|
-| `0` | the record was written | clean |
-| `1` | refused: this intent is already classified | findings |
-| `2` | could not run — bad usage, or NO HASH: an unreachable spec home, an untracked spec, a work tree that disagrees with HEAD | could not run — no work tree, no spec, an unreadable store or record, or a recorded commit this clone cannot resolve |
+| `0` | the record was written | clean — and never over an empty store |
+| `1` | refused: this intent is already classified | findings, including an empty store in a repo that classified |
+| `2` | could not run — bad usage, or NO HASH: an unreachable spec home, an untracked spec, a work tree that disagrees with HEAD | could not run — no work tree, no spec, an unreadable store or record, a recorded commit this clone cannot resolve, or an empty store with nothing corroborating that any classification was ever made |
 
 The ordering rule for the check is `check-spec-home.sh`'s: findings already in
 hand are a definite answer, so a run exits 1 even when another record was

@@ -1,0 +1,9 @@
+{
+  "product": {
+    "repos": ["example/home-repo"],
+    "spec_home": "example/home-repo"
+  },
+  "spec": {
+    "path": ".claude/productizer/spec.md"
+  }
+}

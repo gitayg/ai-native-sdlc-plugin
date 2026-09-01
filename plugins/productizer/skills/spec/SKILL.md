@@ -205,6 +205,19 @@ things (`templates/intake.md`):
 | **Duplicate** | already specified | cite the id and **stop** |
 | **Contradict** | the spec forbids what this requires | **stop and ask** |
 
+**Record the classification the moment you settle on it**, before the delta,
+before the ruling, before anything else - `scripts/record-classification.sh
+--intent <id> --classification <one of the four>`
+(`references/classification-provenance.md`). It writes the spec commit and hash
+you classified against and every active id that was in scope; an unreachable
+spec home yields no hash, so it refuses to write rather than record a guess,
+which is the only half of R19 a script can hold. **This is a step of the stage,
+not a nicety at the end of it** - a classification with no record is one nothing
+can ever check, and `check-classification-provenance.sh` reports an empty store
+in a repo that classified as a finding rather than a pass. The same file also
+holds R6's one-per-intent rule at the filename, so classifying an intent twice
+is a collision the writer refuses.
+
 **A contradiction is a stop, not a merge.** Quote both requirement ids, state
 the conflict in one sentence, ask which wins, and say plainly nothing was
 merged.
@@ -391,6 +404,7 @@ spans several repos, and what breaks when it is split:
 | Docs and go-to-market, per release | `references/release.md` |
 | Which model runs a stage, and what is enforced | `references/models.md` |
 | Intent classification | `templates/intake.md` |
+| What a classification was made from | `references/classification-provenance.md` |
 | The queue in front of intake | `references/backlog.md` |
 | Onboarding an existing repo, end to end | `references/onboarding.md` |
 | The spec diff handed to Build | `references/build-diff.md` |
@@ -415,6 +429,8 @@ contract before wiring one into a gate.
 | `scripts/request-ruling.sh` | raises the ruling a contradiction needs | 0 wrote · 2 usage · 3 unreadable · 4 refused |
 | `scripts/pending-rulings.sh` | which decisions are waiting on a person | 0 none · 1 pending · 2 unknown |
 | `scripts/check-ruling-requested.sh` | every halt actually asked | 0 · 1 findings · 2 could not run |
+| `scripts/record-classification.sh` | the spec commit, hash and ids one classification was made against | 0 wrote · 1 already classified · 2 no hash, so no record |
+| `scripts/check-classification-provenance.sh` | every classification recorded what it read | 0 · 1 findings · 2 could not run, incl. an empty store nothing corroborates |
 | `scripts/check-hygiene.sh` | generic leak rules, plus a private list read at runtime | 0 · 1 findings · 2 could not run |
 | `scripts/check-frontmatter.py` | agent templates' frontmatter does what it says | 0 · 1 findings · 2 usage |
 | `scripts/learnings.sh` | observations that are not obligations, cited to `R` ids | 0 · 1 findings · 2 usage · 3 unreadable · 4 cannot determine · 5 never created · 6 refused |

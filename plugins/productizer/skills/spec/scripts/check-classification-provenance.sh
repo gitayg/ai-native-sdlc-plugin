@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # check-classification-provenance.sh [--version] [--help] [--root DIR]
 #                                    [--spec-path PATH] [--store DIR]
+#                                    [--backlog PATH]
 #
 # Validates the provenance records `record-classification.sh` writes. Two
 # acceptance rows share this one mechanism, and this is the half that refuses.
@@ -43,6 +44,22 @@
 #      cannot tell that apart from one that saw all of it. An id in the list
 #      that the spec does not have active is the same failure inverted.
 #
+# and once for the store as a whole:
+#
+#   6. THE STORE IS NOT EMPTY IN A REPO THAT DEMONSTRABLY CLASSIFIED. See the
+#      section below; this is the assertion 2.0 adds, and the reason for it is
+#      that the five above had never once been evaluated.
+#
+# ASSERTIONS ARE COUNTED SEPARATELY, NOT ROLLED INTO ONE FLAG. The summary
+# names each assertion and how many records upheld it, how many failed it, and
+# how many did not assert it at all - a record whose commit could not be
+# resolved asserts nothing about its hash, and is counted in neither column.
+# One `ok` boolean, divided at the end, is how a check comes to report a
+# denominator it never measured. Assertions 1, 4 and 5 share one counter and
+# say so: they are raised inside `classification-record.py`, the parser the
+# writer and this check deliberately share, and it does not label which of the
+# three a finding came from.
+#
 # WHAT IT DELIBERATELY DOES NOT DO
 #
 #   A record made against an OLDER spec is not a finding. The normal intake
@@ -69,6 +86,70 @@
 # An unmatched glob reaches a command as its own literal text in bash, so the
 # cases are told apart by an explicit directory test and never by a count.
 #
+# AN EMPTY STORE IS NOT A PASS - AND IS NOT AUTOMATICALLY A FAILURE EITHER
+#
+#   Through 1.0 this check exited 0 over an empty store, saying in its own pass
+#   line that it had asserted nothing. The sentence was true and the exit code
+#   was not: a clean exit from a blocking check is read as "R6 holds here", and
+#   this one had swept an empty set every run since the day it was written,
+#   because Stage 2 intake never invoked `record-classification.sh`. The
+#   mechanism was written and never wired, and nothing said so out loud.
+#
+#   Failing outright is the other wrong answer. A repo scaffolded this morning
+#   has classified nothing and has violated nothing, and a check that cries
+#   wolf there teaches everybody to ignore it.
+#
+#   So an empty store is not judged on its own. It is judged against evidence
+#   held OUTSIDE the store about whether this repo classified anything at all:
+#
+#     empty store, evidence classification happened   FINDING       exit 1
+#     empty store, no such evidence                   UNMEASURED    exit 2
+#
+#   Never 0, and never the same sentence twice: the first says records are
+#   missing, the second says nothing was measured. Collapsing them would be the
+#   1.0 defect again in a different costume.
+#
+# THE CORROBORATING SOURCE IS THE BACKLOG, AND HERE IS WHY IT AND NOT THE REST
+#
+#   `.claude/productizer/backlog.md`, scanned for the classification word
+#   itself - the backticked `extend`, `refine`, `duplicate` or `contradict`
+#   following the word `classified`. Stage 1 already writes that line onto an
+#   item when it goes through intake, so the evidence is committed in the repo,
+#   readable offline, in a file the lifecycle maintains for its own reasons. It
+#   names the classification rather than an effect of one, and it is written
+#   for all four outcomes.
+#
+#   The spec's `## Change log` was considered and REJECTED. It records MERGES,
+#   not classifications. Two of the four outcomes - duplicate and contradict -
+#   merge nothing by definition, so a lifecycle classifying correctly and
+#   refusing what it should refuse leaves an empty change log. Evidence that
+#   vanishes exactly when the requirement is working hardest is not evidence.
+#   Its rows also cover spec edits that were never an arriving intent at all -
+#   this repo's own row cites no issue, because it records a split made under a
+#   decision record - so counting a row as "an intent was classified" would
+#   assert something the row does not say.
+#
+#   Tracker labels were considered and REJECTED. They live in a service, behind
+#   a network and a token: a check that reads them reports unmeasured every time
+#   it runs offline, and they leave with the tracker at the next migration. That
+#   is the same reason this lifecycle commits its records beside the spec
+#   instead of in issue comments.
+#
+#   KNOWN LIMITATION, written down rather than discovered later: the pattern
+#   requires the backticked spelling. A backlog saying "classified as extend"
+#   in running prose is not matched. The direction of that error is the safe
+#   one - a missed match yields exit 2, unmeasured, and never a pass. The
+#   backticks are required on purpose: an unbackticked pattern also matches
+#   this repo's own prose about what intake WILL classify, and a corroborator
+#   that fires on a sentence in the future tense manufactures findings.
+#
+#   The backlog is read on every run, not only when the store is empty, so the
+#   set of files this check declares as examined does not depend on the verdict
+#   it is about to reach. When both counts are non-zero their difference is
+#   printed as a note and never as a verdict: a backlog line and a store record
+#   are not in one-to-one correspondence, and lines written before the store
+#   existed can never have one.
+#
 # UNRESOLVABLE IS NOT WRONG. A record citing a commit this clone does not hold
 # - a shallow clone, a rewritten history - cannot be checked. That is exit 2,
 # refused, and it is never folded into a pass. The one ordering rule is
@@ -79,14 +160,16 @@
 # REPORTED BY LOCATION, NEVER BY QUOTING CONTENT. File, line, and the class of
 # problem. A record names an intent a stranger can write, and this output
 # reaches a committed results file and a model's context. The only value ever
-# echoed is a classification word, checked against a closed set of four first.
+# echoed is a classification word, checked against a closed set of four first -
+# and that rule governs the backlog scan too: a corroborated line is reported
+# as a line number and a classification word, never as the item's text.
 # Paths are printed RELATIVE to the root, because an absolute one names
 # somebody's home directory and this output is committed.
 #
-# ONE LINE PER FILE EXAMINED, on stdout, unindented - the spec, then every
-# record read. The runner treats a check that exits clean having examined less
-# than it declared as HOLLOW, which is a failure. A check that looks at nothing
-# must not look like a pass.
+# ONE LINE PER FILE EXAMINED, on stdout, unindented - the spec, the backlog
+# when it could be read, then every record read. The runner treats a check that
+# exits clean having examined less than it declared as HOLLOW, which is a
+# failure. A check that looks at nothing must not look like a pass.
 #
 # KNOWN LIMITATIONS, written down rather than discovered later:
 #   - The active-id rules are build-view.sh's, reproduced in
@@ -106,15 +189,17 @@
 #
 # EXIT CODES ARE THE CONTRACT.
 #
-#   0  clean
-#   1  findings
-#   2  could not run - no work tree, no spec, an unreadable store or record, or
-#      a recorded commit this clone cannot resolve. Never confused with 0.
+#   0  clean - and never over an empty store
+#   1  findings, including an empty store in a repo that classified
+#   2  could not run - no work tree, no spec, an unreadable store or record, a
+#      recorded commit this clone cannot resolve, or an empty store with
+#      nothing corroborating that any classification was ever made. Never
+#      confused with 0.
 set -euo pipefail
 
 export LC_ALL=C
 
-VERSION="check-classification-provenance 1.0"
+VERSION="check-classification-provenance 2.0"
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 LIB="$HERE/classification-record.py"
@@ -122,14 +207,23 @@ LIB="$HERE/classification-record.py"
 ROOT=""
 SPEC_REL=".claude/productizer/spec.md"
 STORE_REL=".claude/productizer/classifications"
+BACKLOG_REL=".claude/productizer/backlog.md"
+
+# The corroborating pattern. Backticks are load-bearing; see the header.
+EVIDENCE_RE='classified `(extend|refine|duplicate|contradict)`'
 
 usage() {
   printf 'usage: check-classification-provenance.sh [--version] [--help] [--root DIR]\n'
   printf '                                          [--spec-path PATH] [--store DIR]\n'
+  printf '                                          [--backlog PATH]\n'
   printf '  --root DIR        the repo work tree to examine. Defaults to the git\n'
   printf '                    top level, never to the working directory.\n'
   printf '  --spec-path PATH  spec location relative to the root\n'
   printf '  --store DIR       record store relative to the root\n'
+  printf '  --backlog PATH    the file corroborating that classification happened,\n'
+  printf '                    relative to the root. An empty store is a FINDING when\n'
+  printf '                    this file records a classification and UNMEASURED when\n'
+  printf '                    it does not - it is never a pass either way.\n'
 }
 
 die_unmeasured() { printf 'check-classification-provenance: %s\n' "$1" >&2; exit 2; }
@@ -144,6 +238,8 @@ while [ "$#" -gt 0 ]; do
     --spec-path=*) SPEC_REL="${1#--spec-path=}"; shift ;;
     --store) [ "$#" -ge 2 ] || die_unmeasured "--store needs a path"; STORE_REL="$2"; shift 2 ;;
     --store=*) STORE_REL="${1#--store=}"; shift ;;
+    --backlog) [ "$#" -ge 2 ] || die_unmeasured "--backlog needs a path"; BACKLOG_REL="$2"; shift 2 ;;
+    --backlog=*) BACKLOG_REL="${1#--backlog=}"; shift ;;
     -*) printf 'check-classification-provenance: unknown option %s\n' "$1" >&2; usage >&2; exit 2 ;;
     *) printf 'check-classification-provenance: unexpected argument %s\n' "$1" >&2; usage >&2; exit 2 ;;
   esac
@@ -163,6 +259,7 @@ fi
 
 SPEC="$ROOT/$SPEC_REL"
 STORE="$ROOT/$STORE_REL"
+BACKLOG="$ROOT/$BACKLOG_REL"
 
 [ -f "$SPEC" ] && [ -r "$SPEC" ] ||
   die_unmeasured "cannot read $SPEC_REL under the given root. Without the spec there is no active set to compare a record against, and a check that cannot compare must not report a pass."
@@ -173,6 +270,14 @@ trap 'rm -rf "$WORK"' EXIT HUP INT TERM
 found=0
 unresolved=0
 finding() { printf '    %s\n' "$1"; found=1; }
+
+# Every assertion carries its OWN pair of counters. Nothing here is derived by
+# subtracting one number from another at the end.
+a_hash_up=0;  a_hash_bad=0;  a_hash_none=0
+a_name_up=0;  a_name_bad=0
+a_uniq_up=0;  a_uniq_bad=0
+a_body_up=0;  a_body_bad=0
+a_store_up=0; a_store_bad=0; a_store_none=0
 
 printf '%s\n' "$SPEC_REL"          # coverage: one line per file examined
 
@@ -222,29 +327,40 @@ if [ "$DIRSTATE" = "present" ]; then
     done < "$WORK/pass1.tsv"
 
     # --- refetch the spec at the recorded commit and rehash it ------------
+    # ASSERTION 3, counted on its own. A record with no commit or no hash at
+    # all is assertion 4's to refuse, and asserts NOTHING here.
     SPECSRC="-"
     if [ -n "$rec_commit" ] && [ -n "$rec_hash" ] && [ -n "$rec_specpath" ]; then
       if git -C "$ROOT" show "$rec_commit:$rec_specpath" > "$WORK/at-commit" 2> "$WORK/git-err"; then
         got="$(python3 "$LIB" --sha256 "$WORK/at-commit")"
         if [ "$got" = "$rec_hash" ]; then
           SPECSRC="$WORK/at-commit"
+          a_hash_up=$((a_hash_up + 1))
         else
+          a_hash_bad=$((a_hash_bad + 1))
           finding "$rel:1: the recorded Spec hash does not match the spec at the recorded Spec commit. The record stamps one spec and hashed another, which is what classifying from a remembered copy looks like once it is written down. The in-scope list was NOT compared - what this record read is unknown, not empty."
         fi
       else
         printf '    %s:1: the recorded Spec commit cannot be resolved in this clone. git said:\n' "$rel"
         sed 's/^/      /' < "$WORK/git-err"
         unresolved=$((unresolved + 1))
+        a_hash_none=$((a_hash_none + 1))
       fi
+    else
+      a_hash_none=$((a_hash_none + 1))
     fi
 
     # --- pass two: everything, now that the spec is in hand ---------------
+    # ASSERTIONS 1, 4 and 5, in one counter, because the shared parser does
+    # not label which of the three a finding belongs to and a second copy of
+    # its rules here is how two parsers come to disagree.
     python3 "$LIB" --validate "$f" "$SPECSRC" > "$WORK/pass2.tsv"
 
+    body_bad=0
     active_at="—"
     while IFS="$(printf '\t')" read -r kind kline detail; do
       case "${kind:-}" in
-        FINDING) finding "$rel:$kline: $detail" ;;
+        FINDING) finding "$rel:$kline: $detail"; body_bad=1 ;;
         VALUE)
           case "$detail" in
             "Active at commit="*) active_at="${detail#Active at commit=}" ;;
@@ -252,12 +368,20 @@ if [ "$DIRSTATE" = "present" ]; then
           ;;
       esac
     done < "$WORK/pass2.tsv"
+    if [ "$body_bad" -eq 0 ]; then
+      a_body_up=$((a_body_up + 1))
+    else
+      a_body_bad=$((a_body_bad + 1))
+    fi
 
-    # --- the filename is the writer's uniqueness guarantee; verify it -----
+    # --- ASSERTION 2a: the filename is the writer's uniqueness guarantee --
     if [ -n "$rec_intent" ]; then
       want="$(python3 "$LIB" --slug "$rec_intent")"
       if [ "$base" != "$want.md" ]; then
+        a_name_bad=$((a_name_bad + 1))
         finding "$rel:1: the filename does not match the intent this record declares. The store holds one record per intent BY NAME, so a record filed under any other name is a second classification the filename can never catch."
+      else
+        a_name_up=$((a_name_up + 1))
       fi
       printf '%s\t%s\n' "$rec_intent" "$rel" >> "$WORK/intents.tsv"
     fi
@@ -272,20 +396,81 @@ if [ "$DIRSTATE" = "present" ]; then
 fi
 
 # ---------------------------------------------------------------------------
-# Exactly one record per intent, checked at the content and not the filename.
+# ASSERTION 2b: exactly one record per intent, checked at the content and not
+# the filename. Counted per record, so the number below is a count of records
+# that held it and never a count of intents.
 # ---------------------------------------------------------------------------
 if [ -s "$WORK/intents.tsv" ]; then
   sort "$WORK/intents.tsv" > "$WORK/intents-sorted.tsv"
   cut -f1 "$WORK/intents-sorted.tsv" | uniq -d > "$WORK/dupes"
-  while IFS= read -r dup; do
-    [ -n "$dup" ] || continue
-    while IFS="$(printf '\t')" read -r who where; do
-      [ "$who" = "$dup" ] || continue
+  while IFS="$(printf '\t')" read -r who where; do
+    dup=0
+    while IFS= read -r d; do
+      [ -n "$d" ] || continue
+      if [ "$d" = "$who" ]; then dup=1; fi
+    done < "$WORK/dupes"
+    if [ "$dup" -eq 1 ]; then
+      a_uniq_bad=$((a_uniq_bad + 1))
       finding "$where:1: this intent is classified more than once in the store. R6 says exactly one of the four, and two records for one intent is two answers with nothing choosing between them."
-    done < "$WORK/intents-sorted.tsv"
-  done < "$WORK/dupes"
+    else
+      a_uniq_up=$((a_uniq_up + 1))
+    fi
+  done < "$WORK/intents-sorted.tsv"
 fi
 
+# ---------------------------------------------------------------------------
+# ASSERTION 6: the store is not an empty one in a repo that classified.
+#
+# Read on EVERY run, not only when the store is empty, so the set of files
+# this check declares as examined does not depend on the verdict it reaches.
+# ---------------------------------------------------------------------------
+corroborated=0
+BACKSTATE="absent"
+: > "$WORK/evidence"
+
+if [ -e "$BACKLOG" ]; then
+  if [ -f "$BACKLOG" ] && [ -r "$BACKLOG" ]; then
+    BACKSTATE="read"
+    printf '%s\n' "$BACKLOG_REL"   # coverage: one line per file examined
+    set +e
+    grep -n -E "$EVIDENCE_RE" "$BACKLOG" > "$WORK/evidence"
+    grc=$?
+    set -e
+    case "$grc" in
+      0) corroborated="$(wc -l < "$WORK/evidence" | tr -d ' ')" ;;
+      1) corroborated=0 ;;          # a genuine no-match, which is an answer
+      *) die_unmeasured "grep exited $grc reading $BACKLOG_REL, so whether this repo ever classified anything is UNKNOWN. An empty store is only innocent once that question has an answer." ;;
+    esac
+  else
+    BACKSTATE="unreadable"
+  fi
+fi
+
+if [ "$records" -gt 0 ]; then
+  a_store_up=1
+elif [ "$corroborated" -gt 0 ]; then
+  a_store_bad=1
+  shown=0
+  while IFS= read -r line; do
+    [ -n "$line" ] || continue
+    lno="${line%%:*}"
+    word="$(printf '%s\n' "$line" | sed -n 's/.*classified `\([a-z]*\)`.*/\1/p')"
+    case "$word" in extend|refine|duplicate|contradict) ;; *) word="—" ;; esac
+    shown=$((shown + 1))
+    if [ "$shown" -le 20 ]; then
+      finding "$BACKLOG_REL:$lno: an intake classification of \`$word\` is recorded here, and the store holds no provenance record for it. R6 needs the ids that were in scope and R19 needs the hash of what was read; neither exists for this classification, so neither can ever be checked."
+    fi
+  done < "$WORK/evidence"
+  if [ "$corroborated" -gt 20 ]; then
+    printf '    ... and %d more corroborated classification(s), not listed.\n' "$((corroborated - 20))"
+  fi
+else
+  a_store_none=1
+fi
+
+# ---------------------------------------------------------------------------
+# The summary. Every number below was counted where it was measured.
+# ---------------------------------------------------------------------------
 printf 'records examined: %d\n' "$records"
 if [ "$DIRSTATE" = "absent" ]; then
   printf 'note: no %s directory - this repo has recorded no classification. That is no count, not a measured zero.\n' "$STORE_REL"
@@ -294,8 +479,41 @@ elif [ "$records" -eq 0 ]; then
 fi
 printf 'unresolvable commits: %d\n' "$unresolved"
 
+case "$BACKSTATE" in
+  read)
+    printf 'classifications corroborated in %s: %d\n' "$BACKLOG_REL" "$corroborated"
+    ;;
+  absent)
+    printf 'note: no %s - nothing in this repo corroborates a classification either way. Absent is not the same sentence as none happened.\n' "$BACKLOG_REL"
+    ;;
+  unreadable)
+    printf 'note: %s exists and cannot be read. Whether this repo ever classified anything is UNKNOWN, not none.\n' "$BACKLOG_REL"
+    ;;
+esac
+
+if [ "$records" -gt 0 ] && [ "$corroborated" -gt "$records" ]; then
+  printf 'note: %d corroborated classification(s) against %d record(s). Reported, never judged - the two are not in one-to-one correspondence, and a backlog line written before the store existed can never have a record.\n' \
+    "$corroborated" "$records"
+fi
+
+printf 'assertions, each counted where it was measured:\n'
+printf '  3 hash matches the spec at the recorded commit: %d upheld, %d failed, %d not asserted\n' \
+  "$a_hash_up" "$a_hash_bad" "$a_hash_none"
+printf '  1+4+5 classification value, hash present, scope list complete: %d upheld, %d failed\n' \
+  "$a_body_up" "$a_body_bad"
+printf '  2a filename matches the intent the record declares: %d upheld, %d failed\n' \
+  "$a_name_up" "$a_name_bad"
+printf '  2b exactly one record per intent, at the content: %d upheld, %d failed\n' \
+  "$a_uniq_up" "$a_uniq_bad"
+printf '  6 the store is not empty in a repo that classified: %d upheld, %d failed, %d not asserted\n' \
+  "$a_store_up" "$a_store_bad" "$a_store_none"
+
 if [ "$found" -ne 0 ]; then
-  printf 'FAIL: a classification record does not stand up. R6 needs the whole active set to have been in scope; R19 needs a hash that matches the spec at the commit it names.\n' >&2
+  if [ "$records" -eq 0 ]; then
+    printf 'FAIL: this repo records %d classification(s) and holds provenance for none of them. An empty store here is not nothing to check - it is R6 and R19 unrecorded, and the store cannot fill itself: Stage 2 intake has to call record-classification.sh at the moment it settles on one of the four.\n' "$corroborated" >&2
+  else
+    printf 'FAIL: a classification record does not stand up. R6 needs the whole active set to have been in scope; R19 needs a hash that matches the spec at the commit it names.\n' >&2
+  fi
   exit 1
 fi
 
@@ -304,11 +522,21 @@ if [ "$unresolved" -gt 0 ]; then
   exit 2
 fi
 
-# The pass line says what was actually asserted. A run with no records has
-# asserted nothing about records, and a PASS claiming otherwise is the green
-# summary line this whole stage exists to distrust.
+# The verdict line says what was actually asserted. A run with no records has
+# asserted nothing about records, and through 1.0 that run exited 0 - which is
+# the green summary line this whole stage exists to distrust.
 if [ "$records" -eq 0 ]; then
-  printf 'PASS: nothing to contradict. No classification record was examined, so this run asserts nothing about R6 or R19 - it is clean, not evidence.\n'
-else
-  printf 'PASS: all %d record(s) carry a hash that matches the spec at the commit they name, exactly one classification from the four, and every requirement active in that spec in scope.\n' "$records"
+  # The reason differs and is said differently. "Nothing corroborates it" is a
+  # measured answer; "the corroborator could not be read" is not one, and
+  # printing the first sentence over the second would be this check inventing
+  # the measurement it just failed to take.
+  case "$BACKSTATE" in
+    read)   why="nothing in $BACKLOG_REL corroborates that this repo has ever classified an intent" ;;
+    absent) why="there is no $BACKLOG_REL to corroborate that this repo has ever classified an intent" ;;
+    *)      why="$BACKLOG_REL could not be read, so whether this repo has ever classified an intent is UNKNOWN - not no" ;;
+  esac
+  printf 'UNMEASURED: no classification record was examined, and %s. R6 and R19 are NOT asserted by this run. Refusing rather than passing: a clean exit over an empty set is read as the requirement holding, and it is the one wrong answer that looks healthy.\n' "$why" >&2
+  exit 2
 fi
+
+printf 'PASS: all %d record(s) carry a hash that matches the spec at the commit they name, exactly one classification from the four, and every requirement active in that spec in scope.\n' "$records"
