@@ -140,7 +140,37 @@ fi
 [ -d "$ROOT" ] || die_unmeasured "--root $ROOT is not a directory"
 
 SPEC="$ROOT/$SPEC_REL"
-STORE="$ROOT/$STORE_REL"
+# AN ABSOLUTE --store IS HONOURED AS ABSOLUTE, and the path printed is the path
+# written. This used to be an unconditional `$ROOT/$STORE_REL`, so an absolute
+# argument was joined to the root and the record landed INSIDE the repository
+# under a directory shaped like the caller's scratch path. Measured, not
+# argued: a run given an absolute store printed that absolute path and wrote to
+# a repo-relative one, and the next run refused with `already classified` while
+# the named store was visibly empty - the guard was reading a copy the caller
+# could not see.
+#
+# Two defects in one, and the second is the worse: the message named one path
+# and the write went to another. A tool that reports a location it did not use
+# cannot be checked by reading its output, which is the only thing anyone reads.
+#
+# It also matters for R4's neighbourhood - a recorder that writes into the
+# repository it is recording ABOUT can move the very tree a later check hashes.
+case "$STORE_REL" in
+  /*) STORE="$STORE_REL" ;;
+  *)  STORE="$ROOT/$STORE_REL" ;;
+esac
+
+# What gets PRINTED is the path that was written, shortened to repo-relative
+# when it is inside the repo. Both halves matter: printing a path other than the
+# one used is the defect above, and printing an absolute one puts somebody's
+# home directory into output that gets pasted into files this project commits.
+# So: same path, shortest honest spelling.
+show_path() {
+  case "$1" in
+    "$ROOT"/*) printf '%s' "${1#"$ROOT"/}" ;;
+    *)         printf '%s' "$1" ;;
+  esac
+}
 
 # --- the spec home, or nothing --------------------------------------------
 [ -e "$SPEC" ] ||
@@ -188,19 +218,19 @@ RECORDED="$(python3 "$LIB" --today)"
 python3 "$LIB" --active-ids "$SPEC" > "$WORK/ids"
 ID_COUNT="$(awk 'END { print NR }' "$WORK/ids")"
 
-DEST="$STORE/$SLUG.md"
+DEST="$(show_path "$STORE/$SLUG.md")"
 
 # --- exactly one classification per intent --------------------------------
 if [ -e "$DEST" ]; then
   [ -r "$DEST" ] ||
-    die_unmeasured "$STORE_REL/$SLUG.md exists but cannot be read, so whether this intent is already classified is UNKNOWN, not no. Nothing was written."
+    die_unmeasured "$(show_path "$STORE/$SLUG.md") exists but cannot be read, so whether this intent is already classified is UNKNOWN, not no. Nothing was written."
   EXISTING="$(awk '/^Intent:/ { sub(/^Intent:[ \t]*/, ""); print; exit }' "$DEST")"
   if [ "$EXISTING" = "$INTENT" ]; then
-    printf '%s\n' "$STORE_REL/$SLUG.md"
+    printf '%s\n' "$(show_path "$STORE/$SLUG.md")"
     printf 'REFUSED: this intent is already classified. Exactly one classification per intent is the R6 invariant, and it is held here by the filename. Nothing was written.\n' >&2
     exit 1
   fi
-  die_unmeasured "$STORE_REL/$SLUG.md already holds a record for a different intent identifier - two identifiers reduced to one filename. Pick a distinguishable id; do not overwrite. Nothing was written."
+  die_unmeasured "$(show_path "$STORE/$SLUG.md") already holds a record for a different intent identifier - two identifiers reduced to one filename. Pick a distinguishable id; do not overwrite. Nothing was written."
 fi
 
 # --- build it whole, then move it in one step ------------------------------
@@ -231,4 +261,4 @@ printf 'spec commit: %s\n' "$COMMIT"
 printf 'spec hash: %s\n' "$SPEC_HASH"
 printf 'active requirement ids in scope: %s\n' "$ID_COUNT"
 printf 'classification: %s\n' "$CLASSIFICATION"
-printf '%s\n' "$STORE_REL/$SLUG.md"
+printf '%s\n' "$(show_path "$STORE/$SLUG.md")"

@@ -104,15 +104,13 @@ checks:
       pattern: 'true positives[^0-9]*([0-9]+)'
       min_covered: 1
       spec_units:
-        - id: R23
-          verdict: Partial
-          reason: >-
-            Asserts the STOP half only - the solver halts on a real contradiction and stays quiet
-            on a non-conflict, at precision 1.00 over the committed corpus. The ASK half is
-            asserted by `ruling-requested`. No single check asserts both, and the runner takes the
-            best single claim rather than a union, so R23 reads Partial while both halves are in
-            fact asserted. See B31 - the honest fix is to split R23, which is what this repo
-            already did to R14, R16 and R21 for carrying two obligations under one id.
+        - id: R33
+          verdict: Covered
+          evidence: >-
+            R33 is the STOP half of the old R23, split out under B31 so it has its own id and its
+            own claim. The solver halts on a real contradiction and stays quiet on a non-conflict,
+            at precision 1.00 over the committed corpus, run on every commit rather than only when
+            its own source changes.
 
   # --- suppressed stderr ---------------------------------------------------
   #
@@ -265,12 +263,14 @@ checks:
       refused: [2]     # the rulings directory or one of its files could not be read
     coverage:
       spec_units:
-        - id: R23
+        - id: R34
           verdict: Partial
           reason: >-
-            Asserts that a raised concern has a real, reachable ruling to answer; a contradiction
-            stopped with nothing written to the spec at all leaves it nothing to find, and the
-            `stop` half of R23 is asserted by no declared check.
+            R34 is the ASK half of the old R23, split out under B31. Asserts that a raised concern
+            cites a ruling that exists, is cited back, and is filled in enough to answer. What is
+            still unasserted is inherited from R23 and is not fixed by the split: a contradiction
+            stopped in conversation, with nothing written to the spec at all, leaves this check
+            nothing to find.
       # Files the check actually opened, one per line. The spec is always one of
       # them, so a run that opened nothing is a bug rather than an empty repo.
       from: stdout_paths
@@ -523,12 +523,14 @@ checks:
       refused: [2]     # a spec that could not be read or could not be parsed
     coverage:
       spec_units:
-        - id: R8
+        - id: R36
           verdict: Partial
           reason: >-
-            Asserts that every active requirement has an acceptance-criteria row, not that the id
-            allocated was the next unused one; R99 allocated while the counter reads R29 passes
-            cleanly.
+            R36 is the RECORD half of the old R8, split out under B31. Asserts that every active
+            requirement has a row in the acceptance criteria table, falsified by adding one
+            without. What is still unasserted is inherited from R8 and untouched by the split: it
+            asserts a row EXISTS, never that the row is TRUE - a row naming a check that does not
+            assert the requirement passes here.
       # Every requirement PARSED, not the subset that produced findings.
       # "0 missing rows" is only a claim about a spec somebody actually parsed.
       from: stdout_count
@@ -1084,13 +1086,13 @@ checks:
             Every id defined in any reachable spec version is still defined today, under its
             own number, meaning what it meant. Falsified by deleting an active id and by
             moving a sentence to a different id.
-        - id: R8
-          verdict: Partial
-          reason: >-
-            Asserts the allocation half - the counter is above every id ever used, superseded
-            included, and every addition is named in the change log. The acceptance-row half
-            is asserted by `acceptance-rows`, and neither check asserts both, so no single
-            check covers R8 end to end.
+        - id: R35
+          verdict: Covered
+          evidence: >-
+            R35 is the ALLOCATION half of the old R8, split out under B31 so it has its own id and
+            its own claim. The counter is strictly above every id ever used - superseded and
+            withdrawn included, because a used id is used forever - and every addition is named in
+            the change log. Falsified by setting the counter below a used id.
       from: stdout_paths
       pattern: '^(\S+)$'
       must_cover: none

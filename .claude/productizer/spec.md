@@ -9,7 +9,7 @@ site generators, doc builds and packaging all skip that directory, so the spec
 is never rendered as a page or shipped in a release.
 
 Next requirement id
-: `R33` — allocate from here, then increment. This is the highest id the spec
+: `R37` — allocate from here, then increment. This is the highest id the spec
 has ever used, not a count of the rows on screen. Ids are never reused and
 never renumbered, and stay unique across the whole repo even if this spec is
 later split into several files.
@@ -101,10 +101,15 @@ file stays skimmable at two hundred. One row per requirement, in id order.
 - **R7** — When an intent is classified, the lifecycle shall record the classification in the spec's change log.
   Superseded by R32. R7 required a change-log row for EVERY classification, and that log is defined as one row per commit to this file - so a classification that merges nothing was asked for a row in a table keyed on an event that did not happen. Narrowed to the classifications that actually change the spec.
 - **R8** — When a requirement is added, the lifecycle shall allocate the next unused id and record it in the acceptance criteria table.
+  Superseded by R35. Split into R35 and R36 — the sentence carried two obligations under one id, and no single check asserted both, so it read `Partial` while both halves were in fact asserted.
 - **R9** — When a release is prepared, the lifecycle shall regenerate the user guide from the active requirements.
 - **R10** — When a repository with history is imported, the lifecycle shall mark every drafted requirement inferred and unconfirmed.
 - **R11** — When a published view is regenerated, the lifecycle shall read every figure in it from a file in the repository.
 - **R32** — When a classification changes the spec, the lifecycle shall record it in the spec's change log.
+- **R33** — If an intent contradicts an active requirement, then the lifecycle shall stop.
+- **R34** — If an intent contradicts an active requirement, then the lifecycle shall ask which wins.
+- **R35** — When a requirement is added, the lifecycle shall allocate the next unused id.
+- **R36** — When a requirement is added, the lifecycle shall record it in the acceptance criteria table.
 
 ### State-driven
 
@@ -114,7 +119,7 @@ file stays skimmable at two hundred. One row per requirement, in id order.
 ### Unwanted behaviour
 
 - **R14** — If an intent contradicts an active requirement, then the lifecycle shall stop and ask which wins, and shall merge nothing.
-  Superseded by R23. Split into R23 and R24 — the sentence carried two obligations under one id, so a test could satisfy one half and leave the other unasserted.
+  Superseded by R33. Split into R23 and R24 — the sentence carried two obligations under one id, so a test could satisfy one half and leave the other unasserted. R23 was itself split again under B31 into R33 and R34, so the pointer moved to R33 rather than leaving a chain that ends on a superseded requirement: a citation has to reach a requirement someone can still read as current. This sentence's obligations now live in R33 (stop), R34 (ask) and R24 (merge nothing).
 
 - **R15** — If a check exits zero having examined less than it declared, then the lifecycle shall report it as hollow and treat it as a failure.
 - **R16** — If a value could not be measured, then the lifecycle shall report it as unmeasured and shall not record it as zero.
@@ -125,6 +130,7 @@ file stays skimmable at two hundred. One row per requirement, in id order.
 - **R19** — If the spec home is unreachable, then the lifecycle shall stop rather than classify against a remembered copy.
 - **R20** — If a survey finds too little evidence to draft from, then the lifecycle shall refuse to draft a spec from it.
 - **R23** — If an intent contradicts an active requirement, then the lifecycle shall stop and ask which wins.
+  Superseded by R33. Split into R33 and R34 — the sentence carried two obligations under one id, and no single check asserted both, so it read `Partial` while both halves were in fact asserted.
 - **R24** — If an intent contradicts an active requirement, then the lifecycle shall merge nothing.
 - **R25** — If a value could not be measured, then the lifecycle shall report it as unmeasured.
 - **R26** — If a value could not be measured, then the lifecycle shall not record it as zero.
@@ -186,6 +192,10 @@ until a human rules on it.
 | R4 | `view-read-only` check — both halves. The generator moves no repository file (every file hashed before and after, content and mtime), and the page declares no capability that can publish a new version of itself. Falsified four ways on the first half and three on the second; a page that could not be built is exit 2, never zero capabilities. |
 | R6 | `classification-provenance` check — asserts every active requirement id was in the context the classification was made from, and that exactly one classification was recorded. Falsified by dropping an active id from a record's scope list. |
 | R32 | **Nothing yet.** A verifier would assert that every change-log row cites an intent, and that a commit changing the Requirements section carries a row. The inverse - a classification that merged nothing and wrote no row - is correct by construction under R32 and needs no check. Not built |
+| R33 | `solver-corpus` check running `contradiction-check.py --selftest` on every commit — the solver halts on a real contradiction and stays quiet on a non-conflict, precision 1.00 over the committed corpus. This is the half R23 credited to a CI step that carried no coverage claim |
+| R34 | `ruling-requested` check — a raised concern must cite a ruling that exists, is cited back, and is filled in enough to answer. Falsified by removing a raised ruling and watching it go red. Known gap, inherited from R23: a contradiction stopped with nothing written to the spec leaves it nothing to find |
+| R35 | `spec-integrity` check — the `Next requirement id` counter is strictly above every id ever used, superseded and withdrawn included, and every addition is named in the change log. Falsified by setting the counter below a used id, which drops R8.1 to 4 of 28 while R8.2 still holds |
+| R36 | `acceptance-rows` check — every active requirement has a row in this table. Falsified by adding an active requirement with no row. Known gap, inherited from R8: it asserts a row EXISTS, never that the row is true |
 | R8 | `acceptance-rows` check — asserts every active requirement has a row here. Superseded, withdrawn and inferred requirements are exempt, the last per `references/import.md:70`. Measured 2026-08-30: 25 active, 25 rows. |
 | R9 | `guide-current` check over `build-guide.sh --check` — regenerates the guide's requirements section into memory and reports drift without writing. Falsified by weakening a requirement's wording inside the markers; missing markers are refused rather than guessed at. |
 | R10 | `import-marking` check — fails a requirement attributed to an import that carries no inferred marking. Attribution is structural, from a marked sibling's change-log row or introducing commit; the naive signal (the word *import* in a message) was built first and measured as unusable. **Declared limitation:** an import that marked nothing and named no stage is invisible, and the run says so. |
@@ -209,6 +219,7 @@ someone edits one and not the other.
 | Date | Issue | Branch / PR | Added | Refined | Superseded / withdrawn | Summary |
 |---|---|---|---|---|---|---|
 | <YYYY-MM-DD> | <#123 / PROJ-123> | `<branch>` / <pr> | R41–R43 | R12 | R7 → R41 | <what changed and why> |
+| 2026-09-01 | — | — | R33–R36 | R8 → R35, R36; R23 → R33, R34 | B31 | Each carried two `shall` clauses under one id. The runner takes the best SINGLE claim per requirement, never a union, so a requirement whose halves are asserted by two different checks reads `Partial` forever - which is what both did. Split so every obligation has its own id and its own claim, the same remedy applied to R14, R16 and R21. Originals retained verbatim, marked superseded. |
 | 2026-08-29 | — | — | R23–R28 | — | R14 → R23, R24; R16 → R25, R26; R21 → R27, R28 | Each of the three carried two `shall` clauses under one id. Split so every obligation has its own id and neither half can be half-tested. Originals retained verbatim, marked superseded. |
 | 2026-08-30 | [#2](https://github.com/gitayg/productizer/issues/2) | `feature/2-argv-any-position` / PR | R29 | — | — | R18 is narrower than P4, the principle it is listed as enforcing: it names a shell or an interpreter with an inline program, and says nothing about the other argv positions. Three bypasses were reproduced against it. Classified `extend` at Stage 1 and kept as extend by ruling: R18 stays active and true. **Recorded against that choice:** R29 subsumes R18, so a test satisfying R18 proves nothing about R29 - the same shape as the defect that split R14, R16 and R21, and the reason supersede was the alternative considered. |
 | 2026-08-30 | [#1](https://github.com/gitayg/productizer/issues/1) | `feature/1-view-hands-over-evidence` / PR | R30, R31 | — | — | A published view may hand over its evidence as a file. Two ids, not one: the permission is Optional and the refusal is unwanted behaviour, different EARS categories, and one id would let a test prove the permission while nothing asserted the refusal - the half that protects the spec. R31 is asserted on arrival by the existing `view-read-only` check; R30 is not, and its row says so. |

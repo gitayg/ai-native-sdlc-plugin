@@ -386,10 +386,10 @@ Edit the spec; this section follows.
      plugins/productizer/skills/spec/scripts/build-guide.sh. Everything between
      these two markers is rewritten on every release - edit the spec, not this. -->
 
-**Twenty-eight requirements are active**, and they are the whole of what has
-been agreed.
+**Thirty requirements are active**, and they are the whole of what has been
+agreed.
 
-Four more are superseded and none withdrawn, and neither kind is listed here.
+Six more are superseded and none withdrawn, and neither kind is listed here.
 The spec keeps both forever with their text intact, so a citation written two
 years ago still leads somewhere — but a guide is read by someone deciding what
 to do next, and a superseded sentence gives them no sign it stopped being
@@ -407,12 +407,10 @@ happening:
 - **R5** — Every check shall declare what it must have examined for its pass
   to count.
 
-**When something arrives.** Six things happen on a discrete trigger:
+**When something arrives.** Nine things happen on a discrete trigger:
 
 - **R6** — When an intent arrives, the lifecycle shall classify it against the
   whole living spec as exactly one of extend, refine, duplicate or contradict.
-- **R8** — When a requirement is added, the lifecycle shall allocate the next
-  unused id and record it in the acceptance criteria table.
 - **R9** — When a release is prepared, the lifecycle shall regenerate the user
   guide from the active requirements.
 - **R10** — When a repository with history is imported, the lifecycle shall
@@ -421,6 +419,14 @@ happening:
   every figure in it from a file in the repository.
 - **R32** — When a classification changes the spec, the lifecycle shall record
   it in the spec's change log.
+- **R33** — If an intent contradicts an active requirement, then the lifecycle
+  shall stop.
+- **R34** — If an intent contradicts an active requirement, then the lifecycle
+  shall ask which wins.
+- **R35** — When a requirement is added, the lifecycle shall allocate the next
+  unused id.
+- **R36** — When a requirement is added, the lifecycle shall record it in the
+  acceptance criteria table.
 
 **For as long as a state lasts.** Two requirements are true for the duration
 of a state, not at a moment inside it:
@@ -430,8 +436,8 @@ of a state, not at a moment inside it:
 - **R13** — While a check tool named by the configuration is absent, the
   lifecycle shall report that check as missing rather than skipped.
 
-**When something goes wrong.** Eleven defences, written as `If … then` because
-a designed path and a defended one are not the same thing:
+**When something goes wrong.** Ten defences, written as `If … then` because a
+designed path and a defended one are not the same thing:
 
 - **R15** — If a check exits zero having examined less than it declared, then
   the lifecycle shall report it as hollow and treat it as a failure.
@@ -443,8 +449,6 @@ a designed path and a defended one are not the same thing:
   rather than classify against a remembered copy.
 - **R20** — If a survey finds too little evidence to draft from, then the
   lifecycle shall refuse to draft a spec from it.
-- **R23** — If an intent contradicts an active requirement, then the lifecycle
-  shall stop and ask which wins.
 - **R24** — If an intent contradicts an active requirement, then the lifecycle
   shall merge nothing.
 - **R25** — If a value could not be measured, then the lifecycle shall report
