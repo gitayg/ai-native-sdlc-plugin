@@ -11,12 +11,41 @@
       ".claude/productizer/checks.yaml",
       "README.md",
       "plugins/productizer/.claude-plugin/plugin.json",
-      "plugins/productizer/skills/spec/fixtures/timeout-zero/changed.txt",
-      "plugins/productizer/skills/spec/fixtures/timeout-zero/checks.yaml",
-      "plugins/productizer/skills/spec/scripts/check-cannot-run-coverage.sh",
-      "plugins/productizer/skills/spec/scripts/run-checks.sh"
+      "plugins/productizer/skills/spec/fixtures/declared-scope/changed.txt",
+      "plugins/productizer/skills/spec/fixtures/declared-scope/checks.yaml",
+      "plugins/productizer/skills/spec/fixtures/declared-scope/no-coverage.yaml",
+      "plugins/productizer/skills/spec/fixtures/spec-integrity/falsify.sh",
+      "plugins/productizer/skills/spec/fixtures/unmeasured-report/hygiene/clean.txt",
+      "plugins/productizer/skills/spec/fixtures/unmeasured-report/hygiene/patterns.txt",
+      "plugins/productizer/skills/spec/fixtures/unmeasured-report/runner/changed.txt",
+      "plugins/productizer/skills/spec/fixtures/unmeasured-report/runner/checks-measured.yaml",
+      "plugins/productizer/skills/spec/fixtures/unmeasured-report/runner/checks.yaml",
+      "plugins/productizer/skills/spec/fixtures/unmeasured-report/runner/spec.md",
+      "plugins/productizer/skills/spec/fixtures/unmeasured-report/survey/barren/notes.txt",
+      "plugins/productizer/skills/spec/fixtures/unmeasured-report/survey/evidenced/README.md",
+      "plugins/productizer/skills/spec/fixtures/unmeasured-report/survey/evidenced/package.json",
+      "plugins/productizer/skills/spec/fixtures/unmeasured-report/survey/evidenced/src/cli.js",
+      "plugins/productizer/skills/spec/fixtures/unmeasured-report/survey/evidenced/src/index.js",
+      "plugins/productizer/skills/spec/fixtures/unmeasured-report/survey/evidenced/tests/widget.test.js",
+      "plugins/productizer/skills/spec/fixtures/unmeasured-report/view/backlog.md",
+      "plugins/productizer/skills/spec/fixtures/unmeasured-report/view/checks-result-corrupt.json",
+      "plugins/productizer/skills/spec/fixtures/unmeasured-report/view/checks-result.json",
+      "plugins/productizer/skills/spec/fixtures/unmeasured-report/view/config.json",
+      "plugins/productizer/skills/spec/fixtures/unmeasured-report/view/constitution.md",
+      "plugins/productizer/skills/spec/fixtures/unmeasured-report/view/spec-extra.md",
+      "plugins/productizer/skills/spec/fixtures/unmeasured-report/view/spec.md",
+      "plugins/productizer/skills/spec/fixtures/untrusted-execution/Makefile",
+      "plugins/productizer/skills/spec/fixtures/untrusted-execution/cases.yaml",
+      "plugins/productizer/skills/spec/fixtures/untrusted-execution/changed.txt",
+      "plugins/productizer/skills/spec/fixtures/untrusted-execution/checks.yaml.in",
+      "plugins/productizer/skills/spec/fixtures/untrusted-execution/lint.py",
+      "plugins/productizer/skills/spec/fixtures/untrusted-execution/tool.sh",
+      "plugins/productizer/skills/spec/scripts/check-declared-scope.sh",
+      "plugins/productizer/skills/spec/scripts/check-spec-integrity.sh",
+      "plugins/productizer/skills/spec/scripts/check-unmeasured-report.sh",
+      "plugins/productizer/skills/spec/scripts/check-untrusted-execution.sh"
     ],
-    "file_count": 9,
+    "file_count": 38,
     "tags": []
   },
   "verdict": "pass",
@@ -479,7 +508,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 9,
+      "files_in_scope": 38,
       "enabled": true,
       "tool": {
         "command": [
@@ -499,27 +528,56 @@
           "min_rules": 0
         },
         "observed": {
-          "covered": 9,
+          "covered": 38,
           "covered_items": [
             ".claude/productizer/backlog.md",
             ".claude/productizer/checks-result.json",
             ".claude/productizer/checks.yaml",
             "README.md",
             "plugins/productizer/.claude-plugin/plugin.json",
-            "plugins/productizer/skills/spec/fixtures/timeout-zero/changed.txt",
-            "plugins/productizer/skills/spec/fixtures/timeout-zero/checks.yaml",
-            "plugins/productizer/skills/spec/scripts/check-cannot-run-coverage.sh",
-            "plugins/productizer/skills/spec/scripts/run-checks.sh"
+            "plugins/productizer/skills/spec/fixtures/declared-scope/changed.txt",
+            "plugins/productizer/skills/spec/fixtures/declared-scope/checks.yaml",
+            "plugins/productizer/skills/spec/fixtures/declared-scope/no-coverage.yaml",
+            "plugins/productizer/skills/spec/fixtures/spec-integrity/falsify.sh",
+            "plugins/productizer/skills/spec/fixtures/unmeasured-report/hygiene/clean.txt",
+            "plugins/productizer/skills/spec/fixtures/unmeasured-report/hygiene/patterns.txt",
+            "plugins/productizer/skills/spec/fixtures/unmeasured-report/runner/changed.txt",
+            "plugins/productizer/skills/spec/fixtures/unmeasured-report/runner/checks-measured.yaml",
+            "plugins/productizer/skills/spec/fixtures/unmeasured-report/runner/checks.yaml",
+            "plugins/productizer/skills/spec/fixtures/unmeasured-report/runner/spec.md",
+            "plugins/productizer/skills/spec/fixtures/unmeasured-report/survey/barren/notes.txt",
+            "plugins/productizer/skills/spec/fixtures/unmeasured-report/survey/evidenced/README.md",
+            "plugins/productizer/skills/spec/fixtures/unmeasured-report/survey/evidenced/package.json",
+            "plugins/productizer/skills/spec/fixtures/unmeasured-report/survey/evidenced/src/cli.js",
+            "plugins/productizer/skills/spec/fixtures/unmeasured-report/survey/evidenced/src/index.js",
+            "plugins/productizer/skills/spec/fixtures/unmeasured-report/survey/evidenced/tests/widget.test.js",
+            "plugins/productizer/skills/spec/fixtures/unmeasured-report/view/backlog.md",
+            "plugins/productizer/skills/spec/fixtures/unmeasured-report/view/checks-result-corrupt.json",
+            "plugins/productizer/skills/spec/fixtures/unmeasured-report/view/checks-result.json",
+            "plugins/productizer/skills/spec/fixtures/unmeasured-report/view/config.json",
+            "plugins/productizer/skills/spec/fixtures/unmeasured-report/view/constitution.md",
+            "plugins/productizer/skills/spec/fixtures/unmeasured-report/view/spec-extra.md",
+            "plugins/productizer/skills/spec/fixtures/unmeasured-report/view/spec.md",
+            "plugins/productizer/skills/spec/fixtures/untrusted-execution/Makefile",
+            "plugins/productizer/skills/spec/fixtures/untrusted-execution/cases.yaml",
+            "plugins/productizer/skills/spec/fixtures/untrusted-execution/changed.txt",
+            "plugins/productizer/skills/spec/fixtures/untrusted-execution/checks.yaml.in",
+            "plugins/productizer/skills/spec/fixtures/untrusted-execution/lint.py",
+            "plugins/productizer/skills/spec/fixtures/untrusted-execution/tool.sh",
+            "plugins/productizer/skills/spec/scripts/check-declared-scope.sh",
+            "plugins/productizer/skills/spec/scripts/check-spec-integrity.sh",
+            "plugins/productizer/skills/spec/scripts/check-unmeasured-report.sh",
+            "plugins/productizer/skills/spec/scripts/check-untrusted-execution.sh"
           ],
           "rules_loaded": null,
-          "files_in_scope": 9,
+          "files_in_scope": 38,
           "not_examined": []
         },
         "satisfied": true,
         "reasons": []
       },
       "timed_out": false,
-      "output_tail": ".claude/productizer/backlog.md\n.claude/productizer/checks-result.json\n.claude/productizer/checks.yaml\nREADME.md\nplugins/productizer/.claude-plugin/plugin.json\nplugins/productizer/skills/spec/fixtures/timeout-zero/changed.txt\nplugins/productizer/skills/spec/fixtures/timeout-zero/checks.yaml\nplugins/productizer/skills/spec/scripts/check-cannot-run-coverage.sh\nplugins/productizer/skills/spec/scripts/run-checks.sh\n",
+      "output_tail": "r/skills/spec/fixtures/unmeasured-report/runner/checks-measured.yaml\nplugins/productizer/skills/spec/fixtures/unmeasured-report/runner/checks.yaml\nplugins/productizer/skills/spec/fixtures/unmeasured-report/runner/spec.md\nplugins/productizer/skills/spec/fixtures/unmeasured-report/survey/barren/notes.txt\nplugins/productizer/skills/spec/fixtures/unmeasured-report/survey/evidenced/README.md\nplugins/productizer/skills/spec/fixtures/unmeasured-report/survey/evidenced/package.json\nplugins/productizer/skills/spec/fixtures/unmeasured-report/survey/evidenced/src/cli.js\nplugins/productizer/skills/spec/fixtures/unmeasured-report/survey/evidenced/src/index.js\nplugins/productizer/skills/spec/fixtures/unmeasured-report/survey/evidenced/tests/widget.test.js\nplugins/productizer/skills/spec/fixtures/unmeasured-report/view/backlog.md\nplugins/productizer/skills/spec/fixtures/unmeasured-report/view/checks-result-corrupt.json\nplugins/productizer/skills/spec/fixtures/unmeasured-report/view/checks-result.json\nplugins/productizer/skills/spec/fixtures/unmeasured-report/view/config.json\nplugins/productizer/skills/spec/fixtures/unmeasured-report/view/constitution.md\nplugins/productizer/skills/spec/fixtures/unmeasured-report/view/spec-extra.md\nplugins/productizer/skills/spec/fixtures/unmeasured-report/view/spec.md\nplugins/productizer/skills/spec/fixtures/untrusted-execution/Makefile\nplugins/productizer/skills/spec/fixtures/untrusted-execution/cases.yaml\nplugins/productizer/skills/spec/fixtures/untrusted-execution/changed.txt\nplugins/productizer/skills/spec/fixtures/untrusted-execution/checks.yaml.in\nplugins/productizer/skills/spec/fixtures/untrusted-execution/lint.py\nplugins/productizer/skills/spec/fixtures/untrusted-execution/tool.sh\nplugins/productizer/skills/spec/scripts/check-declared-scope.sh\nplugins/productizer/skills/spec/scripts/check-spec-integrity.sh\nplugins/productizer/skills/spec/scripts/check-unmeasured-report.sh\nplugins/productizer/skills/spec/scripts/check-untrusted-execution.sh\n",
       "status": "pass"
     },
     {
@@ -539,7 +597,7 @@
       "triggered_by": [
         "path:**/*.sh"
       ],
-      "files_in_scope": 2,
+      "files_in_scope": 6,
       "enabled": true,
       "tool": {
         "command": [
@@ -550,7 +608,7 @@
         "exit_code": 0
       },
       "exit_code": 0,
-      "duration_seconds": 2,
+      "duration_seconds": 6,
       "coverage": {
         "from": "per_file_exit",
         "required": {
@@ -559,20 +617,24 @@
           "min_rules": 0
         },
         "observed": {
-          "covered": 2,
+          "covered": 6,
           "covered_items": [
-            "plugins/productizer/skills/spec/scripts/check-cannot-run-coverage.sh",
-            "plugins/productizer/skills/spec/scripts/run-checks.sh"
+            "plugins/productizer/skills/spec/fixtures/spec-integrity/falsify.sh",
+            "plugins/productizer/skills/spec/fixtures/untrusted-execution/tool.sh",
+            "plugins/productizer/skills/spec/scripts/check-declared-scope.sh",
+            "plugins/productizer/skills/spec/scripts/check-spec-integrity.sh",
+            "plugins/productizer/skills/spec/scripts/check-unmeasured-report.sh",
+            "plugins/productizer/skills/spec/scripts/check-untrusted-execution.sh"
           ],
           "rules_loaded": null,
-          "files_in_scope": 2,
+          "files_in_scope": 6,
           "not_examined": []
         },
         "satisfied": true,
         "reasons": []
       },
       "timed_out": false,
-      "output_tail": "\n===== plugins/productizer/skills/spec/scripts/check-cannot-run-coverage.sh\n\n===== plugins/productizer/skills/spec/scripts/run-checks.sh\n",
+      "output_tail": "\n===== plugins/productizer/skills/spec/fixtures/spec-integrity/falsify.sh\n\n===== plugins/productizer/skills/spec/fixtures/untrusted-execution/tool.sh\n\n===== plugins/productizer/skills/spec/scripts/check-declared-scope.sh\n\n===== plugins/productizer/skills/spec/scripts/check-spec-integrity.sh\n\n===== plugins/productizer/skills/spec/scripts/check-unmeasured-report.sh\n\n===== plugins/productizer/skills/spec/scripts/check-untrusted-execution.sh\n",
       "status": "pass"
     },
     {
@@ -591,7 +653,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 9,
+      "files_in_scope": 38,
       "enabled": true,
       "tool": {
         "command": [
@@ -614,7 +676,7 @@
           "covered": 7,
           "covered_items": [],
           "rules_loaded": null,
-          "files_in_scope": 9,
+          "files_in_scope": 38,
           "not_examined": []
         },
         "satisfied": true,
@@ -647,7 +709,7 @@
       "triggered_by": [
         "path:**/*.sh"
       ],
-      "files_in_scope": 2,
+      "files_in_scope": 6,
       "enabled": true,
       "tool": {
         "command": [
@@ -658,7 +720,7 @@
         "exit_code": 0
       },
       "exit_code": 0,
-      "duration_seconds": 2,
+      "duration_seconds": 6,
       "coverage": {
         "from": "per_file_exit",
         "required": {
@@ -667,20 +729,24 @@
           "min_rules": 0
         },
         "observed": {
-          "covered": 2,
+          "covered": 6,
           "covered_items": [
-            "plugins/productizer/skills/spec/scripts/check-cannot-run-coverage.sh",
-            "plugins/productizer/skills/spec/scripts/run-checks.sh"
+            "plugins/productizer/skills/spec/fixtures/spec-integrity/falsify.sh",
+            "plugins/productizer/skills/spec/fixtures/untrusted-execution/tool.sh",
+            "plugins/productizer/skills/spec/scripts/check-declared-scope.sh",
+            "plugins/productizer/skills/spec/scripts/check-spec-integrity.sh",
+            "plugins/productizer/skills/spec/scripts/check-unmeasured-report.sh",
+            "plugins/productizer/skills/spec/scripts/check-untrusted-execution.sh"
           ],
           "rules_loaded": null,
-          "files_in_scope": 2,
+          "files_in_scope": 6,
           "not_examined": []
         },
         "satisfied": true,
         "reasons": []
       },
       "timed_out": false,
-      "output_tail": "\n===== plugins/productizer/skills/spec/scripts/check-cannot-run-coverage.sh\nplugins/productizer/skills/spec/scripts/check-cannot-run-coverage.sh\n\n===== plugins/productizer/skills/spec/scripts/run-checks.sh\nplugins/productizer/skills/spec/scripts/run-checks.sh\n",
+      "output_tail": "\n===== plugins/productizer/skills/spec/fixtures/spec-integrity/falsify.sh\nplugins/productizer/skills/spec/fixtures/spec-integrity/falsify.sh\n\n===== plugins/productizer/skills/spec/fixtures/untrusted-execution/tool.sh\nplugins/productizer/skills/spec/fixtures/untrusted-execution/tool.sh\n\n===== plugins/productizer/skills/spec/scripts/check-declared-scope.sh\nplugins/productizer/skills/spec/scripts/check-declared-scope.sh\n\n===== plugins/productizer/skills/spec/scripts/check-spec-integrity.sh\nplugins/productizer/skills/spec/scripts/check-spec-integrity.sh\n\n===== plugins/productizer/skills/spec/scripts/check-unmeasured-report.sh\nplugins/productizer/skills/spec/scripts/check-unmeasured-report.sh\n\n===== plugins/productizer/skills/spec/scripts/check-untrusted-execution.sh\nplugins/productizer/skills/spec/scripts/check-untrusted-execution.sh\n",
       "status": "pass"
     },
     {
@@ -699,7 +765,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 9,
+      "files_in_scope": 38,
       "enabled": true,
       "tool": {
         "command": [
@@ -722,7 +788,7 @@
           "covered": 1,
           "covered_items": [],
           "rules_loaded": null,
-          "files_in_scope": 9,
+          "files_in_scope": 38,
           "not_examined": []
         },
         "satisfied": true,
@@ -746,7 +812,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 9,
+      "files_in_scope": 38,
       "enabled": true,
       "tool": {
         "command": [
@@ -771,7 +837,7 @@
             ".claude/productizer/spec.md"
           ],
           "rules_loaded": null,
-          "files_in_scope": 9,
+          "files_in_scope": 38,
           "not_examined": []
         },
         "satisfied": true,
@@ -796,7 +862,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 9,
+      "files_in_scope": 38,
       "enabled": true,
       "tool": {
         "command": [
@@ -820,7 +886,7 @@
           "covered": 2,
           "covered_items": [],
           "rules_loaded": null,
-          "files_in_scope": 9,
+          "files_in_scope": 38,
           "not_examined": []
         },
         "satisfied": true,
@@ -845,7 +911,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 9,
+      "files_in_scope": 38,
       "enabled": true,
       "tool": {
         "command": [
@@ -868,7 +934,7 @@
           "covered": 25,
           "covered_items": [],
           "rules_loaded": null,
-          "files_in_scope": 9,
+          "files_in_scope": 38,
           "not_examined": []
         },
         "satisfied": true,
@@ -892,7 +958,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 9,
+      "files_in_scope": 38,
       "enabled": true,
       "tool": {
         "command": [
@@ -1116,14 +1182,14 @@
             "evals/cases/P15-vocabulary-drift-dunning-abandon/prompt.md"
           ],
           "rules_loaded": null,
-          "files_in_scope": 9,
+          "files_in_scope": 38,
           "not_examined": []
         },
         "satisfied": true,
         "reasons": []
       },
       "timed_out": false,
-      "output_tail": "lugins/productizer/skills/spec/templates/import.md\nplugins/productizer/skills/spec/templates/intake.md\nplugins/productizer/skills/spec/templates/intent.md\nplugins/productizer/skills/spec/templates/interview.md\nplugins/productizer/skills/spec/templates/jira-intent.md\nplugins/productizer/skills/spec/templates/learnings.md\nplugins/productizer/skills/spec/templates/managed-settings.json\nplugins/productizer/skills/spec/templates/plan.md\nplugins/productizer/skills/spec/templates/prepare-commit-msg.sh\nplugins/productizer/skills/spec/templates/production-gate.sh\nplugins/productizer/skills/spec/templates/publish-gate.sh\nplugins/productizer/skills/spec/templates/release-blog.md\nplugins/productizer/skills/spec/templates/release-email.md\nplugins/productizer/skills/spec/templates/ruling.md\nplugins/productizer/skills/spec/templates/runners/gate-bypass.json\nplugins/productizer/skills/spec/templates/runners/publish-blast.json\nplugins/productizer/skills/spec/templates/runners/spec-mutation.json\nplugins/productizer/skills/spec/templates/scheduled-bands.md\nplugins/productizer/skills/spec/templates/scheduled-evals.md\nplugins/productizer/skills/spec/templates/session-start.sh\nplugins/productizer/skills/spec/templates/spec-command.md\nplugins/productizer/skills/spec/templates/spec-delta.md\nplugins/productizer/skills/spec/templates/spec.md\nplugins/productizer/skills/spec/templates/threshold.sh\nplugins/productizer/skills/spec/templates/triage-step.yml\nplugins/productizer/skills/spec/templates/user-guide.md\nplugins/productizer/skills/spec/templates/verification-section.md\nplugins/productizer/skills/spec/templates/view.html\nscripts/check-hygiene.sh\n  repository files hashed before and after: 385\n  files the generator moved: 0\n  page bytes read: 456379\n  capability declarations read: 1\n  declares `downloads` - output: it hands the viewer a file and reads nothing back\n  R4 satisfied: the generator moved no repository file, and the page declares nothing that can publish a new version of itself.\n",
+      "output_tail": "lugins/productizer/skills/spec/templates/import.md\nplugins/productizer/skills/spec/templates/intake.md\nplugins/productizer/skills/spec/templates/intent.md\nplugins/productizer/skills/spec/templates/interview.md\nplugins/productizer/skills/spec/templates/jira-intent.md\nplugins/productizer/skills/spec/templates/learnings.md\nplugins/productizer/skills/spec/templates/managed-settings.json\nplugins/productizer/skills/spec/templates/plan.md\nplugins/productizer/skills/spec/templates/prepare-commit-msg.sh\nplugins/productizer/skills/spec/templates/production-gate.sh\nplugins/productizer/skills/spec/templates/publish-gate.sh\nplugins/productizer/skills/spec/templates/release-blog.md\nplugins/productizer/skills/spec/templates/release-email.md\nplugins/productizer/skills/spec/templates/ruling.md\nplugins/productizer/skills/spec/templates/runners/gate-bypass.json\nplugins/productizer/skills/spec/templates/runners/publish-blast.json\nplugins/productizer/skills/spec/templates/runners/spec-mutation.json\nplugins/productizer/skills/spec/templates/scheduled-bands.md\nplugins/productizer/skills/spec/templates/scheduled-evals.md\nplugins/productizer/skills/spec/templates/session-start.sh\nplugins/productizer/skills/spec/templates/spec-command.md\nplugins/productizer/skills/spec/templates/spec-delta.md\nplugins/productizer/skills/spec/templates/spec.md\nplugins/productizer/skills/spec/templates/threshold.sh\nplugins/productizer/skills/spec/templates/triage-step.yml\nplugins/productizer/skills/spec/templates/user-guide.md\nplugins/productizer/skills/spec/templates/verification-section.md\nplugins/productizer/skills/spec/templates/view.html\nscripts/check-hygiene.sh\n  repository files hashed before and after: 385\n  files the generator moved: 0\n  page bytes read: 477277\n  capability declarations read: 1\n  declares `downloads` - output: it hands the viewer a file and reads nothing back\n  R4 satisfied: the generator moved no repository file, and the page declares nothing that can publish a new version of itself.\n",
       "status": "pass"
     },
     {
@@ -1140,7 +1206,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 9,
+      "files_in_scope": 38,
       "enabled": true,
       "tool": {
         "command": [
@@ -1167,7 +1233,7 @@
             "plugins/productizer/skills/spec/fixtures/missing-tool/changed.txt"
           ],
           "rules_loaded": null,
-          "files_in_scope": 9,
+          "files_in_scope": 38,
           "not_examined": []
         },
         "satisfied": true,
@@ -1191,7 +1257,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 9,
+      "files_in_scope": 38,
       "enabled": true,
       "tool": {
         "command": [
@@ -1214,7 +1280,7 @@
           "covered": 28,
           "covered_items": [],
           "rules_loaded": null,
-          "files_in_scope": 9,
+          "files_in_scope": 38,
           "not_examined": []
         },
         "satisfied": true,
@@ -1238,7 +1304,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 9,
+      "files_in_scope": 38,
       "enabled": true,
       "tool": {
         "command": [
@@ -1261,7 +1327,7 @@
           "covered": 28,
           "covered_items": [],
           "rules_loaded": null,
-          "files_in_scope": 9,
+          "files_in_scope": 38,
           "not_examined": []
         },
         "satisfied": true,
@@ -1285,7 +1351,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 9,
+      "files_in_scope": 38,
       "enabled": true,
       "tool": {
         "command": [
@@ -1310,7 +1376,7 @@
             ".claude/productizer/spec.md"
           ],
           "rules_loaded": null,
-          "files_in_scope": 9,
+          "files_in_scope": 38,
           "not_examined": []
         },
         "satisfied": true,
@@ -1334,7 +1400,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 9,
+      "files_in_scope": 38,
       "enabled": true,
       "tool": {
         "command": [
@@ -1368,7 +1434,7 @@
             ".claude/productizer/spec.md@842b5cc"
           ],
           "rules_loaded": null,
-          "files_in_scope": 9,
+          "files_in_scope": 38,
           "not_examined": []
         },
         "satisfied": true,
@@ -1392,7 +1458,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 9,
+      "files_in_scope": 38,
       "enabled": true,
       "tool": {
         "command": [
@@ -1417,7 +1483,7 @@
             ".claude/productizer/spec.md"
           ],
           "rules_loaded": null,
-          "files_in_scope": 9,
+          "files_in_scope": 38,
           "not_examined": []
         },
         "satisfied": true,
@@ -1441,7 +1507,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 9,
+      "files_in_scope": 38,
       "enabled": true,
       "tool": {
         "command": [
@@ -1467,7 +1533,7 @@
             ".claude/productizer/backlog.md"
           ],
           "rules_loaded": null,
-          "files_in_scope": 9,
+          "files_in_scope": 38,
           "not_examined": []
         },
         "satisfied": true,
@@ -1491,7 +1557,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 9,
+      "files_in_scope": 38,
       "enabled": true,
       "tool": {
         "command": [
@@ -1518,7 +1584,7 @@
             "plugins/productizer/skills/spec/fixtures/fabricated-zero/changed.txt"
           ],
           "rules_loaded": null,
-          "files_in_scope": 9,
+          "files_in_scope": 38,
           "not_examined": []
         },
         "satisfied": true,
@@ -1542,7 +1608,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 9,
+      "files_in_scope": 38,
       "enabled": true,
       "tool": {
         "command": [
@@ -1570,7 +1636,7 @@
             "plugins/productizer/skills/spec/scripts/request-ruling.sh"
           ],
           "rules_loaded": null,
-          "files_in_scope": 9,
+          "files_in_scope": 38,
           "not_examined": []
         },
         "satisfied": true,
@@ -1594,7 +1660,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 9,
+      "files_in_scope": 38,
       "enabled": true,
       "tool": {
         "command": [
@@ -1621,7 +1687,7 @@
             "plugins/productizer/skills/spec/fixtures/timeout-zero/changed.txt"
           ],
           "rules_loaded": null,
-          "files_in_scope": 9,
+          "files_in_scope": 38,
           "not_examined": []
         },
         "satisfied": true,
@@ -1645,7 +1711,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 9,
+      "files_in_scope": 38,
       "enabled": true,
       "tool": {
         "command": [
@@ -1673,7 +1739,7 @@
             "plugins/productizer/skills/spec/fixtures/declared-scope/no-coverage.yaml"
           ],
           "rules_loaded": null,
-          "files_in_scope": 9,
+          "files_in_scope": 38,
           "not_examined": []
         },
         "satisfied": true,
@@ -1697,7 +1763,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 9,
+      "files_in_scope": 38,
       "enabled": true,
       "tool": {
         "command": [
@@ -1734,7 +1800,7 @@
             ".claude/productizer/constitution.md"
           ],
           "rules_loaded": null,
-          "files_in_scope": 9,
+          "files_in_scope": 38,
           "not_examined": []
         },
         "satisfied": true,
@@ -1758,7 +1824,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 9,
+      "files_in_scope": 38,
       "enabled": true,
       "tool": {
         "command": [
@@ -1806,7 +1872,7 @@
             "plugins/productizer/skills/spec/fixtures/unmeasured-report/hygiene/clean.txt"
           ],
           "rules_loaded": null,
-          "files_in_scope": 9,
+          "files_in_scope": 38,
           "not_examined": []
         },
         "satisfied": true,
@@ -1832,7 +1898,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 9,
+      "files_in_scope": 38,
       "enabled": true,
       "tool": {
         "command": [
@@ -1864,7 +1930,7 @@
             "plugins/productizer/skills/spec/fixtures/untrusted-execution/tool.sh"
           ],
           "rules_loaded": null,
-          "files_in_scope": 9,
+          "files_in_scope": 38,
           "not_examined": []
         },
         "satisfied": true,
@@ -1890,7 +1956,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 9,
+      "files_in_scope": 38,
       "enabled": true,
       "tool": {
         "command": [
@@ -1916,7 +1982,7 @@
             "plugins/productizer/skills/spec/templates/publish-gate.sh"
           ],
           "rules_loaded": null,
-          "files_in_scope": 9,
+          "files_in_scope": 38,
           "not_examined": []
         },
         "satisfied": true,

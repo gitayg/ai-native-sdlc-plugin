@@ -228,7 +228,7 @@ trap cleanup EXIT
 # change history as weak evidence, so a barren fixture surveyed under a
 # repository inherits that repository's history and stops being barren - the
 # refusal this check exists to reach would quietly become unreachable.
-if git -C "$TMP" rev-parse --show-toplevel >/dev/null 2>&1; then
+if git -C "$TMP" rev-parse --show-toplevel >/dev/null 2>&1; then  # stderr-ok: asking whether the sandbox is inside a work tree; git's "not a git repository" IS the answer we want, not an error to surface
   die_unmeasured "the temporary sandbox is inside a git work tree, so the survey would read that repository's history as evidence and the barren case would not be barren. The premise failed; this is unmeasured, not a pass"
 fi
 
@@ -255,7 +255,7 @@ SPEC_X_N="$(grep -c '^- \*\*R[0-9][0-9]*\*\*' "$FIXTURE/view/spec-extra.md" | tr
 [ "$SPEC_N" != "$SPEC_X_N" ] || die_unmeasured "the two view fixture specs hold the same number of requirements, so a figure that never moved would still match both. The premise failed; this is unmeasured, not a pass"
 
 # PREMISE FOUR. The corrupt result must really not parse.
-if python3 -c 'import json,sys; json.load(open(sys.argv[1]))' "$FIXTURE/view/checks-result-corrupt.json" >/dev/null 2>&1; then
+if python3 -c 'import json,sys; json.load(open(sys.argv[1]))' "$FIXTURE/view/checks-result-corrupt.json" >/dev/null 2>&1; then  # stderr-ok: asking whether the fixture parses; the decode traceback IS the expected answer and printing it would look like a fault
   die_unmeasured "the fixture's corrupt result parses as JSON, so the page was never asked to render an unreadable source. The premise failed; this is unmeasured, not a pass"
 fi
 
@@ -283,7 +283,7 @@ chmod 000 "$TMP/v-locked/.claude/productizer/spec.md"
 # PREMISE FIVE. The file just made unreadable has to be genuinely unreadable.
 # Running as root reads a mode-000 file without complaint, and then the case was
 # never tested. This asks by reading, not by testing the mode bits.
-if head -c 1 "$TMP/v-locked/.claude/productizer/spec.md" >/dev/null 2>&1; then
+if head -c 1 "$TMP/v-locked/.claude/productizer/spec.md" >/dev/null 2>&1; then  # stderr-ok: asking whether a deliberately unreadable file is still readable; the permission error IS the answer
   die_unmeasured "the file this check made unreadable can still be read - running as root will do that - so a view was never asked to render an unreadable source. The premise failed; this is unmeasured, not a pass"
 fi
 
@@ -337,7 +337,7 @@ chmod 000 "$TMP/hy/locked.txt"
 
 # PREMISE SEVEN. Same guard, second file: an unreadable file that reads is not an
 # unreadable file.
-if head -c 1 "$TMP/hy/locked.txt" >/dev/null 2>&1; then
+if head -c 1 "$TMP/hy/locked.txt" >/dev/null 2>&1; then  # stderr-ok: same premise probe on the second file; the permission error IS the answer
   die_unmeasured "the file handed to the hygiene check as unreadable can still be read, so the tool was never asked about one. The premise failed; this is unmeasured, not a pass"
 fi
 
