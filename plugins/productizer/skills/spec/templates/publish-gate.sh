@@ -69,6 +69,11 @@ cmd="$(printf '%s' "$payload" | jq -er '
   else .tool_input.command end' 2>&1)" || {
   echo "publish-gate: the hook payload was not the shape this gate expects (${cmd:-jq failed and said nothing}). Blocking." >&2; exit 2; }
 
+# The session's permission mode, needed to decide whether a human can be asked
+# at all. Absent or unreadable reads as empty, which the asker treats as "not
+# known to be interactive" and therefore refuses.
+pmode="$(printf '%s' "$payload" | jq -r '.permission_mode // ""' 2>/dev/null || printf '')"  # stderr-ok: asking whether the payload carries a mode; jq's complaint IS the answer, and an unreadable mode is treated as unknown and refused below
+
 [ -n "$(printf '%s' "$cmd" | tr -d '[:space:]')" ] && [ "$cmd" != "null" ] || {
   echo "publish-gate: empty command. Blocking, because a gate that cannot see what it is judging has not judged it." >&2; exit 2; }
 
@@ -461,6 +466,116 @@ MSG
   exit 2
 }
 
+# --- asking a person, which is the half of R17 that did not exist -----------
+#
+# R17: "If a command would publish or deploy, then the gate shall block it
+# UNTIL A PERSON DECIDES." Until now only the blocking half was built. There
+# was no way to decide - not an env var, not a marker file, nothing - so the
+# one remaining route was retyping the command in another shell, which the
+# refusal text above argues against in its own words. It described the failure
+# it caused.
+#
+# `permissionDecision: "ask"` routes to Claude Code's own permission prompt.
+# That prompt is drawn by the harness and answered by a keystroke, so the agent
+# this gate exists to constrain cannot draw it, answer it, or skip it. And the
+# person approves the command already written rather than retyping it.
+#
+# THIS IS ONLY REACHED FOR A COMMAND THE GATE UNDERSTOOD. A command it could
+# not parse or unwrap still hard-refuses above: asking a person to approve
+# something nobody can read is not a decision, it is a signature on a blank
+# page.
+#
+# TWO THINGS ARE DOCUMENTED AND ONE IS NOT, so this fails closed on the third.
+#
+#   Documented: "A hook that returns permissionDecision: \"deny\" blocks the
+#   tool even in bypassPermissions mode or with --dangerously-skip-permissions."
+#   That sentence names `deny`. It does NOT say the same of `ask`.
+#
+#   Documented: background subagents cannot show a prompt in non-interactive
+#   mode.
+#
+#   NOT documented: what `ask` does under bypassPermissions, or in a plain `-p`
+#   run. Nobody wrote it down, so this gate does not rely on it: anything other
+#   than a mode known to prompt gets the hard refusal it got before. The gate
+#   loses nothing it had; it only gains a path where one is known to work.
+GATE_CHECKLIST="${GATE_CHECKLIST:-.claude/productizer/publish-checklist.md}"
+GATE_CHECKLIST_MAX_AGE="${GATE_CHECKLIST_MAX_AGE:-900}"
+
+ask_or_refuse() {
+  # Only modes that are known to show a prompt. `bypassPermissions`, an empty
+  # mode and anything unrecognised all fall through to the refusal.
+  case "$pmode" in
+    default|acceptEdits|plan) ;;
+    *) refuse "$1
+
+This session's permission mode is '${pmode:-unknown}', which is not one this gate
+will ask in. A prompt is only trusted where the documentation says one is shown;
+under bypassPermissions, in a plain -p run, or in a background subagent, whether
+an ask reaches a person is undocumented, so this refuses instead of assuming." ;;
+  esac
+
+  # THE CHECKLIST IS NOT A SECURITY BOUNDARY AND IS NOT PRETENDING TO BE ONE.
+  # The agent writes it, so an agent determined to lie can write a lie. What it
+  # stops is the careless case, and what it BUYS is that the person's prompt
+  # shows what was actually checked rather than a bare "allow?". A prompt with
+  # nothing in it is how approval becomes a reflex.
+  if [ ! -f "$GATE_CHECKLIST" ]; then
+    refuse "$1
+
+No pre-publish checklist at $GATE_CHECKLIST, so there is nothing to show the
+person being asked. Write it - the command on a \`Command:\` line, then each item
+below with what you actually found and what you could NOT verify - and run this
+again. A prompt that shows nothing is how approval becomes a reflex."
+  fi
+
+  _ck_cmd="$(sed -n 's/^Command: //p' "$GATE_CHECKLIST" | head -1)"
+  if [ "$_ck_cmd" != "$cmd" ]; then
+    refuse "$1
+
+The checklist at $GATE_CHECKLIST is for a different command. It names:
+
+  ${_ck_cmd:-<no Command: line>}
+
+A checklist that does not name THIS command is a blanket approval, which is the
+rubber stamp this gate exists to prevent."
+  fi
+
+  # Staleness is measured, not assumed. An old checklist describes a state that
+  # has since moved - a version that was live, a scrape that was clean.
+  _now="$(date +%s)"
+  _mt="$(stat -f %m "$GATE_CHECKLIST" 2>/dev/null || stat -c %Y "$GATE_CHECKLIST" 2>/dev/null || printf '')"  # stderr-ok: BSD stat then GNU stat; the first one's failure on the other platform IS how the fallback is selected, and an empty result is refused as unknown age
+  if [ -z "$_mt" ]; then
+    refuse "$1
+
+The checklist's age could not be read, so whether it describes the current state
+is UNKNOWN. Unknown is not fresh."
+  fi
+  _age=$(( _now - _mt ))
+  if [ "$_age" -gt "$GATE_CHECKLIST_MAX_AGE" ]; then
+    refuse "$1
+
+The checklist at $GATE_CHECKLIST is ${_age}s old, past the ${GATE_CHECKLIST_MAX_AGE}s limit. It
+describes a state that has since moved. Re-run the checks and rewrite it."
+  fi
+
+  # jq -Rs builds the JSON string, so a checklist containing quotes, newlines or
+  # backslashes cannot break out of the field and forge a decision.
+  jq -n --arg reason "A command that publishes is waiting on your decision.
+
+  $cmd
+
+$1
+
+The agent's pre-publish checklist follows. It was written by the agent, so read
+it as its account rather than as proof:
+
+$(cat "$GATE_CHECKLIST")" \
+    '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: "ask", permissionDecisionReason: $reason}}'
+  _rc=0
+  exit 0
+}
+
+
 gate_normalise "$cmd"
 
 if [ "$GATE_DEEP" = 1 ]; then
@@ -485,7 +600,7 @@ while IFS= read -r seg; do
   [ -n "$seg" ] || continue
   for pat in "${deny[@]}"; do
     if [[ $seg =~ $pat ]]; then
-      refuse "The segment that matched, after normalising away quoting, paths and wrappers:
+      ask_or_refuse "The segment that matched, after normalising away quoting, paths and wrappers:
 
   $seg"
     fi

@@ -303,7 +303,7 @@ def ask(command, extra_env=None, extra_payload=None):
     proc = subprocess.run(
         ["bash", gate], input=json.dumps(payload), env=env, cwd=rundir,
         stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-    return proc.returncode, proc.stderr
+    return proc.returncode, proc.stderr, proc.stdout
 
 
 rows = fixture.get("publish_cases") or []
@@ -322,7 +322,7 @@ if mode in ("block", "both"):
     for row in rows:
         command = str(row["command"]).replace("@@MARKER@@", CANARY)
         want = 2 if row["expect"] == "block" else 0
-        rc, _err = ask(command)
+        rc, _err, _o = ask(command)
         verb = "refused" if row["expect"] == "block" else "allowed"
         got = {0: "allowed", 2: "refused"}.get(rc, "exited %d" % rc)
         say(rc == want, "%s: %s  (%s)" % (verb, redact(command), row.get("why", "")))
@@ -344,7 +344,7 @@ if mode in ("decision", "both"):
     if baseline is None:
         premise_failed("the corpus holds no blocked command to try a decision against")
     command = str(baseline["command"])
-    rc, err = ask(command)
+    rc, err, _out = ask(command)
     if rc != 2:
         premise_failed("the command the probes are run against was not blocked (exit %d), so "
                        "there was no block for a decision to lift" % rc)
@@ -352,59 +352,111 @@ if mode in ("decision", "both"):
               "that same block.\n" % command)
 
     # Assertion 1. A person who has decided yes has to be told how to say so.
-    # These patterns are printed so that a negative result says exactly what was
-    # looked for, and so that adding a real route makes this go green without
-    # anyone editing the assertion.
-    routes = [
-        (r"[A-Z][A-Z0-9_]{3,}=[^ \n]", "an environment variable to set"),
-        (r"--[a-z][a-z-]*approv", "a flag to pass"),
-        (r"(create|write|touch)[^\n]{0,40}approv", "a file to create"),
-        (r"permission_decision|\"approved\"", "a field in the payload"),
-    ]
-    found = [name for pat, name in routes if re.search(pat, err)]
-    out.write("  searched the refusal text for: %s.\n"
-              % "; ".join(name for _p, name in routes))
-    say(bool(found),
-        "the refusal names a route by which a person's decision reaches the gate%s"
-        % ("; found " + ", ".join(found) if found else
-           " - it names none, and the only remaining route is retyping the command, "
-           "which the gate's own closing paragraph argues against"))
+    # ASSERTION 1. THE DECISION REACHES A PERSON, CONSTRUCTED.
+    #
+    # This assertion was rewritten once the deciding half was built, and the
+    # rewrite matters more than the code. It used to search the refusal text for
+    # a route and then try to LIFT the block with an environment variable, a
+    # marker file or a payload field - and it counted "none of them lifts it" as
+    # the failure.
+    #
+    # That was demanding a hole. Every one of those signals is something the
+    # agent this gate constrains can write for itself, so a gate that honoured
+    # one would be a gate the agent could open. The old assertion would have
+    # gone green on the worst possible design.
+    #
+    # What R17 actually wants is that the decision reaches A PERSON. The route
+    # is Claude Code's own permission prompt: drawn by the harness, answered by
+    # a keystroke, and unreachable from inside the process being gated. So the
+    # assertion is now that a recognised publish, with a fresh checklist naming
+    # that exact command, in a mode documented to prompt, returns
+    # `permissionDecision: "ask"`.
+    checklist = os.path.join(rundir, ".claude", "productizer", "publish-checklist.md")
+    os.makedirs(os.path.dirname(checklist), exist_ok=True)
+    with open(checklist, "w") as fh:
+        fh.write("Command: %s\n\n# Pre-publish checklist (fixture)\n\n"
+                 "- every item here is a fixture value, not a real verification\n" % command)
+    rc_ask, err_ask, out_ask = ask(command, extra_payload={"permission_mode": "default"})
+    decision = None
+    try:
+        decision = json.loads(out_ask)["hookSpecificOutput"]["permissionDecision"]
+    except Exception:
+        decision = None
+    say(rc_ask == 0 and decision == "ask",
+        "a recognised publish with a fresh, command-matching checklist hands the decision to a "
+        "person: the gate returns permissionDecision `ask`%s"
+        % ("" if decision == "ask" else
+           " - it returned %r at exit %s, so nothing was put to anyone" % (decision, rc_ask)))
 
-    # Assertion 2. Constructed, not inspected: every consent signal the fixture
-    # lists is expressed and the same command is put again. At least one must
-    # lift the block. None does.
+    # ASSERTION 2. THE SAME SIGNALS MUST STILL NOT ALLOW.
+    #
+    # The old probes are kept and their meaning is INVERTED. None of them may
+    # turn a publish into `allow`, because each is something the agent can write
+    # for itself. Turning the block into `ask` is fine - a person still decides.
+    # Turning it into `allow` is the hole.
     probes = fixture.get("decision_probes") or {}
-    lifted = []
+    forged = []
     tried = 0
+    os.remove(checklist)   # no checklist, so nothing may pass on its own
+
+    def _forges(rc2, out2):
+        if rc2 != 0:
+            return False
+        try:
+            return json.loads(out2)["hookSpecificOutput"]["permissionDecision"] == "allow"
+        except Exception:
+            return True    # exit 0 with no readable decision is an allow by default
+
     for assignment in probes.get("env") or []:
         name, _, value = str(assignment).partition("=")
         tried += 1
-        rc2, _e = ask(command, extra_env={name: value})
-        if rc2 == 0:
-            lifted.append("env %s" % assignment)
+        rc2, _e, out2 = ask(command, extra_env={name: value})
+        if _forges(rc2, out2):
+            forged.append("env %s" % assignment)
     for path in probes.get("files") or []:
         target = os.path.join(rundir, str(path))
         os.makedirs(os.path.dirname(target) or rundir, exist_ok=True)
         open(target, "w").close()
         tried += 1
-        rc2, _e = ask(command)
-        if rc2 == 0:
-            lifted.append("file %s" % path)
+        rc2, _e, out2 = ask(command)
+        if _forges(rc2, out2):
+            forged.append("file %s" % path)
         os.remove(target)
     for blob in probes.get("payload_fields") or []:
         tried += 1
-        rc2, _e = ask(command, extra_payload=json.loads(blob))
-        if rc2 == 0:
-            lifted.append("payload %s" % blob)
+        rc2, _e, out2 = ask(command, extra_payload=json.loads(blob))
+        if _forges(rc2, out2):
+            forged.append("payload %s" % blob)
     if tried == 0:
-        premise_failed("the fixture lists no consent signals, so nothing was expressed and "
-                       "the block was never asked to lift")
-    say(bool(lifted),
-        "a person's decision can be expressed to the gate: one of the %d consent signals "
-        "the fixture lists lifts the block%s"
-        % (tried, ("; " + ", ".join(lifted)) if lifted else
-           " - none of them does. The gate implements the blocking half of R17 and no "
-           "deciding half at all"))
+        premise_failed("the fixture lists no consent signals, so nothing was tried and the "
+                       "forgery question was never asked")
+    say(not forged,
+        "no signal the agent can write for itself turns a publish into `allow` (%d tried)%s"
+        % (tried, "" if not forged else "; FORGED BY " + ", ".join(forged)))
+
+    # ASSERTION 3. A MODE THAT CANNOT PROMPT MUST REFUSE.
+    #
+    # The documentation says a `deny` survives bypassPermissions and
+    # --dangerously-skip-permissions. It does NOT say the same of `ask`, and it
+    # says nothing about `ask` in a plain -p run. So the gate must not ask where
+    # it cannot be sure a person sees it, and this asserts that it does not.
+    # THE CHECKLIST IS PUT BACK FIRST, and that is not housekeeping. Assertion 2
+    # deleted it, and without it the gate refuses for the WRONG REASON - "no
+    # checklist" rather than "this mode cannot prompt". This assertion passed
+    # against a gate deliberately patched to ask under bypassPermissions,
+    # because it could not tell the two refusals apart. Caught by falsifying.
+    with open(checklist, "w") as fh:
+        fh.write("Command: %s\n\n# Pre-publish checklist (fixture)\n\n"
+                 "- every item here is a fixture value, not a real verification\n" % command)
+    unpromptable = []
+    for pm in ("bypassPermissions", "", "somethingNobodyDefined"):
+        rc3, _e3, out3 = ask(command, extra_payload={"permission_mode": pm})
+        ok3 = rc3 != 0
+        if not ok3:
+            unpromptable.append(pm or "<empty>")
+    say(not unpromptable,
+        "a mode not documented to show a prompt gets the hard refusal, not an ask%s"
+        % ("" if not unpromptable else "; asked anyway under " + ", ".join(unpromptable)))
 
 finish(0 if ok else 1)
 PY

@@ -19,3 +19,4 @@ evals/results/
 # only (credentials, personal paths, private keys) and loads this if present.
 # The canonical copy lives outside every repository, under the home directory.
 .claude/productizer/hygiene-local.txt
+.claude/productizer/publish-checklist.md

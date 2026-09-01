@@ -1153,10 +1153,9 @@ checks:
         - id: R17
           verdict: Partial
           reason: >-
-            Asserts only that a publishing command is BLOCKED - 30 refused rows and 14 allowed
-            ones, so a gate that blocks everything fails too. The "until a person decides" half
-            has no implementation to assert against; see the `publish-gate-decides` check and
-            backlog item B30.
+            Asserts the BLOCK half only - 30 refused rows and 14 allowed ones, so a gate that
+            blocked everything would fail too. The deciding half is asserted by
+            `publish-gate-decides`, which claims R17 in full.
         - id: R18
           verdict: Covered
           evidence: >-
@@ -1187,10 +1186,10 @@ checks:
   # and claiming Covered for an obligation with no implementation is the exact
   # defect R18's acceptance row already had.
   - id: publish-gate-decides
-    why: R17 has two halves and only one is built; a check that quietly asserted the built half would let the missing one stay invisible
+    why: the deciding half is the one an agent could forge, so it is asserted by construction - a signal the agent can write must never turn a publish into allow
     when:
       always: true
-    severity: advise
+    severity: block
     requires:
       - ./plugins/productizer/skills/spec/scripts/check-untrusted-execution.sh
       - python3
@@ -1199,16 +1198,28 @@ checks:
     command: [./plugins/productizer/skills/spec/scripts/check-untrusted-execution.sh, --assert, r17-decision]
     timeout_seconds: 120
     exit_codes:
-      pass: [0]        # B30 fixed: a person can express a decision to the gate
-      fail: [1]        # expected today
+      pass: [0]        # the gate hands the decision to a person and refuses where it cannot
+      fail: [1]        # no route to a person, or a forgeable signal opened it
       refused: [2]
     coverage:
+      spec_units:
+        - id: R17
+          verdict: Covered
+          evidence: >-
+            Both halves asserted by construction. BLOCK: 30 refused rows and 14 allowed, so a gate
+            that blocked everything would fail too. DECIDE: a recognised publish with a fresh,
+            command-matching checklist returns permissionDecision `ask`, handing it to a prompt the
+            gated process cannot draw or answer; none of 14 agent-writable signals turns a publish
+            into `allow`; and a mode the documentation does not promise a prompt in gets the hard
+            refusal. Each falsified separately - including one that first passed for the wrong
+            reason and was fixed.
       from: stdout_paths
       pattern: '^(\S+)$'
       must_cover: none
       min_covered: 1
     limitations:
-      - It is RED on purpose and will stay red until B30 is closed. If it ever goes green without B30 being fixed, something has weakened the assertion rather than the gate having gained an approval path.
+      - It drives the SHIPPED template, not this repo's installed hook. The two were identical and drifted the moment one was edited; nothing asserts they stay in sync. Tracked as B33.
+      - It cannot prove a human actually sees the prompt. It proves the gate hands the decision to the harness and refuses everywhere the documentation does not promise a prompt. What the harness then does is the harness's contract, not this check's.
 
   # --- an unreachable spec home must stop the lifecycle ---------------------
   #
