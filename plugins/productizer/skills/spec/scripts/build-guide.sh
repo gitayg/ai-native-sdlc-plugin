@@ -39,17 +39,73 @@
 # on the guide being current. It names the ids that drifted, because "GUIDE.md
 # is stale" is not actionable and "R29 is in the spec and not in the guide" is.
 #
+# ==========================================================================
+# WHAT IS ASSERTED ABOUT THE OTHER 615 LINES, AND WHAT IS NOT.
+# ==========================================================================
+#
+# The generated section is about 85 lines of a 700-line file. Until 1.1 it was
+# the only thing asserted, and an audit proved what that costs: prose inserted
+# immediately AFTER the closing marker, flatly contradicting two active
+# requirements, passed clean. Everything outside the markers could disagree
+# with the spec and stay green.
+#
+# THE OBVIOUS FIX IS THE WRONG ONE. A guide is prose. Demanding that it repeat
+# the spec's sentences would go red on every correct guide ever written, and a
+# check that reddens on correct input gets switched off - after which nothing
+# is checked at all. So this asserts only what can be TRUE of prose:
+#
+#   R9.a  the marker-delimited section is byte-identical to a fresh render
+#   R9.b  every active requirement's row in the committed guide is the row the
+#         spec produces today - counted per id, not as one flag
+#   R9.c  every requirement id written as BARE PROSE outside the section names
+#         a requirement the spec defines
+#   R9.d  no sentence outside the section pairs a defined id with a status
+#         word the spec denies - an active requirement called `withdrawn`, a
+#         superseded one called `still active`
+#
+# THE CLOSED VOCABULARY IS PRINTED ON EVERY RUN, and so is every id mentioned
+# outside the section with its file line and its status, so a reader who
+# disagrees argues with the LIST rather than with a verdict whose rule is
+# invisible. The vocabulary was measured against the committed GUIDE.md before
+# it was chosen: one sentence matched, `Superseded by R58.`, and R58 names no
+# requirement so it is not examined. A wider net - `never`, `optional`,
+# `only`, `just` - matched ordinary prose in five places and was dropped.
+#
+# WHAT IS DELIBERATELY NOT ASSERTED, because none of it can be decided without
+# reading English:
+#
+#   - a statement that contradicts a requirement WITHOUT naming its id. The
+#     largest remaining hole, and it is not closeable by a string match.
+#   - any semantic disagreement between the guide's prose and a requirement's
+#     wording. `R17 blocks deploys` against `R17 blocks publishes` reads the
+#     same to this check.
+#   - a BARE PROSE id that names a superseded requirement with no status word
+#     beside it. Prose legitimately narrates history - "R7 was narrowed" - and
+#     failing that is the cry-wolf case above.
+#   - an id inside a code span that happens to name a real requirement.
+#     `R1`...`R6` in the committed guide are placeholder shapes, not citations.
+#     R9.d still examines them; R9.c does not.
+#   - everything in the guide that is not about requirements at all: install
+#     steps, the stage narrative, the command list.
+#
+# A FINDING OUTSIDE THE MARKERS IS A FINDING IN WRITE MODE TOO. Regenerating
+# the section cannot fix a sentence somebody wrote outside it, so the write
+# succeeds and the exit code is still 1. That is the contract's meaning of 1 -
+# findings - not a failed write.
+#
 # EXIT CODES ARE THE CONTRACT.
 #
-#   0  written, or already current, or --check found it current
-#   1  --check only: the committed guide is out of date with the spec
+#   0  written, or already current, and nothing outside the markers disagrees
+#   1  findings: the committed section is out of date with the spec (--check),
+#      or text outside it names an id the spec does not define or claims a
+#      status the spec denies (either mode)
 #   2  cannot run - bad usage, no repository root, an unreadable guide, or a
 #      guide carrying no markers to write between
 #   3  COULD NOT READ THE SPEC. Never reported as "0 active requirements": a
 #      spec nobody could open is not a product with nothing agreed about it.
 set -euo pipefail
 
-VERSION="build-guide 1.0"
+VERSION="build-guide 1.1"
 
 usage() {
   printf 'usage: build-guide.sh [--root DIR] [--spec FILE] [--guide FILE] [--check] [--version] [--help]\n'
@@ -382,21 +438,10 @@ if e < b:
 old_block = guide[b:e + len(END)]
 new_guide = guide[:b] + block + guide[e + len(END):]
 
-print(disp(SPEC_PATH))
-print(disp(GUIDE_PATH))
-print("2 file(s) read, %d active requirement(s) rendered" % n_active)
-
-if new_guide == guide:
-    if MODE == "check":
-        print("%s is up to date with the spec." % disp(GUIDE_PATH))
-    else:
-        print("%s is already up to date; nothing written." % disp(GUIDE_PATH))
-    raise SystemExit(0)
-
 # Bullets are wrapped, so the rows are unwrapped again before they are
 # compared. Comparing wrapped lines would call a requirement "changed" because
 # a word moved across a line break.
-ROW_HEAD = re.compile(r"^- \*\*(R\d+)\*\* \u2014 (.*)$")
+ROW_HEAD = re.compile(r"^- \*\*(R\d+)\*\* — (.*)$")
 
 
 def rows(text):
@@ -414,16 +459,257 @@ def rows(text):
     return found
 
 
-was = rows(old_block)
-now = rows(block)
-added = [i for i in now if i not in was]
-gone = [i for i in was if i not in now]
-changed = [i for i in now if i in was and was[i] != now[i]]
+print(disp(SPEC_PATH))
+print(disp(GUIDE_PATH))
+print("2 file(s) read, %d active requirement(s) rendered" % n_active)
+
+# =============================================================================
+# THE REST OF THE FILE. Everything above regenerates ~85 lines of a ~700-line
+# guide; what follows is the only thing asserted about the other ~615, and it
+# is deliberately small enough to be true.
+# =============================================================================
+FENCE = re.compile(r"^\s*(```|~~~)")
+RE_ID = re.compile(r"\bR[0-9]+\b")
+
+# The closed vocabulary. It is printed in --help and quoted in the header for
+# one reason: a reader who disagrees should be able to argue with THIS LIST
+# rather than with a verdict whose rule is invisible. Measured against the
+# committed GUIDE.md before it was chosen - one sentence matched, the
+# `Superseded by R58.` example, and R58 names no requirement so it is not
+# examined. A wider net (`never`, `optional`, `only`) matched ordinary prose
+# and was dropped: a check that reddens on a correct guide gets switched off.
+DENIES = re.compile(
+    r"superseded|withdrawn|retired|obsolete|deprecated|no longer"
+    r"|does not apply|not active|was dropped|has been removed"
+    r"|shall not|need not|is advisory|not enforced", re.I)
+AFFIRMS = re.compile(
+    r"is active|still active|still holds|remains active|remains in force", re.I)
+# `Superseded by R32` names R32 as the SUCCESSOR, which is active and correct.
+# Without this the sentence that documents the supersede convention is a
+# finding, and the check would be red on a guide that is right.
+SUCCESSOR = re.compile(r"(?:superseded|replaced|split)\s+(?:by|into)\s+"
+                       r"(?:and\s+|,\s*|R[0-9]+\s*)*$", re.I)
+
+status_by_id = {}
+for _rid, _g, _t, _st in reqs:
+    status_by_id[_rid] = _st
+
+begin_line = end_line = None
+for i, ln in enumerate(guide.split("\n")):
+    if BEGIN in ln:
+        begin_line = i
+    if END in ln:
+        end_line = i
+guide_lines = guide.split("\n")
+outside = [(i + 1, guide_lines[i]) for i in range(len(guide_lines))
+           if i < begin_line or i > end_line]
+
+
+def code_flags(line):
+    # True where a character sits inside an inline code span. An UNCLOSED
+    # backtick marks nothing: guessing that the rest of the line is code is
+    # how a real citation gets silently exempted.
+    flags = [False] * len(line)
+    i = 0
+    while i < len(line):
+        if line[i] == "`":
+            j = line.find("`", i + 1)
+            if j == -1:
+                break
+            for k in range(i, j + 1):
+                flags[k] = True
+            i = j + 1
+        else:
+            i += 1
+    return flags
+
+
+mentions = []          # (lineno, rid, in_code)
+prose_lines = []       # fenced blocks dropped: a fence is code, not prose
+in_fence = False
+for lineno, line in outside:
+    if FENCE.match(line):
+        in_fence = not in_fence
+        continue
+    flags = [True] * len(line) if in_fence else code_flags(line)
+    if not in_fence:
+        prose_lines.append((lineno, line))
+    for m in RE_ID.finditer(line):
+        mentions.append((lineno, m.group(0),
+                         any(flags[m.start():m.end()])))
+
+# Paragraphs, then sentences. GUIDE.md is wrapped at 78 columns, so a claim
+# about a requirement routinely spans two lines; a line-scoped rule would miss
+# every one that happened to wrap.
+paragraphs = []
+current = []
+for lineno, line in prose_lines:
+    if not line.strip():
+        if current:
+            paragraphs.append(current)
+            current = []
+    else:
+        current.append((lineno, line))
+if current:
+    paragraphs.append(current)
+
+ASSERTIONS = []
+
+
+def assertion(key, name, examined, upheld, held, note=None):
+    ASSERTIONS.append({"key": key, "name": name, "examined": examined,
+                       "upheld": upheld, "held": held, "note": note})
+
+
+FINDINGS = []
+
+# --- R9.a the generated section is byte-identical to a fresh render ----------
+current_section = (new_guide == guide)
+assertion("R9.a", "generated-section-is-current", 1, 1 if current_section else 0,
+          "the marker-delimited section is byte-identical to a fresh render "
+          "of the spec")
+
+# --- R9.b every active requirement is rendered, with the spec's wording ------
+committed_rows = rows(old_block)
+fresh_rows = rows(block)
+per_id = 0
+for _rid, _g, _t, _st in reqs:
+    if _st != "active":
+        continue
+    if committed_rows.get(_rid) == fresh_rows.get(_rid):
+        per_id += 1
+assertion("R9.b", "every-active-requirement-rendered-unchanged", n_active, per_id,
+          "the row in the committed guide is the row the spec produces today")
+
+# --- R9.c prose outside the markers cites only ids the spec defines ----------
+bare = [m for m in mentions if not m[2]]
+bare_ok = 0
+for lineno, rid, _ in bare:
+    if rid in status_by_id:
+        bare_ok += 1
+    else:
+        FINDINGS.append("R9.c  %s:%d  prose names %s, and %s defines no such "
+                        "requirement" % (disp(GUIDE_PATH), lineno, rid,
+                                         disp(SPEC_PATH)))
+assertion("R9.c", "prose-ids-outside-name-a-defined-requirement", len(bare),
+          bare_ok,
+          "an id written as running prose outside the section resolves in the "
+          "spec",
+          None if bare else "no id is written as bare prose outside the "
+                            "section, so this assertion did not fire")
+
+# --- R9.d no status claim outside the markers that the spec denies -----------
+defined_mentions = [m for m in mentions if m[1] in status_by_id]
+claims_examined = 0
+claims_upheld = 0
+for para in paragraphs:
+    offsets = []
+    pieces = []
+    at = 0
+    for lineno, line in para:
+        offsets.append((at, lineno))
+        pieces.append(line)
+        at += len(line) + 1
+    text = " ".join(pieces)
+
+    def line_of(pos):
+        found = offsets[0][1]
+        for start, lineno in offsets:
+            if start <= pos:
+                found = lineno
+        return found
+
+    at = 0
+    for sentence in re.split(r"(?<=[.!?])\s+", text):
+        base = text.find(sentence, at)
+        if base < 0:
+            base = at
+        at = base + len(sentence)
+        denies = DENIES.search(sentence)
+        affirms = AFFIRMS.search(sentence)
+        if not (denies or affirms):
+            continue
+        for m in RE_ID.finditer(sentence):
+            rid = m.group(0)
+            if rid not in status_by_id:
+                continue
+            if SUCCESSOR.search(sentence[:m.start()]):
+                continue
+            claims_examined += 1
+            state = status_by_id[rid]
+            lineno = line_of(base + m.start())
+            if denies and state == "active":
+                FINDINGS.append(
+                    "R9.d  %s:%d  %s is active in the spec, and the text "
+                    "outside the generated section says `%s` of it"
+                    % (disp(GUIDE_PATH), lineno, rid, denies.group(0)))
+            elif affirms and state != "active":
+                FINDINGS.append(
+                    "R9.d  %s:%d  %s is %s in the spec, and the text outside "
+                    "the generated section says `%s` of it"
+                    % (disp(GUIDE_PATH), lineno, rid, state, affirms.group(0)))
+            else:
+                claims_upheld += 1
+assertion("R9.d", "status-claims-outside-agree-with-the-spec", claims_examined,
+          claims_upheld,
+          "a sentence outside the section carrying one of the status words "
+          "below agrees with that requirement's status in the spec",
+          None if claims_examined else "no sentence outside the section pairs "
+                                       "a defined id with a status word, so "
+                                       "this assertion did not fire")
+
+# --- report -----------------------------------------------------------------
+# `upheld` is counted per assertion, one increment per item that held. It is
+# never derived from a single flag: this repo once printed `upheld: 0` above
+# six lines saying `held:`.
+print("    ids mentioned outside the generated section: %d (%d as bare prose, "
+      "%d inside a code span)"
+      % (len(mentions), len(bare), len(mentions) - len(bare)))
+for lineno, rid, in_code in mentions:
+    print("      %s:%d  %s  %s  %s"
+          % (disp(GUIDE_PATH), lineno, rid,
+             "code-span" if in_code else "prose    ",
+             status_by_id.get(rid, "NOT IN THE SPEC")))
+print("    status words this check will act on: %s" % DENIES.pattern.replace("|", ", "))
+print("    status words read as an active claim: %s" % AFFIRMS.pattern.replace("|", ", "))
+for entry in ASSERTIONS:
+    verdict = "held" if entry["upheld"] == entry["examined"] else "NOT HELD"
+    print("    %-6s %-46s examined %3d  upheld %3d  %s: %s"
+          % (entry["key"], entry["name"], entry["examined"], entry["upheld"],
+             verdict, entry["held"]))
+    if entry["note"]:
+        print("           note: %s" % entry["note"])
+print("    assertions upheld: %d of %d"
+      % (sum(1 for e in ASSERTIONS if e["upheld"] == e["examined"]),
+         len(ASSERTIONS)))
+print("    NOT ASSERTED: any statement outside the generated section that "
+      "contradicts a requirement WITHOUT naming its id; any semantic "
+      "disagreement between the guide's prose and a requirement's wording; "
+      "everything in the guide that is not about requirements at all")
+
+for line in FINDINGS:
+    print("    OUTSIDE  %s" % line)
 
 
 def by_id(ids):
     return sorted(ids, key=lambda s: int(s[1:]))
 
+
+# --- the verdict -------------------------------------------------------------
+if current_section:
+    if MODE == "check":
+        print("    %s requirements section is up to date with the spec."
+              % disp(GUIDE_PATH))
+    else:
+        print("    %s requirements section is already up to date; nothing "
+              "written." % disp(GUIDE_PATH))
+    raise SystemExit(1 if FINDINGS else 0)
+
+was = committed_rows
+now = fresh_rows
+added = [i for i in now if i not in was]
+gone = [i for i in was if i not in now]
+changed = [i for i in now if i in was and was[i] != now[i]]
 
 if MODE == "check":
     print("    %s is OUT OF DATE with %s." % (disp(GUIDE_PATH), disp(SPEC_PATH)))
@@ -457,5 +743,7 @@ for i in by_id(gone):
     print("    removed: %s" % i)
 for i in by_id(changed):
     print("    changed: %s" % i)
-raise SystemExit(0)
+# The write fixed the section. It cannot fix a sentence somebody wrote outside
+# it, so a finding out there survives the regeneration and is still a finding.
+raise SystemExit(1 if FINDINGS else 0)
 PY

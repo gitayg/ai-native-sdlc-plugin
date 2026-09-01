@@ -404,22 +404,30 @@ checks:
           reason: >-
             Classifies the capability a published view declares and accepts only `downloads`, which
             writes to the viewer's own device and reads nothing back. It asserts what the page ASKS
-            for, by matching the literal source pattern - so a capability reached by another spelling,
-            or granted in the publish call rather than requested by the page, is unasserted.
+            for, by RESOLVING what the page reaches for rather than matching one spelling - the
+            audit's `window.claude["use"]("artifact")`, which version 1.0 read as zero declarations
+            and passed clean, is now a named finding, and an unresolvable request is a finding
+            rather than an absence. What is left: it observes the REQUEST, not the file arriving on
+            the viewer's device, and a capability granted in the publish call is unasserted here.
         - id: R31
           verdict: Partial
           reason: >-
             Asserts that the GENERATED PAGE declares no capability able to publish new versions of
-            itself, and refuses any name it cannot classify - by matching the literal source pattern,
-            so another spelling of the same call goes through. R31's actual consequence, the publish
-            step declining, is asserted by `view-publish-refused` against the real hook; this check
-            observes the page not asking, which is the earlier and weaker of the two.
+            itself, and refuses any name it cannot classify - by resolving what the page reaches for,
+            so an evasive spelling is classified rather than missed and anything unresolvable is a
+            finding. R31's actual consequence, the publish step declining, is asserted by
+            `view-publish-refused` against the real hook; this check observes the page not asking,
+            which is the earlier and weaker of the two.
         - id: R4
           verdict: Partial
           reason: >-
-            Asserts the generator writes no repository file, but asserts the page's self-publishing
-            half only against the literal source pattern `claude.use("<string>")`, so a capability
-            reached by another spelling or granted in the publish call is unasserted.
+            Asserts both halves. The generator writes no repository file - every file hashed before
+            and after, content and mtime, falsified four ways. The page half no longer turns on one
+            source spelling: the request is found by receiver, by property and by binding, so bracket
+            keys, quote variants, whitespace, optional chaining, an alias of the object or of the
+            method, and a destructured `use` all resolve, and anything unresolvable is a FINDING
+            rather than a zero. What is left: it reads bytes, not a syntax tree, so a request
+            assembled at run time is reported unreadable rather than resolved.
       # One bare path per repository file hashed. `must_cover: none` and NOT
       # all_triggering, deliberately: this examines the whole tree rather than
       # the change, so a commit that DELETES a file would name a path that no
@@ -589,11 +597,18 @@ checks:
     coverage:
       spec_units:
         - id: R10
-          verdict: Partial
+          verdict: n/a
           reason: >-
-            Catches an import that marked some drafted requirements but not all; an import that
-            marked none and named no Stage 0c is invisible, because every detection cohort anchors
-            on an existing marker.
+            R10 is event-driven - "WHEN a repository with history is imported" - and no import has
+            happened here. Four independent sources are read every run and none records a Stage 0c
+            import: the change log, the commit history, elsewhere in the spec, and the backlog. The
+            guard is shut, the same shape as `jira-unbound`, and this claim expires by itself -
+            record an import and the premise holds, the other three assertions run, and a cohort
+            with no markings becomes a finding under its own heading. What stays unreachable even
+            then, stated in the check rather than implied: an import that marked nothing AND left
+            no record anywhere is byte-identical from outside to a repository never imported, so it
+            reports no import rather than a finding. Closing that needs Stage 0c to write a machine
+            record of its own id range.
       # Every requirement PARSED. Deliberately NOT the attribution count, which
       # is legitimately 0 on a repo that was never imported and would make every
       # honest run read as hollow.

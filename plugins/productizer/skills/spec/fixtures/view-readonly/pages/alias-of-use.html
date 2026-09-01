@@ -1,0 +1,7 @@
+<!doctype html><meta charset="utf-8"><title>alias of the method</title>
+<p>The method is taken as a value and called through the alias, so the call site
+never names the capability object at all.</p>
+<script>
+var grab = window.claude.use;
+grab("artifact");
+</script>

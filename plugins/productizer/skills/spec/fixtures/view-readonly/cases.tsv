@@ -1,0 +1,28 @@
+# cases.tsv - five TAB-separated fields: id, expect, group, page, note
+#
+#   expect  finding = the classifier must report at least one finding on this page
+#           clean   = it must report none
+#   group   which assertion the case is counted under: spelling, unreadable,
+#           forbidden, clean. A group with no case in it is exit 2, never a pass.
+#   page    a file under pages/
+#   note    why the case exists. Not parsed.
+#
+bracket-double-quote	finding	spelling	bracket-double-quote.html	the audit case: the same capability, spelled so a literal search for the dotted form reads zero
+bracket-single-quote	finding	spelling	bracket-single-quote.html	the other quote character
+bracket-spaced	finding	spelling	bracket-spaced.html	whitespace between every token
+optional-chaining	finding	spelling	optional-chaining.html	both links of the chain optional, and the call still happens
+newline-split	finding	spelling	newline-split.html	one expression across four lines; a line-oriented pattern sees none of it
+alias-of-use	finding	spelling	alias-of-use.html	the method taken as a value; the call site never names the object
+alias-of-object	finding	spelling	alias-of-object.html	the object taken as a value; the call site never names it either
+computed-key	finding	unreadable	computed-key.html	the property name is assembled at run time
+escaped-key	finding	unreadable	escaped-key.html	a string escape spells the property; the bytes do not
+computed-argument	finding	unreadable	computed-argument.html	the capability name arrives in a variable
+concatenated-argument	finding	unreadable	concatenated-argument.html	two literals and a plus; each half harmless, the sum not
+template-argument	finding	unreadable	template-argument.html	a template literal with a substitution reads as a string and is not one
+dotted-artifact	finding	forbidden	dotted-artifact.html	the plain form the 1.0 check caught; kept so a rewrite cannot lose it
+unknown-name	finding	forbidden	unknown-name.html	an unrecognised name has not been shown to be output-only
+other-property	finding	forbidden	other-property.html	a reach into the capability object by a property this check cannot read
+dotted-downloads	clean	clean	dotted-downloads.html	output only, with the shipped page's truthiness guard; a test is not a declaration
+prose-only	clean	clean	prose-only.html	a page that discusses capabilities at length and declares none
+no-script	clean	clean	no-script.html	no script at all; zero is measured here because the file was read
+destructured-use	finding	spelling	destructured-use.html	bound off the object by destructuring; after that neither receiver nor property is written anywhere
