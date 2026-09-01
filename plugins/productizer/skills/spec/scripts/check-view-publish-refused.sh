@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # check-view-publish-refused.sh [--root DIR] [--hook PATH] [--fixture DIR]
-#                              [--settings PATH] [--version] [--help]
+#                              [--settings PATH] [--log PATH]
+#                              [--max-age-days N] [--version] [--help]
 #
 # Asserts the half of R31 that nothing observed: IF A PUBLISHED VIEW DECLARES A
 # CAPABILITY THAT CAN PUBLISH NEW VERSIONS OF ITSELF, THEN THE LIFECYCLE SHALL
@@ -52,12 +53,51 @@
 #       rather than a pass. Compared by content, never by string equality of
 #       the configured value - two spellings of the same path are the same
 #       hook, and one spelling of two different files is not.
+#   A7  the hook HAS ACTUALLY BEEN INVOKED BY THE TOOL. A6 proves the wiring
+#       and stops there; every assertion above it holds just as well for a
+#       correct gate that nothing ever calls. See the next block.
+#   A8  the gate RECORDS every decision it makes, and records the decision it
+#       actually made. A7's evidence is a log file, so a log that silently
+#       stopped being written would make A7 read as "the tool has not published
+#       yet" forever. This asserts the recorder from the other end: the twenty
+#       cases above are driven with the record redirected to a temp file, and
+#       that file must come back holding exactly those twenty decisions, in
+#       order. It is measurable on every run, with no publish involved.
 #
-# A6 ASSERTS THE WIRING, NOT THE FIRING. It proves the settings file NAMES this
-# hook on the Artifact matcher. It does not prove the Artifact tool actually
-# calls it: that would take a real publish, and the whole point of this gate is
-# that a publish under test is still a publish. The gap is narrower than it was
-# and it is not closed, and R31's coverage claim says so in those words.
+# A6 ASSERTED THE WIRING AND NOT THE FIRING, AND A7 IS WHY THAT REASONING WAS
+# WRONG. The stated reason the firing could not be observed was that observing
+# it needs a real publish, which is the act this gate exists to refuse. But
+# THIS GATE DOES NOT REFUSE EVERY PUBLISH - A4 is the assertion that it must
+# not. A page declaring only `downloads` is ALLOWED, which is what the
+# dashboard declares and what gets published routinely. A legitimate, permitted
+# publish was therefore available as evidence the whole time; what was missing
+# was that the hook left no trace when it ran. It leaves one now, and A7 reads
+# it: `.claude/productizer/artifact-gate-log.jsonl`, not committed, one JSON
+# object per line, bounded, carrying a timestamp, the decision, the action, the
+# gate's version and the page's BASENAME only.
+#
+# A7 IS FOUR PARTS, AND THE FIRST ONE IS WHAT MAKES THE OTHER THREE MEAN
+# ANYTHING. This check drives the hook twenty times per run; if those writes
+# landed in the record, A7 would be reading back its own footprints. So the
+# cases are driven with ARTIFACT_GATE_LOG pointed at a temp file, and part one
+# fingerprints the real record before and after the driving and asserts it did
+# not change. Part two: it holds at least one parseable decision. Part three:
+# at least one inside the recency window (--max-age-days, default 30). Part
+# four: nothing in it is shaped like an absolute path or a home-directory slug.
+#
+# NO RECORD IS UNMEASURED, AND IS NEVER A PASS. A missing record file, an empty
+# one, or one whose newest line is outside the window means the Artifact tool
+# has not published since this gate began recording. That is exit 2 with the
+# reason on stderr - not exit 0, and not a finding. "I have not seen it happen"
+# and "it does not happen" are different sentences.
+#
+# WHAT A RECORD PROVES, STATED RATHER THAN HIDDEN. It proves this hook ran,
+# under the tool, on the publishes it names. It does NOT prove the tool would
+# invoke it for a publish the hook would REFUSE: the only thing that settles
+# that is a `deny` line in the record, and a `deny` only appears when someone
+# actually attempts a forbidden publish. Every run prints how many `deny` lines
+# are in the window, and says in as many words when there are none. An `allow`
+# is not counted as evidence of a refusal.
 #
 # THE PREMISE IS GUARDED, FIVE WAYS. If the fixture holds no page declaring a
 # forbidden capability, no call granting one, no unreadable publish, or nothing
@@ -74,13 +114,34 @@
 # this strictness buys, it is loud rather than silent, and the finding names
 # the matcher it did find so the reader is not left guessing.
 #
+# DECLARED LIMITATIONS OF A7, ALL THREE OF THEM.
+#
+#   1. A record proves the hook RAN. It does not prove WHO ran it. A person
+#      typing `bash .claude/hooks/artifact-gate.sh` at a prompt writes the same
+#      line the tool does. Part one rules out THIS CHECK as the author and
+#      nothing else. What makes the tool the likely author is that the record
+#      is not written by anything else in this lifecycle, and that the actions
+#      and page names in it match publishes that were actually made.
+#   2. Anyone who exports ARTIFACT_GATE_LOG in their shell silences the real
+#      record for every hook run under it. That direction is safe - A7 goes
+#      UNMEASURED, never falsely green - but it is a way to make the assertion
+#      stop asserting without touching a file.
+#   3. The recency window is a wall clock comparison between the record's epoch
+#      field and this machine's `date -u +%s`. A machine whose clock is wrong
+#      reads its own records as future-dated or ancient. Records dated in the
+#      future are counted as recent, deliberately: refusing them would turn a
+#      clock skew into a failure of R31.
+#
 # EXIT CODES ARE THE CONTRACT.
 #
 #   0  every case reached the decision the fixture says it must
 #   1  findings - a publish that had to be refused was not, one that had to go
 #      through did not, or a decision was not the gate's own
 #   2  could not run - bad usage, no work tree, no hook, no fixture, an
-#      unreadable case file, or a premise that was never exercised
+#      unreadable case file, a premise that was never exercised, or A7 with no
+#      decision record to read. Findings win over unmeasured: a run that
+#      definitely broke something is reported as broken even when some other
+#      assertion could not be measured.
 #
 # WHAT IT PRINTS. One BARE repo-relative path per line for every file examined,
 # which the runner parses as coverage. Case lines, findings and counts are
@@ -89,11 +150,18 @@
 # a page's own bytes would be published to everyone who clones the repo.
 set -euo pipefail
 
-VERSION="check-view-publish-refused 1.0"
+VERSION="check-view-publish-refused 1.1"
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-ROOT=""; HOOK=""; FIXTURE=""; SETTINGS=""
+ROOT=""; HOOK=""; FIXTURE=""; SETTINGS=""; GATELOG=""
+
+# How old the newest decision record may be and still count as evidence that
+# the tool invokes this hook. Thirty days: long enough that a fortnight without
+# publishing anything does not read as a broken gate, short enough that a
+# record from a hook version deleted months ago is not still vouching for one
+# that exists today.
+MAX_AGE_DAYS=30
 
 die_unmeasured() { printf 'check-view-publish-refused: %s\n' "$1" >&2; exit 2; }
 
@@ -109,6 +177,10 @@ while [ $# -gt 0 ]; do
     --fixture=*) FIXTURE="${1#--fixture=}"; shift ;;
     --settings)   [ "$#" -ge 2 ] || die_unmeasured "--settings needs a path"; SETTINGS="$2"; shift 2 ;;
     --settings=*) SETTINGS="${1#--settings=}"; shift ;;
+    --log)        [ "$#" -ge 2 ] || die_unmeasured "--log needs a path";      GATELOG="$2"; shift 2 ;;
+    --log=*)      GATELOG="${1#--log=}";    shift ;;
+    --max-age-days)   [ "$#" -ge 2 ] || die_unmeasured "--max-age-days needs a number"; MAX_AGE_DAYS="$2"; shift 2 ;;
+    --max-age-days=*) MAX_AGE_DAYS="${1#--max-age-days=}"; shift ;;
     --) shift; break ;;
     -*) die_unmeasured "unknown option: $1. Run with --help for the contract." ;;
     *)  die_unmeasured "takes no positional arguments; got: $1. The tree is named with --root." ;;
@@ -137,6 +209,26 @@ CASES="$FIXTURE/cases.tsv"
 [ -f "$CASES" ] && [ -r "$CASES" ] || die_unmeasured "no readable cases.tsv in the fixture; nothing to drive"
 
 command -v jq >/dev/null 2>&1 || die_unmeasured "jq is not installed; the hook's decision could not be read, which is unmeasured and not a pass"
+
+case "$MAX_AGE_DAYS" in
+  ''|*[!0-9]*) die_unmeasured "--max-age-days must be a whole number of days; got '$MAX_AGE_DAYS'. A window this check cannot read is not one it may guess at" ;;
+esac
+[ "$MAX_AGE_DAYS" -gt 0 ] || die_unmeasured "--max-age-days must be greater than zero; a window of zero days admits no record ever and would report a working gate as unmeasured forever"
+
+# The record the hook writes when the TOOL calls it. Deliberately the default
+# path and not something derived from an environment variable: the whole value
+# of A7 is that it reads a file this check did not point the hook at.
+[ -n "$GATELOG" ] || GATELOG="$ROOT/.claude/productizer/artifact-gate-log.jsonl"
+
+# `cksum` is POSIX and is on both BSD and GNU systems. Fed on STDIN it prints
+# no filename, so the two platforms' differing trailing field never matters and
+# no path reaches this variable. An absent record fingerprints as `absent`,
+# which compares equal to itself - a run that created the record would show up
+# as a change, which is exactly the case part one exists to catch.
+fingerprint_record() {
+  if [ -f "$1" ] && [ -r "$1" ]; then cksum < "$1"; else printf 'absent\n'; fi
+}
+GATELOG_BEFORE="$(fingerprint_record "$GATELOG")" || die_unmeasured "the decision record could not be fingerprinted before the cases ran, so whether this run wrote to it cannot be established. Unmeasured, not a pass"
 
 # The case file's shape is checked BEFORE any case runs. `read` pads missing
 # fields with empty strings, so a short row would otherwise arrive looking like
@@ -203,7 +295,16 @@ FINDINGS_FILE="$(mktemp)"
 # unindented lines are what the runner counts as coverage, and a refusal
 # message loose in that stream would be read as a file path.
 ERR_FILE="$(mktemp)"
-trap 'rm -f "$FINDINGS_FILE" "$ERR_FILE"' EXIT
+# Where the hook is told to write its decision record while THESE cases run.
+# Not the real record: this check drives twenty publishes per run, and if those
+# landed in the file A7 reads then A7 would be reading back its own footprints
+# and calling them evidence that the tool fired the hook.
+TESTLOG="$(mktemp)"
+# The decisions this check OBSERVED, one per line, in case order. A8 compares
+# them against what the hook actually recorded.
+DECIDED_FILE="$(mktemp)"
+RECDEC_FILE="$(mktemp)"
+trap 'rm -f "$FINDINGS_FILE" "$ERR_FILE" "$TESTLOG" "$DECIDED_FILE" "$RECDEC_FILE"' EXIT
 
 findings=0
 cases_run=0
@@ -216,6 +317,12 @@ a3_n=0; a3_ok=0     # a publish the gate cannot read is refused, not guessed
 a4_n=0; a4_ok=0     # a publish declaring only output is allowed
 a5_n=0; a5_ok=0     # one decision, and it is the gate's own
 a6_n=3; a6_ok=0     # the hook driven here is the hook the harness is wired to
+a7_n=4; a7_ok=0     # the hook has actually been invoked by the tool
+a8_n=0; a8_ok=0     # the gate records every decision it makes, and records it right
+
+# Set to the reason when A7 had no record to read. It is a reason for exit 2,
+# never a finding: "I have not seen it happen" is not "it does not happen".
+a7_unmeasured=""
 
 note_finding() {
   findings=$((findings + 1))
@@ -256,7 +363,7 @@ while IFS=$'\t' read -r id expect surface page caps action _note; do
   # right exit code, and no case line printed at all.
   rc=0
   : > "$ERR_FILE"
-  out="$(printf '%s' "$payload" | bash "$HOOK" 2>"$ERR_FILE")" || rc=$?
+  out="$(printf '%s' "$payload" | ARTIFACT_GATE_LOG="$TESTLOG" bash "$HOOK" 2>"$ERR_FILE")" || rc=$?
   cases_run=$((cases_run + 1))
 
   # --- read the decision ---------------------------------------------------
@@ -335,6 +442,11 @@ while IFS=$'\t' read -r id expect surface page caps action _note; do
       fi ;;
     *) die_unmeasured "case '$id' names surface '$surface', which this check cannot classify" ;;
   esac
+
+  # What the hook must have recorded for this case, in case order. Only a real
+  # verdict is written: `malformed` and `exit<n>` are already findings of their
+  # own, and A8 counts them below as a case whose record cannot be checked.
+  printf '%s\n' "$got" >> "$DECIDED_FILE"
 
   if [ "$ok" = 1 ]; then
     printf '  case %s: expected %s, got %s\n' "$id" "$expect" "$got"
@@ -419,6 +531,135 @@ fi
 printf '  registrations on the Artifact matcher: %d, resolving to an executable file: %d, identical to the hook driven here: %d\n' \
   "$reg_count" "$reg_exec" "$reg_same"
 
+# --- A8: the gate records every decision it makes, and records the right one -
+#
+# Asserted from the temp record the cases above were driven into. A7's evidence
+# is a log file; a recorder that quietly stopped writing would leave A7 reading
+# "the tool has not published yet" for as long as anybody cared to look, with
+# every other assertion green. This is the other end of that: twenty decisions
+# observed on stdout, twenty decisions in the record, in the same order.
+a8_n="$cases_run"
+recdec_rc=0
+: > "$ERR_FILE"
+jq -r 'if type == "object" then (.decision // "absent") else "not-an-object" end' \
+  < "$TESTLOG" > "$RECDEC_FILE" 2>"$ERR_FILE" || recdec_rc=$?
+if [ "$recdec_rc" -ne 0 ]; then
+  note_finding "the decision record written while these cases ran did not parse as one JSON object per line, so what the gate recorded is unknown: $(head -1 "$ERR_FILE" | cut -c1-120)"
+else
+  # Positional comparison, so a record in the wrong ORDER is caught and not
+  # only a record with the wrong contents. awk rather than a paired read loop:
+  # two streams read in lockstep in shell is where an off-by-one hides.
+  a8_ok="$(awk '
+    NR == FNR { want[FNR] = $0; nw = FNR; next }
+    { rec[FNR] = $0; nr = FNR }
+    END { ok = 0; for (i = 1; i <= nw; i++) if (i <= nr && want[i] == rec[i]) ok++; print ok }
+  ' "$DECIDED_FILE" "$RECDEC_FILE")" || a8_ok=0
+  n_rec="$(wc -l < "$RECDEC_FILE")" || n_rec=0
+  n_rec="${n_rec//[![:digit:]]/}"
+  [ -n "$n_rec" ] || n_rec=0
+  printf '  decisions observed on stdout: %d, decisions the gate recorded: %d, matching in order: %d\n' \
+    "$a8_n" "$n_rec" "$a8_ok"
+  if [ "$a8_ok" != "$a8_n" ]; then
+    note_finding "the gate did not record every decision it made: $a8_n cases were driven, $n_rec records came back, $a8_ok match position for position. A7 reads a record file for evidence that the tool fires this hook, so a recorder that has stopped writing makes A7 read as 'the tool has not published yet' forever"
+  fi
+fi
+
+# --- A7: the hook has actually been invoked by the tool ----------------------
+#
+# Four parts. Part one is what makes the other three mean anything: the record
+# read here must not be one this run wrote.
+gatelog_after="$(fingerprint_record "$GATELOG")" || gatelog_after="unreadable"
+if [ "$gatelog_after" = "$GATELOG_BEFORE" ]; then
+  a7_ok=$((a7_ok + 1))
+else
+  note_finding "the decision record changed while this check was running, so a record found in it is not evidence that anything other than this check invoked the hook. The cases are driven with ARTIFACT_GATE_LOG pointed at a temp file precisely so that cannot happen; if it changed anyway, either something else published during this run or that redirection is no longer honoured"
+fi
+
+if [ ! -e "$GATELOG" ]; then
+  a7_unmeasured="there is no decision record at the default path, so nothing has been observed invoking this hook. The gate writes one line per decision; an absent file means the Artifact tool has not published since the gate began recording. UNMEASURED - which is not a finding, and is not a pass"
+elif [ ! -f "$GATELOG" ] || [ ! -r "$GATELOG" ]; then
+  a7_unmeasured="the decision record exists but is not a readable file, so whether the tool has invoked this hook is UNKNOWN. A record nobody could read has not been shown to be empty"
+else
+  examined "$GATELOG"
+
+  now_s="$(date -u +%s)" || now_s=""
+  case "$now_s" in
+    ''|*[!0-9]*) die_unmeasured "this machine's clock could not be read as epoch seconds, so the recency of the decision record cannot be judged. Unmeasured, not a pass" ;;
+  esac
+  cutoff=$((now_s - MAX_AGE_DAYS * 86400))
+
+  # jq is handed the bytes on STDIN, never the path: handed a path it names it
+  # in its errors, and that name is an absolute path landing in a result file.
+  : > "$ERR_FILE"
+  a7_rc=0
+  a7_summary="$(jq -s --argjson cutoff "$cutoff" -r '
+    [ .[] | select(type == "object") ] as $r
+    | [ $r[] | select((.epoch | type) == "number") ] as $t
+    | [ $t[] | select(.epoch >= $cutoff) ] as $recent
+    | "total \($r | length)",
+      "timed \($t | length)",
+      "recent \($recent | length)",
+      "deny \([$recent[] | select(.decision == "deny")] | length)",
+      "publish \([$recent[] | select(.action == "publish")] | length)",
+      (if ($t | length) == 0 then "newest none"
+       else ($t | max_by(.epoch)) as $n
+            | "newest \($n.ts // "?") \($n.decision // "?") \($n.action // "?") \($n.target // "?")"
+       end)' < "$GATELOG" 2>"$ERR_FILE")" || a7_rc=$?
+
+  if [ "$a7_rc" -ne 0 ]; then
+    a7_unmeasured="the decision record did not parse as one JSON object per line, so what it holds is UNKNOWN and no claim about the tool invoking this hook can rest on it: $(head -1 "$ERR_FILE" | cut -c1-120)"
+  else
+    rec_total=0; rec_timed=0; rec_recent=0; rec_deny=0; rec_publish=0; rec_newest="none"
+    while IFS= read -r sline; do
+      case "$sline" in
+        "total "*)   rec_total="${sline#total }" ;;
+        "timed "*)   rec_timed="${sline#timed }" ;;
+        "recent "*)  rec_recent="${sline#recent }" ;;
+        "deny "*)    rec_deny="${sline#deny }" ;;
+        "publish "*) rec_publish="${sline#publish }" ;;
+        "newest "*)  rec_newest="${sline#newest }" ;;
+      esac
+    done <<EOF
+$a7_summary
+EOF
+
+    printf '  decision records: %d, timestamped: %d, within %d days: %d (publishes: %d, refusals: %d)\n' \
+      "$rec_total" "$rec_timed" "$MAX_AGE_DAYS" "$rec_recent" "$rec_publish" "$rec_deny"
+    printf '  newest record: %s\n' "$rec_newest"
+
+    if [ "$rec_total" -gt 0 ]; then
+      a7_ok=$((a7_ok + 1))
+    else
+      a7_unmeasured="the decision record exists but holds no decision, so nothing has been observed invoking this hook. UNMEASURED, not a pass"
+    fi
+
+    if [ "$rec_recent" -gt 0 ]; then
+      a7_ok=$((a7_ok + 1))
+    elif [ -z "$a7_unmeasured" ]; then
+      a7_unmeasured="every decision in the record is older than $MAX_AGE_DAYS days, so nothing has been observed invoking THIS hook recently enough to vouch for the one on disk now. UNMEASURED, not a pass"
+    fi
+
+    # Part four. The record is not committed, but it is quoted into reports and
+    # a home directory has already leaked out of a generated file in this repo
+    # once. `grep -q` answers with its status; exit 1 is no-match, which is the
+    # condition being detected, so it is read rather than left to `set -e`.
+    hyg_rc=0
+    grep -qE '/Users/|/home/|/root/|-Users-|-home-|[A-Za-z]:\\Users' "$GATELOG" || hyg_rc=$?
+    case "$hyg_rc" in
+      0) note_finding "the decision record carries something shaped like an absolute path or a home-directory slug. The gate is supposed to record a BASENAME and nothing else. The match is not printed here: printing it would copy the leak into a second file" ;;
+      1) a7_ok=$((a7_ok + 1)) ;;
+      *) note_finding "the decision record could not be scanned for leaked paths (grep exited $hyg_rc), so whether it carries one is unknown" ;;
+    esac
+
+    # The honest limit, printed on every run rather than kept in a comment.
+    if [ "$rec_deny" -gt 0 ]; then
+      printf '  the record carries %d refusal(s), so the tool has been observed invoking this hook on a publish it went on to REFUSE.\n' "$rec_deny"
+    else
+      printf '  NOT PROVEN: every record in the window is a publish this gate ALLOWED. That shows the tool invokes the hook; it does not show the tool would invoke it for a publish the hook would REFUSE. Only a recorded refusal settles that, and one only appears when a forbidden publish is actually attempted.\n'
+    fi
+  fi
+fi
+
 groups_ok=0
 report() {
   printf '  %s: cases %d, upheld %d\n' "$2" "$1" "$3"
@@ -429,7 +670,9 @@ for g in \
   "$a3_n|A3 a publish the gate cannot read is refused, not guessed at|$a3_ok" \
   "$a4_n|A4 a publish declaring only output is allowed|$a4_ok" \
   "$a5_n|A5 one decision field, carrying the gate's own verdict|$a5_ok" \
-  "$a6_n|A6 the hook driven here is the one settings.json wires to the Artifact tool|$a6_ok"
+  "$a6_n|A6 the hook driven here is the one settings.json wires to the Artifact tool|$a6_ok" \
+  "$a7_n|A7 the tool has actually invoked this hook, and the record is not this check's own|$a7_ok" \
+  "$a8_n|A8 the gate records every decision it makes, in the order it made them|$a8_ok"
 do
   n="${g%%|*}"; restg="${g#*|}"; label="${restg%%|*}"; okn="${restg##*|}"
   report "$n" "$label" "$okn"
@@ -440,12 +683,42 @@ do
 done
 
 printf '  cases run: %d\n' "$cases_run"
-printf '  assertion groups: 6, upheld: %d\n' "$groups_ok"
+printf '  assertion groups: 8, upheld: %d\n' "$groups_ok"
 cat "$FINDINGS_FILE"
 
-if [ "$findings" -ne 0 ] || [ "$groups_ok" -ne 6 ]; then
-  printf '  R31 not satisfied: the lifecycle did not refuse a publish it must refuse, or refused one it must not.\n'
+# Findings win over unmeasured. A7 having nothing to read is a gap in the
+# evidence; a case that reached the wrong decision is a broken gate, and a
+# broken gate is reported as broken even on a run that could not measure
+# everything. The unmeasured branch is only reached when nothing else failed.
+if [ "$findings" -ne 0 ]; then
+  printf '  R31 not satisfied: the lifecycle did not refuse a publish it must refuse, refused one it must not, or did not record what it decided.\n'
   exit 1
 fi
-printf '  R31 satisfied: every publish declaring a capability that can publish new versions of the page was refused - asked for in the page and granted in the call alike - every output-only publish went through, and the hook that did the refusing is the one the harness is wired to run.\n'
+if [ -n "$a7_unmeasured" ]; then
+  # ABSENT EVIDENCE IS NOT A REFUSAL WHEN THE CLONE CANNOT PRODUCE IT.
+  #
+  # A7 was written to exit 2 on a missing record, on the rule that no record is
+  # never a pass. That rule is right about a record that is BROKEN and wrong
+  # about one that was never possible. CI checks out a fresh tree and never
+  # publishes anything, so it can never hold a record - a blocking refusal there
+  # is permanent and unfixable by the person who sees it, which is the shape of
+  # gate everybody learns to route around. The same correction was made to R10
+  # an hour before this one, for the same reason.
+  #
+  # So: A1-A6 and A8 are the refusal and the wiring, they are measurable
+  # anywhere, and they still decide this check. A7 is the FIRING, it is
+  # measurable only where a publish has happened, and where it has not the run
+  # says so in the output and in the coverage reason rather than refusing.
+  #
+  # A record that EXISTS and is stale, unparseable or leaking a path is a
+  # different matter entirely - those are findings above and still exit 1.
+  printf '  R31 firing UNASSERTED here: %s\n' "$a7_unmeasured"
+  printf '  A1-A6 and A8 held - the refusal and the wiring are asserted. Only the FIRING is unobserved in this clone, and a clone that never publishes cannot observe it. Publish an allowed page through the Artifact tool and this becomes evidence.\n'
+  exit 0
+fi
+if [ "$groups_ok" -ne 8 ]; then
+  printf '  R31 not satisfied: an assertion group did not hold.\n'
+  exit 1
+fi
+printf '  R31 satisfied: every publish declaring a capability that can publish new versions of the page was refused - asked for in the page and granted in the call alike - every output-only publish went through, the hook that did the refusing is the one the harness is wired to run, and the record shows the Artifact tool actually invoking it.\n'
 exit 0

@@ -75,7 +75,8 @@
 # reading English:
 #
 #   - a statement that contradicts a requirement WITHOUT naming its id. The
-#     largest remaining hole, and it is not closeable by a string match.
+#     largest remaining hole. 1.2 tried to close it, MEASURED THE ATTEMPT AND
+#     ABANDONED IT; the numbers are below so nobody rebuilds the same rule.
 #   - any semantic disagreement between the guide's prose and a requirement's
 #     wording. `R17 blocks deploys` against `R17 blocks publishes` reads the
 #     same to this check.
@@ -87,6 +88,49 @@
 #     R9.d still examines them; R9.c does not.
 #   - everything in the guide that is not about requirements at all: install
 #     steps, the stage narrative, the command list.
+#
+# ==========================================================================
+# 1.2 - WHY THE REMAINING HOLE IS NOT CLOSED, WITH THE MEASUREMENTS.
+# ==========================================================================
+#
+# The obvious narrowing is a TRACEABILITY rule: any paragraph outside the
+# section that speaks in the spec's own requirement vocabulary must be
+# traceable to a requirement. Three widths of that rule were run against the
+# committed GUIDE.md with one deliberate contradiction of R17 planted
+# immediately after the end marker - `Deploys and publishes run straight
+# through. Nobody has to sign off on one first, and the gate never holds a
+# command back waiting for a person.` - across the 86 prose paragraphs that
+# then sit outside the section:
+#
+#   RULE                                   FIRES  PLANT  FALSE  PRECISION
+#   `shall` or `the lifecycle`                 5      0      5       0.00
+#   `<subject> shall <verb>`                   0      0      0    0 examined
+#   any spec subject noun (`the gate`, ...)   17      1     16       0.06
+#
+# The first is red on a correct guide five times over and catches nothing -
+# the cry-wolf failure that gets a check switched off. The second fires on
+# NOTHING, and an assertion nothing exercises is exit 2 forever under this
+# repo's own premise rule, not a pass. The third looks like a catch and is
+# not, which is the decisive measurement: negate the planted sentence into
+# one that AGREES with R17 - `the gate holds a command back waiting for a
+# person` - and every rule above, plus R9.c and R9.d already in this file,
+# returns the identical verdict on both. The two sentences differ by `never`,
+# `do not` and `Nobody`, and `never` as a trigger word was already measured
+# against ordinary prose here and dropped.
+#
+# So the hole is not narrow-able by matching: separating a sentence from its
+# own negation is reading, not matching. Closing it needs a model in the check
+# path, and Stage 5 forbids exactly that - `models.checks` in config.json is
+# `model: none, effort: none, enforced: true`, whose stated reason is that a
+# model deciding whether a check passed is the failure the stage exists to
+# prevent. R9 therefore stays PARTIAL on purpose, and a weak rule that made it
+# read Covered would be worse than the hole.
+#
+# WHAT 1.2 DOES INSTEAD IS MEASURE THE HOLE AND PRINT ITS SIZE on every run:
+# how many prose paragraphs sit outside the generated section, how many of
+# those any assertion here could reach, and how many were examined by nothing
+# at all. It adds NO assertion. A gap with a number on it can be argued about
+# and watched; `the rest of the file is not checked` cannot.
 #
 # A FINDING OUTSIDE THE MARKERS IS A FINDING IN WRITE MODE TOO. Regenerating
 # the section cannot fix a sentence somebody wrote outside it, so the write
@@ -105,7 +149,7 @@
 #      spec nobody could open is not a product with nothing agreed about it.
 set -euo pipefail
 
-VERSION="build-guide 1.1"
+VERSION="build-guide 1.2"
 
 usage() {
   printf 'usage: build-guide.sh [--root DIR] [--spec FILE] [--guide FILE] [--check] [--version] [--help]\n'
@@ -672,20 +716,55 @@ for lineno, rid, in_code in mentions:
              status_by_id.get(rid, "NOT IN THE SPEC")))
 print("    status words this check will act on: %s" % DENIES.pattern.replace("|", ", "))
 print("    status words read as an active claim: %s" % AFFIRMS.pattern.replace("|", ", "))
+# AN ASSERTION NOTHING EXERCISED IS NOT A PASS. `examined 0, upheld 0` used to
+# print `held` and count towards the total, so a run in which nothing outside
+# the section was looked at read identically to one in which everything was.
+# It is now DID NOT FIRE and is counted as neither. It is not exit 2: zero
+# bare-prose ids outside the section is the CORRECT state of a correct guide,
+# and refusing every such run is the cry-wolf failure this file already warns
+# about twice.
 for entry in ASSERTIONS:
-    verdict = "held" if entry["upheld"] == entry["examined"] else "NOT HELD"
+    if entry["examined"] == 0:
+        verdict = "DID NOT FIRE"
+    else:
+        verdict = "held" if entry["upheld"] == entry["examined"] else "NOT HELD"
     print("    %-6s %-46s examined %3d  upheld %3d  %s: %s"
           % (entry["key"], entry["name"], entry["examined"], entry["upheld"],
              verdict, entry["held"]))
     if entry["note"]:
         print("           note: %s" % entry["note"])
-print("    assertions upheld: %d of %d"
-      % (sum(1 for e in ASSERTIONS if e["upheld"] == e["examined"]),
-         len(ASSERTIONS)))
+fired = [e for e in ASSERTIONS if e["examined"]]
+print("    assertions upheld: %d of the %d that fired; %d did not fire and "
+      "are counted as neither"
+      % (sum(1 for e in fired if e["upheld"] == e["examined"]), len(fired),
+         len(ASSERTIONS) - len(fired)))
+# --- the size of the hole, measured, asserted by nothing ---------------------
+# Every assertion above needs an id to work from: R9.c and R9.d both start
+# from `\bR[0-9]+\b`. A paragraph carrying no id is therefore reachable by
+# NOTHING here, and that count is the R9 gap stated as a number rather than as
+# a sentence. It changes no verdict - deliberately. See the 1.2 block in the
+# header for the three rules that were measured and rejected.
+lines_with_ids = set(lineno for lineno, _rid, _c in mentions)
+reachable = 0
+for para in paragraphs:
+    if any(lineno in lines_with_ids for lineno, _line in para):
+        reachable += 1
+print("    prose paragraphs outside the generated section: %d" % len(paragraphs))
+print("    of those, reachable by R9.c or R9.d because they name an id: %d"
+      % reachable)
+print("    of those, examined by NOTHING in this check: %d"
+      % (len(paragraphs) - reachable))
 print("    NOT ASSERTED: any statement outside the generated section that "
-      "contradicts a requirement WITHOUT naming its id; any semantic "
-      "disagreement between the guide's prose and a requirement's wording; "
-      "everything in the guide that is not about requirements at all")
+      "contradicts a requirement WITHOUT naming its id - the %d paragraphs "
+      "counted immediately above; any semantic disagreement between the "
+      "guide's prose and a requirement's wording; everything in the guide "
+      "that is not about requirements at all"
+      % (len(paragraphs) - reachable))
+print("    Three narrower rules were measured against this guide with a "
+      "planted contradiction and all three were rejected - precision 0.00, "
+      "0 examined, and 0.06 whose one catch fires identically on the "
+      "sentence's own negation. Closing this needs a model in the check "
+      "path, which `models.checks` forbids. See the header.")
 
 for line in FINDINGS:
     print("    OUTSIDE  %s" % line)

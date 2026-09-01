@@ -48,14 +48,66 @@
 #
 #   (a) a guarded requirement's own marker points forward at `N` - the merge is
 #       stated in the spec;
-#   (b) `N` carries the same EARS trigger and system as a guarded requirement.
+#   (b) `N` states the same behaviour as a guarded requirement.
 #       `references/ears.md` is explicit that requirements are matched "on
 #       trigger and system, not on wording", and a second requirement with the
 #       same trigger as the contested one is by construction the other side of
 #       the contradiction;
-#   (c) `N`'s sentence matches the `**Incoming**` behaviour the ruling quotes.
-#       The ruling records that sentence verbatim precisely so the merge can be
-#       recognised later.
+#   (c) `N`'s sentence states the same behaviour as the `**Incoming**` clause
+#       the ruling quotes. The ruling records that sentence verbatim precisely
+#       so the merge can be recognised later.
+#
+# WHAT "THE SAME BEHAVIOUR" MEANS, AND WHAT IT COST TO WIDEN IT
+#
+# Version 1.0 read (b) as byte equality of the clause before `shall`. That let
+# through the case this check exists to catch: the SAME incoming behaviour
+# merged under a different EARS keyword - state-driven `While <state>, the
+# system shall ...` where the contested requirement is unwanted-behaviour `If
+# <trigger>, then the system shall ...`. Same condition, same system, same
+# obligation, two different keywords, and the byte comparison saw two unrelated
+# sentences.
+#
+# The limitation recorded against 1.0 said closing this needed a similarity
+# threshold, and that a threshold starts refusing unrelated intents - the
+# failure at the top of this header. THAT ARGUMENT WAS MEASURED RATHER THAN
+# BELIEVED, over every pair of requirements in this repository's own spec:
+#
+#   36 requirements, 630 pairs
+#   1.0's rule           22 pairs called the same behaviour, 3 of them from
+#                        DIFFERENT lineages - R1+R2, R1+R3, R2+R3
+#   the rule below       19 pairs, 0 of them from different lineages
+#
+# So the widening did not cost false positives. It REMOVED three. All three
+# were the same defect: R1, R2 and R3 are ubiquitous - `The lifecycle shall
+# ...` - so the clause before `shall` is the system name and nothing else, and
+# 1.0 matched every ubiquitous requirement against every other one. A ruling
+# pending against R1 would have refused the allocation of R2.
+#
+# The rule is two disjuncts, in this order:
+#
+#   SAME CONDITION. Both sentences open with a real EARS keyword (`When`,
+#   `While`, `If`, `Where`); with the keyword and the `then` connective
+#   removed, the clause before `shall` is identical. This is structural, not a
+#   threshold: it says the two sentences name the same condition and the same
+#   system under different EARS categories, which is exactly the audit's case.
+#   The keyword requirement is what stops it from collapsing every ubiquitous
+#   requirement together.
+#
+#   NEAR-IDENTICAL. The condition clauses overlap by at least half their
+#   content words AND the obligations do too. This is the threshold, and it is
+#   there to catch the same behaviour merged under a REWORDED condition, which
+#   the first disjunct misses. Its cost was measured on the same 630 pairs: it
+#   adds nothing the first disjunct does not already flag, and the highest
+#   score any pair from different lineages reaches anywhere in this spec is
+#   27 percent - the bar is 50, so nothing unrelated is within 23 points of it.
+#   Both halves must clear the bar, which is what separates a restatement from
+#   a deliberate split: R33 `shall stop` and R34 `shall ask which wins` share a
+#   condition and score 25 on the obligation.
+#
+# All 19 pairs the rule flags in this repository lie inside one of the six
+# lineage families the spec's OWN change log names - R7/R32, R8/R35/R36,
+# R14/R23/R24/R33/R34, R16/R25/R26, R21/R27/R28, R18/R29. It refuses nothing
+# the spec does not already say is one behaviour restated or split.
 #
 # Anything else that was allocated is reported as allocated and NOT refused,
 # on its own line, so the decision not to block it is visible rather than
@@ -113,12 +165,38 @@
 # A loop over rulings that never executes prints nothing and exits 0, and the
 # runner calls that hollow, which is a failure.
 #
+# THE SELF-ASSERTION, AND WHY IT IS NOT OPTIONAL
+#
+# This repository has no pending rulings, so the whole sweep above touches
+# nothing and the run exits clean having asserted NOTHING about R12. A check
+# that sweeps an empty set and prints PASS has already shipped here and sat
+# green for weeks. So before it looks at the real repository, this script
+# replays a committed fixture - `fixtures/ruling-scope/r12-different-trigger/`
+# - into a temporary git repository and runs ITSELF against it, twice:
+#
+#   1. the audit's case: the incoming behaviour merged under a different EARS
+#      keyword while the ruling is pending. Must be REFUSED.
+#   2. an unrelated requirement allocated in the same window. Must be LET
+#      THROUGH and reported as allocated - otherwise the assertion above would
+#      also pass for a check that refuses everything, which is the failure
+#      `rulings.md` names.
+#
+# The two are counted separately and both must hold; a run that could not set
+# the fixture up is exit 2, never a pass. The fixture is copied into a
+# temporary directory and the temporary repository is what gets written to -
+# nothing is written into the repository being checked. The nested run is
+# marked by an environment variable so it does not recurse.
+#
 # KNOWN LIMITATIONS, written down rather than discovered later:
-#   - The incoming behaviour merged under a REWORDED sentence with a DIFFERENT
-#     trigger than the contested requirement is not recognised as the incoming
-#     behaviour. Nothing structural connects it to the ruling at that point,
-#     and inventing a similarity threshold would start refusing unrelated
-#     intents, which is the failure at the top of this header.
+#   - The same behaviour merged with BOTH its condition and its obligation
+#     rewritten past the overlap bar is still not recognised. The bar was set
+#     from measurement (0.5, against a measured worst case of 0.267 among
+#     unrelated pairs) and lowering it further has no evidence behind it in a
+#     spec this size.
+#   - The measurement behind that bar is this repository's 630 pairs. A spec
+#     whose requirements are written in a narrower vocabulary would score
+#     higher on unrelated pairs, and the number to re-measure is the one in the
+#     header above, not the threshold.
 #   - A ruling raised and merged in a single commit leaves no window. Review of
 #     that diff is what stands between the spec and that merge.
 #   - Requirement ids are read from the whole concern row, not from the
@@ -128,12 +206,20 @@
 #
 # EXIT CODES ARE THE CONTRACT.
 #
-#   0  clean - no pending ruling, or none whose delta reached the spec
-#   1  findings - a spec change that depends on an unruled contradiction
+#   0  clean - both self-assertions upheld, and no pending ruling in the
+#      repository whose delta reached the spec
+#   1  findings - a spec change that depends on an unruled contradiction, or a
+#      self-assertion that did not hold
 #   2  could not run, or could not measure. Never 0.
 set -euo pipefail
 
-VERSION="check-pending-ruling-scope 1.0"
+# Byte-identical behaviour across machines and locales: character ranges,
+# case folding and sort order all follow the locale otherwise, and this
+# script's comparisons are all made out of them. `record-classification.sh`
+# sets this for the same reason.
+export LC_ALL=C
+
+VERSION="check-pending-ruling-scope 1.1"
 ROOT=""
 
 usage() {
@@ -166,6 +252,14 @@ if [ -z "$ROOT" ]; then
   fi
 fi
 [ -d "$ROOT" ] || die_unmeasured "--root $ROOT is not a directory"
+# PHYSICAL PATH, because git reports one. `git rev-parse --show-toplevel`
+# resolves symlinks and the containment test below compares the two as strings,
+# so a root reached through a symlink was refused as "outside its own git top
+# level". Measured, not argued: on macOS $TMPDIR is /var/folders/... symlinked
+# to /private/var/folders/..., and every run rooted in a temporary directory
+# died at that test.
+ROOT="$(cd "$ROOT" && pwd -P)" ||
+  die_unmeasured "--root could not be resolved to a real directory"
 
 SELFDIR="$(cd "$(dirname "$0")" && pwd)"
 PARSER="$SELFDIR/spec-requirements.sh"
@@ -196,15 +290,245 @@ unmeasured=0
 finding() { printf '    %s\n' "$1"; found=1; }
 unmeasurable() { printf '    UNMEASURED %s\n' "$1"; unmeasured=1; }
 
+selftest_upheld=0
+selftest_total=2
+
+# The single exit point. Every path out of this script that is not
+# `die_unmeasured` comes through here, so no path can reach a PASS without the
+# self-assertion count being printed and checked - which is exactly how the
+# absent-rulings shortcut used to return 0 having asserted nothing.
+#
+# UPHELD IS COUNTED PER ASSERTION, never taken from one flag: a single `ok`
+# cannot tell "both held" apart from "neither ran".
+verdict() {
+  if [ "${PRODUCTIZER_RULING_SCOPE_SELFTEST:-}" = "$ROOT" ]; then
+    printf 'self-assertions: not run - this is the nested pass over the fixture\n'
+  else
+    printf 'self-assertions upheld: %d of %d\n' "$selftest_upheld" "$selftest_total"
+  fi
+  if [ "$unmeasured" -ne 0 ]; then
+    printf 'UNMEASURED: a pending ruling could not be scoped or its window could not be reached, so this run has no verdict on whether a dependent spec change merged. Not a pass.\n' >&2
+    exit 2
+  fi
+  if [ "$found" -ne 0 ]; then
+    printf 'FAIL: a spec change that depends on an unruled contradiction has reached the spec, or this check no longer recognises one. R12 merges nothing that depends on a pending ruling; rule the contradiction, then merge.\n' >&2
+    exit 1
+  fi
+  if [ "${PRODUCTIZER_RULING_SCOPE_SELFTEST:-}" != "$ROOT" ] && [ "$selftest_upheld" -ne "$selftest_total" ]; then
+    printf 'UNMEASURED: %d of %d self-assertions ran. A run that asserted less than it declares is not a pass, whatever the repository sweep found.\n' "$selftest_upheld" "$selftest_total" >&2
+    exit 2
+  fi
+  printf 'PASS: %s. The recognition rule itself was exercised on the committed fixture in the same run.\n' "$1"
+  exit 0
+}
+
 norm() { printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | sed -e 's/[[:space:]][[:space:]]*/ /g' -e 's/^ //' -e 's/ $//'; }
 
-# The EARS trigger and system: everything up to the obligation. `ears.md` says
-# requirements are matched on trigger and system, not on wording, so this is
-# the clause that decides whether two sentences are about the same behaviour.
-trigger() {
-  printf '%s' "$1" | tr '[:upper:]' '[:lower:]' |
-    sed -e 's/ shall .*$//' -e 's/[[:space:]][[:space:]]*/ /g' -e 's/^ //' -e 's/ $//'
+# >>> same-behaviour rule - measured over this repo's 630 requirement pairs.
+# Kept between these two markers so the rule that was measured and the rule
+# that ships are the same bytes: the measurement harness extracts this block
+# rather than reimplementing it, which is how two copies of a rule come to
+# disagree. awk, not python3, so the check gains no new `requires:` entry.
+#
+# Two sentences on stdin, one per line. Prints a reason when they are the same
+# behaviour and nothing at all when they are not.
+SAME_BEHAVIOUR_AWK='
+function nrm(s) {
+  s = tolower(s)
+  gsub(/[^a-z0-9 ]+/, " ", s)
+  gsub(/  */, " ", s)
+  sub(/^ /, "", s); sub(/ $/, "", s)
+  return s
 }
+function cnd(s,   n, i) { n = nrm(s); i = index(n, " shall "); return (i ? substr(n, 1, i - 1) : n) }
+function obl(s,   n, i) { n = nrm(s); i = index(n, " shall "); return (i ? substr(n, i + 7) : "") }
+# A REAL EARS KEYWORD, not merely a clause before `shall`. Without this test a
+# ubiquitous requirement - `The lifecycle shall ...` - has the system name as
+# its whole condition, and every ubiquitous requirement matches every other.
+# That was three of version 1.0s twenty-two matches, all of them wrong.
+function haskw(c,   w) {
+  w = c; sub(/ .*$/, "", w)
+  return (w == "when" || w == "while" || w == "if" || w == "where")
+}
+function stripkw(c,   n, W, i, out) {
+  n = split(c, W, " ")
+  i = (n >= 1 && haskw(c)) ? 2 : 1
+  out = ""
+  for (; i <= n; i++) {
+    if (W[i] == "then") continue
+    out = (out == "" ? W[i] : out " " W[i])
+  }
+  return out
+}
+# INTEGER ARITHMETIC ONLY, and T is a percentage. A fraction compared against
+# a decimal threshold puts the parse of "0.5" in the hands of the locale - some
+# locales read a comma - and a threshold silently read as 0 refuses every pair.
+# inter * 100 >= T * uni says the same thing with no decimal point anywhere.
+function overlap(a, b,   A, B, na, nb, i, inter, uni) {
+  delete SA; delete SB
+  na = split(a, A, " "); nb = split(b, B, " ")
+  for (i = 1; i <= na; i++) if (!(A[i] in STOP)) SA[A[i]] = 1
+  for (i = 1; i <= nb; i++) if (!(B[i] in STOP)) SB[B[i]] = 1
+  inter = 0; uni = 0
+  for (i in SA) { uni++; if (i in SB) inter++ }
+  for (i in SB) if (!(i in SA)) uni++
+  if (uni == 0) return 0
+  return (inter * 100 >= T * uni)
+}
+BEGIN {
+  # Function words only. `not` and `no` are deliberately NOT here: they are the
+  # difference between an obligation and its negation, which is the one word
+  # pair a contradiction turns on.
+  split("a an the of to in on for is are be by that it this and or", ST, " ")
+  for (k in ST) STOP[ST[k]] = 1
+}
+NR == 1 { A = $0; next }
+NR == 2 { B = $0 }
+END {
+  if (NR < 2 || A == "" || B == "") exit 0
+  ca = cnd(A); cb = cnd(B)
+  if (haskw(ca) && haskw(cb) && stripkw(ca) == stripkw(cb)) { print "same-condition"; exit 0 }
+  if (overlap(stripkw(ca), stripkw(cb)) && overlap(obl(A), obl(B))) { print "near-identical"; exit 0 }
+}
+'
+# <<< same-behaviour rule
+
+# The overlap bar for the second disjunct, AS A PERCENTAGE - see the note on
+# integer arithmetic in the rule above. Measured, not chosen: 27 percent is the
+# highest either half reaches between requirements from different lineages
+# anywhere in this spec, so the bar sits 23 points clear of everything
+# unrelated the repository actually contains.
+SAME_BEHAVIOUR_THRESHOLD="50"
+
+# Prints `same-condition`, `near-identical`, or nothing. Neither sentence is
+# ever echoed: one of them is a quote of an incoming intent, and this output
+# lands in a committed file.
+same_behaviour() {
+  printf '%s\n%s\n' "$1" "$2" |
+    awk -v T="$SAME_BEHAVIOUR_THRESHOLD" "$SAME_BEHAVIOUR_AWK"
+}
+
+# --- the self-assertion ----------------------------------------------------
+# Runs first, and always, because the sweep that follows it is allowed to find
+# nothing. See THE SELF-ASSERTION in the header. Skipped in the nested run, or
+# it would recurse forever.
+# THE MARKER NAMES THE ROOT IT SUPPRESSES, and is honoured only for that root.
+# A bare on/off variable is a premise guard anything in the environment can
+# switch off in silence - one stray export in CI and every run here prints PASS
+# having asserted nothing, which is the exact failure this block exists to
+# close. Naming the temporary fixture root means a value that arrived from
+# anywhere else does not match, and the self-assertion runs anyway.
+if [ "${PRODUCTIZER_RULING_SCOPE_SELFTEST:-}" != "$ROOT" ]; then
+  FIXREL="plugins/productizer/skills/spec/fixtures/ruling-scope/r12-different-trigger"
+  FIXDIR="$SELFDIR/../fixtures/ruling-scope/r12-different-trigger"
+  [ -d "$FIXDIR" ] ||
+    die_unmeasured "the self-assertion fixture is not at $FIXREL beside this script. Without it this run asserts nothing about R12 in a repository that has no pending rulings, and a sweep over an empty set is not a pass."
+  FIXDIR="$(cd "$FIXDIR" && pwd)"
+
+  # Coverage lines for the fixture are printed only when the fixture really is
+  # inside the tree being checked. Pointed at another repository with --root,
+  # the fixture is not one of that repository's files and claiming it as
+  # examined coverage would be a lie about which tree was read.
+  fixcov() {
+    case "$FIXDIR/" in
+      "$TOP"/*) printf '%s/%s\n' "${FIXDIR#"$TOP"/}" "$1" ;;
+      # The path is NOT printed: outside the checked tree it is an absolute
+      # path naming somebody's home directory, and this output is committed.
+      *) printf '  fixture file read from outside the tree being checked: %s\n' "$1" ;;
+    esac
+  }
+
+  for fx in base-spec.md raised-spec.md merged-spec.md unrelated-spec.md D1-merge-nothing.md; do
+    { [ -f "$FIXDIR/$fx" ] && [ -r "$FIXDIR/$fx" ]; } ||
+      die_unmeasured "the self-assertion fixture is missing or unreadable: $FIXREL/$fx"
+    fixcov "$fx"
+  done
+
+  # PREMISE GUARDS. Each of these is a way the fixture could stop testing what
+  # it claims to test while still going green, which is the failure mode this
+  # whole block exists to close.
+  grep -qxF 'Status: pending' "$FIXDIR/D1-merge-nothing.md" ||
+    die_unmeasured "$FIXREL/D1-merge-nothing.md is not pending, so the window it is supposed to hold open is not open and neither assertion below tests anything."
+  for fx in merged-spec.md unrelated-spec.md; do
+    "$PARSER" "$FIXDIR/$fx" | awk -F'\t' '$1 == "R3"' | grep -q . ||
+      die_unmeasured "$FIXREL/$fx does not define R3, so the allocation the assertions turn on is not in the fixture."
+  done
+  if "$PARSER" "$FIXDIR/base-spec.md" | awk -F'\t' '$1 == "R3"' | grep -q .; then
+    die_unmeasured "$FIXREL/base-spec.md already defines R3, so R3 is not an allocation made inside the window and neither assertion tests anything."
+  fi
+
+  mkdir -p "$WORK/fixture/.claude/productizer"
+  # Resolved, so the marker below and the nested run's own resolved ROOT are
+  # the same string.
+  FIXROOT="$(cd "$WORK/fixture" && pwd -P)"
+  git -c init.defaultBranch=main init -q "$FIXROOT" ||
+    die_unmeasured "git could not create the temporary repository the self-assertion replays the fixture into."
+  gitc() {
+    git -C "$FIXROOT" -c user.name=fixture -c user.email=fixture@example.invalid \
+        -c commit.gpgsign=false commit -q -m "$1" ||
+      die_unmeasured "git could not commit the self-assertion fixture: $1"
+  }
+  cp "$FIXDIR/base-spec.md" "$FIXROOT/.claude/productizer/spec.md"
+  git -C "$FIXROOT" add .claude || die_unmeasured "git could not stage the self-assertion fixture"
+  gitc "fixture: the spec before the contradiction was raised"
+
+  mkdir -p "$FIXROOT/.claude/productizer/rulings"
+  cp "$FIXDIR/raised-spec.md" "$FIXROOT/.claude/productizer/spec.md"
+  cp "$FIXDIR/D1-merge-nothing.md" "$FIXROOT/.claude/productizer/rulings/D1-merge-nothing.md"
+  git -C "$FIXROOT" add .claude || die_unmeasured "git could not stage the self-assertion fixture"
+  gitc "fixture: raise D1 and its concern row in one commit"
+
+  SELF="$SELFDIR/${0##*/}"
+  [ -x "$SELF" ] ||
+    die_unmeasured "cannot re-invoke this script as $SELF for the self-assertion."
+
+  # The nested run's stdout is captured, never re-printed: its coverage lines
+  # name paths inside a temporary directory, and those are not this
+  # repository's files.
+  run_fixture() {
+    cp "$FIXDIR/$1" "$FIXROOT/.claude/productizer/spec.md"
+    FIXRC=0
+    PRODUCTIZER_RULING_SCOPE_SELFTEST="$FIXROOT" "$SELF" --root "$FIXROOT" \
+      > "$WORK/fix.out" 2> "$WORK/fix.err" || FIXRC=$?
+    # The nested run's STDOUT is held back - its coverage lines name paths in a
+    # temporary directory and are not this repository's files. Its STDERR is
+    # not: that is where the reason lives, and a reason nobody prints is a
+    # reason nobody has.
+    if [ -s "$WORK/fix.err" ]; then
+      printf 'self-assertion, nested run over %s - its own stderr follows, and a FAIL line from it is the expected result for the refused case:\n' "$1" >&2
+      sed 's/^/  /' < "$WORK/fix.err" >&2
+    fi
+  }
+
+  # 1. THE AUDIT'S CASE. R3 is R1's behaviour under a state-driven keyword
+  #    while D1 is pending against R1. It must be refused.
+  run_fixture merged-spec.md
+  if [ "$FIXRC" = "2" ]; then
+    die_unmeasured "the self-assertion's nested run could not measure the fixture (exit 2). Its reason was printed to stderr just above. Nothing was asserted about R12."
+  fi
+  # `grep -q` on a deliberate no-match exits 1, which `set -e` would take as
+  # the script failing. `if` is the branch, so the non-zero is expected here.
+  if [ "$FIXRC" = "1" ] && grep -q 'R3 was allocated while D1 is pending' "$WORK/fix.out"; then
+    selftest_upheld=$((selftest_upheld + 1))
+    printf '  self-assertion 1 upheld: the incoming behaviour merged under a different EARS keyword is refused.\n'
+  else
+    finding "$FIXREL/merged-spec.md:1: the incoming behaviour of a pending ruling, merged under a different EARS keyword from the requirement the ruling names, was NOT refused (nested run exited $FIXRC). That is the gap R12 was reopened to close, and this check no longer closes it."
+  fi
+
+  # 2. THE OTHER HALF. An unrelated allocation in the same window must be let
+  #    through, or assertion 1 would also pass for a check that refuses
+  #    everything - the halt rulings.md names as the worse failure.
+  run_fixture unrelated-spec.md
+  if [ "$FIXRC" = "2" ]; then
+    die_unmeasured "the self-assertion's nested run could not measure the unrelated-allocation fixture (exit 2). Its reason was printed to stderr just above."
+  fi
+  if [ "$FIXRC" = "0" ] && grep -q 'R3 allocated at' "$WORK/fix.out"; then
+    selftest_upheld=$((selftest_upheld + 1))
+    printf '  self-assertion 2 upheld: an unrelated requirement allocated in the same window is let through and reported.\n'
+  else
+    finding "$FIXREL/unrelated-spec.md:1: an UNRELATED requirement allocated while a ruling is pending was refused rather than let through (nested run exited $FIXRC). A pending ruling blocks its own delta and nothing else; a halt that stops all work teaches people to route around intake."
+  fi
+fi
 
 # --- the spec as it stands now ---------------------------------------------
 printf '%s\n' "$SPECREL"                 # coverage: one line per file examined
@@ -239,8 +563,7 @@ if [ ! -e "$RULINGS" ]; then
   printf 'rulings examined: 0\n'
   printf 'pending rulings: 0\n'
   printf 'note: no %s directory - no contradiction has ever been raised here, so R12 governs a state this repo has not entered. Nothing is blocked. That is an absence, and it is reported as one rather than as a measured zero.\n' "$RULINGSREL"
-  printf 'PASS: no unruled contradiction, so no spec change can depend on one.\n'
-  exit 0
+  verdict "no unruled contradiction in this repository, so no spec change here can depend on one"
 fi
 [ -d "$RULINGS" ] ||
   die_unmeasured "$RULINGSREL exists and is not a directory. A path that is not the directory the contract names says nothing about what is pending."
@@ -425,13 +748,26 @@ for f in "$RULINGS"/D*.md; do
       gtarget="$(awk -F'\t' -v i="$g" '$1 == i { print $4; exit }' "$WORK/cur.tsv")"
       gtext="$(awk -F'\t' -v i="$g" '$1 == i { print $5; exit }' "$WORK/cur.tsv")"
       if [ "$gtarget" = "$n" ]; then why="$g's marker points forward at it"; break; fi
-      if [ -n "$gtext" ] && [ "$(trigger "$ntext")" = "$(trigger "$gtext")" ]; then
-        why="it carries the same EARS trigger and system as $g, which ears.md matches requirements on"
-        break
+      if [ -n "$gtext" ]; then
+        case "$(same_behaviour "$ntext" "$gtext")" in
+          same-condition)
+            why="it names the same condition and the same system as $g under a different EARS keyword, and ears.md matches requirements on trigger and system rather than on wording"
+            break ;;
+          near-identical)
+            why="its condition and its obligation each overlap $g's by at least half their content words"
+            break ;;
+        esac
       fi
     done
-    if [ -z "$why" ] && [ -n "$INCOMING" ] && [ "$(norm "$ntext")" = "$(norm "$INCOMING")" ]; then
-      why="its sentence is the incoming behaviour $id quotes"
+    if [ -z "$why" ] && [ -n "$INCOMING" ]; then
+      if [ "$(norm "$ntext")" = "$(norm "$INCOMING")" ]; then
+        why="its sentence is the incoming behaviour $id quotes"
+      else
+        case "$(same_behaviour "$ntext" "$INCOMING")" in
+          same-condition|near-identical)
+            why="it states the incoming behaviour $id quotes, re-worded" ;;
+        esac
+      fi
     fi
     if [ -n "$why" ]; then
       finding "$SPECREL:$nline: $n was allocated while $id is pending, and $why. An id in the spec is a merge, whatever the surrounding prose says."
@@ -446,13 +782,4 @@ printf 'rulings examined: %d\n' "$ruling_count"
 printf 'pending rulings: %d\n' "$pending_count"
 printf 'guarded requirements: %d\n' "$guarded_total"
 
-if [ "$unmeasured" -ne 0 ]; then
-  printf 'UNMEASURED: a pending ruling could not be scoped or its window could not be reached, so this run has no verdict on whether a dependent spec change merged. Not a pass.\n' >&2
-  exit 2
-fi
-if [ "$found" -ne 0 ]; then
-  printf 'FAIL: a spec change that depends on an unruled contradiction has reached the spec. R12 merges nothing that depends on a pending ruling; rule the contradiction, then merge.\n' >&2
-  exit 1
-fi
-
-printf 'PASS: no spec change depending on a pending ruling has reached the spec. Unrelated changes were not examined for approval and were not blocked.\n'
+verdict "no spec change depending on a pending ruling has reached the spec. Unrelated changes were not examined for approval and were not blocked"

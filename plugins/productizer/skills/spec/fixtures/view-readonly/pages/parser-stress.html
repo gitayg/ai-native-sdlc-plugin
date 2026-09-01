@@ -1,0 +1,27 @@
+<!doctype html><meta charset="utf-8"><title>javascript that is hard to tokenize</title>
+<p>A page that declares nothing and is awkward to read. Every construct here has
+defeated a hand-written tokenizer somewhere: a regular expression holding a
+slash, a division that looks like one, a template with a substitution inside a
+substitution, an apostrophe in prose, and a comment that talks about
+capabilities. If the parser loses its place in any of them it will misread what
+follows, and the only honest way to find that out is to make it read them.</p>
+<p>It doesn't declare a capability. It doesn't mention window.claude except
+here, in prose, where nothing follows it.</p>
+<script>
+// A comment about capabilities: a published view may ask for downloads and may
+// not ask for an artifact. Words, in a comment, that never execute.
+/* A block comment holding a slash / and a quote " and a backtick ` */
+var ratio = 12 / 4 / 3;
+var slashy = /[/]+[a-z]/g;
+var after = "a/b".replace(slashy, "-");
+var label = `outer ${ratio > 1 ? `inner ${after.length}` : "none"} end`;
+var quoted = "he said \"downloads\" and left";
+var apostrophe = 'it doesn\'t declare anything';
+var tagged = { use: 1, publish: 2 };
+function pick(list) {
+  if (!list.length) return /^$/.test(label);
+  return list.filter(function (x) { return x % 2; });
+}
+document.title = pick([1, 2, 3]).length + tagged.publish + quoted.length +
+  apostrophe.length + label.length + ratio;
+</script>

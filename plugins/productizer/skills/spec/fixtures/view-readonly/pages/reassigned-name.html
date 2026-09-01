@@ -1,0 +1,9 @@
+<!doctype html><meta charset="utf-8"><title>a name written twice</title>
+<p>One write is a literal and the other is not, so the value at the call site
+depends on which ran. A folder that took the first write would resolve this
+page to a name it may never ask for.</p>
+<script>
+var CAP = "downloads";
+if (window.name) { CAP = window.name; }
+window.claude.use(CAP);
+</script>

@@ -1,0 +1,8 @@
+<!doctype html><meta charset="utf-8"><title>capability name from a binding</title>
+<p>The name is declared once, as a literal, and used somewhere else. Nothing at
+the call site spells it, and a reader that only looks at the call site reads a
+variable.</p>
+<script>
+var CAP = "art" + "ifact";
+window.claude.use(CAP);
+</script>

@@ -1,0 +1,12 @@
+# Only the keys check-acceptance-rows.sh reads: the `checks:` list, each
+# entry's `id`, its optional `enabled`, and `coverage.spec_units[].id`.
+version: 1
+checks:
+  - id: alpha
+    coverage:
+      spec_units:
+        - id: R1
+  - id: beta
+    coverage:
+      spec_units:
+        - id: R2

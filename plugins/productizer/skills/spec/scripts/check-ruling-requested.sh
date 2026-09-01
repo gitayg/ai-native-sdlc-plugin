@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # check-ruling-requested.sh [--version] [--help] [--root DIR]
 #
-# Asserts the ASK half of R23: IF AN INTENT CONTRADICTS AN ACTIVE REQUIREMENT,
-# THEN THE LIFECYCLE SHALL STOP AND ASK WHICH WINS.
+# Asserts R34: IF AN INTENT CONTRADICTS AN ACTIVE REQUIREMENT, THEN THE
+# LIFECYCLE SHALL ASK WHICH WINS. R34 is the ASK half of the old R23, split out
+# under B31; R33 carries the stop and is asserted by the solver corpus.
 #
 # The stop is already asserted elsewhere. Nothing asserted the ask, and that is
 # backlog item B11: on a contradiction the lifecycle correctly stops, nobody is
@@ -40,6 +41,58 @@
 #      anything counting these files, and a counter that cannot tell them
 #      apart reports a pending ruling as ruled - which is the count reading
 #      clean while a contradiction is live.
+#
+#   5. EVERY INTENT RECORDED AS `contradict` HAS A RULING NAMING IT. This is
+#      the one that reaches the stop nothing else here can see.
+#
+#      Assertions 1 to 4 all start from the spec or from the rulings directory,
+#      so a contradiction stopped IN CONVERSATION - no concern row, no ruling
+#      file, nothing written anywhere - presents them with an empty repository
+#      and they call it clean. That is B11, and splitting R23 into R33 and R34
+#      did not touch it.
+#
+#      The evidence such a stop DOES leave is the classification record.
+#      `record-classification.sh` writes one per intent, naming exactly one of
+#      extend, refine, duplicate, contradict, and it writes it BEFORE anything
+#      else happens. `references/rulings.md` then fixes the order that follows
+#      a `contradict`: allocate the ids, write the ruling file, add the concern
+#      row, commit, and only THEN ask - "Writing the file first is the whole
+#      mechanism." So a record saying `contradict` with no ruling file naming
+#      the same intent is exactly a stop that ended in a session.
+#
+#      The join is the `Intent:` field, present in both files, reduced to one
+#      spelling by the same rule `classification-record.py --slug` uses. Every
+#      ruling counts, whatever its status: a `ruled` ruling asked its question
+#      just as much as a pending one did.
+#
+#      WHAT IT STILL CANNOT SEE, said plainly rather than discovered later: an
+#      intent that was never classified at all leaves no record either, and
+#      nothing in a repository lists the intents that arrived. Closing THAT is
+#      not a check's job - it needs Stage 1 to record the classification before
+#      it asks, which `record-classification.sh` already supports and nothing
+#      currently forces.
+#
+# THE SELF-ASSERTION, AND WHY IT IS NOT OPTIONAL
+#
+# In a repository with no rulings and no contradiction on record, all five
+# sweeps above are over empty sets and the run exits clean having asserted
+# nothing. A check that sweeps an empty set and prints PASS has already shipped
+# here and sat green for weeks. So before it looks at the real repository, this
+# script replays a committed fixture -
+# `fixtures/ruling-scope/r34-conversational-stop/` - into a temporary root and
+# runs ITSELF against it, twice:
+#
+#   1. `stopped/`: an intent classified `contradict`, with no concern row and
+#      no rulings directory at all. Must be REFUSED.
+#   2. `asked/`: the same contradiction written up as rulings.md requires.
+#      Must be CLEAN - otherwise assertion 1 would also pass for a check that
+#      refuses every contradict record it sees, which would make raising a
+#      ruling properly indistinguishable from not raising one.
+#
+# Both must hold; a run that could not set the fixture up is exit 2, never a
+# pass. Everything is copied into a temporary directory; nothing is written
+# into the repository being checked. The nested run is marked by an environment
+# variable so it does not recurse.
 #
 # WHAT IT DELIBERATELY NEVER LOOKS AT
 #
@@ -92,16 +145,31 @@
 #     A table written without one loses its first data row from the scan.
 #   - Running as a user who can read anything (root) defeats the unreadable-
 #     directory test, as it defeats every such test.
+#   - Assertion 5 sees only intents that were CLASSIFIED. A contradiction that
+#     arrived, was argued and was dropped without a classification record
+#     leaves nothing anywhere, and no check can find it. The upstream fix is
+#     the writer's, named above.
+#   - The classification store is read at its default path. A repository that
+#     moved it with `record-classification.sh --store` gets an absent-store
+#     note rather than a search, and the note says the count is missing rather
+#     than zero.
 #
 # EXIT CODES ARE THE CONTRACT.
 #
-#   0  clean
+#   0  clean, and both self-assertions upheld
 #   1  findings
-#   2  could not run - no work tree, no spec, or a rulings directory or file
-#      that could not be read. Never confused with 0.
+#   2  could not run - no work tree, no spec, a rulings or classifications
+#      directory or file that could not be read, or a fixture that could not be
+#      set up. Never confused with 0.
 set -euo pipefail
 
-VERSION="check-ruling-requested 1.0"
+# Byte-identical behaviour across machines and locales: character ranges,
+# case folding and sort order all follow the locale otherwise, and this
+# script's comparisons are all made out of them. `record-classification.sh`
+# sets this for the same reason.
+export LC_ALL=C
+
+VERSION="check-ruling-requested 1.1"
 ROOT=""
 
 usage() {
@@ -148,6 +216,144 @@ rel() { printf '%s' "${1#"$ROOT"/}"; }
 
 found=0
 finding() { printf '    %s\n' "$1"; found=1; }
+
+# The join key between a classification record and a ruling. Both write the
+# intent's identifier as the human typed it - `#123` in one file and `123` in
+# the other, or `PROJ-123` against `proj-123` - so the two are reduced to one
+# spelling before they are compared. The reduction is `classification-record.py
+# --slug`'s, deliberately: a second, subtly different normalisation is how two
+# files come to disagree about whether they name the same intent.
+intent_key() {
+  printf '%s' "$1" | tr '[:upper:]' '[:lower:]' |
+    sed -e 's/[^a-z0-9._-][^a-z0-9._-]*/-/g' -e 's/^[-.]*//' -e 's/[-.]*$//'
+}
+
+# COUNTED PER ASSERTION, never from one flag. A single `ok` at the end cannot
+# tell "every unit held" apart from "no unit was examined", and this check runs
+# in a repository where three of its four sweeps are over empty sets.
+open_checked=0;       open_upheld=0
+cited_checked=0;      cited_upheld=0
+contradict_checked=0; contradict_upheld=0
+class_seen=0
+selftest_upheld=0
+selftest_total=2
+
+verdict() {
+  if [ "${PRODUCTIZER_RULING_REQUESTED_SELFTEST:-}" = "$ROOT" ]; then
+    printf 'self-assertions: not run - this is the nested pass over the fixture\n'
+  else
+    printf 'self-assertions upheld: %d of %d\n' "$selftest_upheld" "$selftest_total"
+  fi
+  if [ "$found" -ne 0 ]; then
+    printf 'FAIL: a contradiction was stopped without a question anyone can answer. R34 asks which wins; these findings are the ask that never landed.\n' >&2
+    exit 1
+  fi
+  if [ "${PRODUCTIZER_RULING_REQUESTED_SELFTEST:-}" != "$ROOT" ] && [ "$selftest_upheld" -ne "$selftest_total" ]; then
+    printf 'UNMEASURED: %d of %d self-assertions ran. In a repository with no rulings and no contradiction on record every sweep above is over an empty set, so a pass that rested only on them would assert nothing.\n' "$selftest_upheld" "$selftest_total" >&2
+    exit 2
+  fi
+  printf 'PASS: every open concern cites a ruling that exists, every pending ruling is cited back and is filled in enough to answer, and every intent recorded as a contradiction has a ruling naming it.\n'
+  exit 0
+}
+
+# ---------------------------------------------------------------------------
+# THE SELF-ASSERTION. Runs first, and always. See the header.
+# ---------------------------------------------------------------------------
+# THE MARKER NAMES THE ROOT IT SUPPRESSES, and is honoured only for that root.
+# A bare on/off variable is a premise guard anything in the environment can
+# switch off in silence - one stray export in CI and every run here prints PASS
+# having asserted nothing, which is the exact failure this block exists to
+# close. Naming the temporary fixture root means a value that arrived from
+# anywhere else does not match, and the self-assertion runs anyway.
+if [ "${PRODUCTIZER_RULING_REQUESTED_SELFTEST:-}" != "$ROOT" ]; then
+  SELFDIR="$(cd "$(dirname "$0")" && pwd)"
+  FIXREL="plugins/productizer/skills/spec/fixtures/ruling-scope/r34-conversational-stop"
+  FIXDIR="$SELFDIR/../fixtures/ruling-scope/r34-conversational-stop"
+  [ -d "$FIXDIR" ] ||
+    die_unmeasured "the self-assertion fixture is not at $FIXREL beside this script. Without it, a repository with no rulings and no recorded contradiction gives every sweep below an empty set, and a pass would assert nothing."
+  FIXDIR="$(cd "$FIXDIR" && pwd)"
+
+  # Coverage is claimed for the fixture only when the fixture is really inside
+  # the tree being checked. Pointed elsewhere with --root, it is not one of
+  # that tree's files and claiming it would misstate what was read.
+  fixcov() {
+    case "$FIXDIR/" in
+      "$ROOT"/*) printf '%s/%s\n' "${FIXDIR#"$ROOT"/}" "$1" ;;
+      # The path is NOT printed: outside the checked tree it is an absolute
+      # path naming somebody's home directory, and this output is committed.
+      *) printf '  fixture file read from outside the tree being checked: %s\n' "$1" ;;
+    esac
+  }
+
+  for fx in stopped/spec.md stopped/classifications/fixture-9.md \
+            asked/spec.md asked/classifications/fixture-9.md \
+            asked/rulings/D1-uncontested-part.md; do
+    { [ -f "$FIXDIR/$fx" ] && [ -r "$FIXDIR/$fx" ]; } ||
+      die_unmeasured "the self-assertion fixture is missing or unreadable: $FIXREL/$fx"
+    fixcov "$fx"
+  done
+
+  # PREMISE GUARDS. Each names a way the fixture could stop testing what it
+  # claims while still going green.
+  for fx in stopped asked; do
+    grep -qxF 'Classification: contradict' "$FIXDIR/$fx/classifications/fixture-9.md" ||
+      die_unmeasured "$FIXREL/$fx/classifications/fixture-9.md is not classified contradict, so neither assertion below is about a contradiction."
+  done
+  [ ! -e "$FIXDIR/stopped/rulings" ] ||
+    die_unmeasured "$FIXREL/stopped/ has a rulings directory. The whole point of that half is a contradiction with NO ruling written, so with one present it asserts nothing."
+  FIXINTENT="$(awk '/^Intent:/ { sub(/^Intent:[ \t]*/, ""); print; exit }' "$FIXDIR/asked/classifications/fixture-9.md")"
+  FIXRULED="$(awk '/^Intent:/ { sub(/^Intent:[ \t]*/, ""); print; exit }' "$FIXDIR/asked/rulings/D1-uncontested-part.md")"
+  [ -n "$FIXINTENT" ] && [ "$(intent_key "$FIXINTENT")" = "$(intent_key "$FIXRULED")" ] ||
+    die_unmeasured "$FIXREL/asked/ does not name one intent in both its record and its ruling, so the clean half of the assertion would pass for the wrong reason."
+
+  SELF="$SELFDIR/${0##*/}"
+  [ -x "$SELF" ] ||
+    die_unmeasured "cannot re-invoke this script as $SELF for the self-assertion."
+
+  run_fixture() {
+    rm -rf "$WORK/fixroot"
+    mkdir -p "$WORK/fixroot/.claude/productizer"
+    cp -R "$FIXDIR/$1/." "$WORK/fixroot/.claude/productizer/"
+    FIXRC=0
+    PRODUCTIZER_RULING_REQUESTED_SELFTEST="$WORK/fixroot" "$SELF" --root "$WORK/fixroot" \
+      > "$WORK/fix.out" 2> "$WORK/fix.err" || FIXRC=$?
+    # The nested run's stdout is held back - its coverage lines name a
+    # temporary directory. Its stderr is not: that is where the reason is, and
+    # a reason nobody prints is a reason nobody has. A FAIL line from the
+    # `stopped` pass is the expected result.
+    if [ -s "$WORK/fix.err" ]; then
+      printf 'self-assertion, nested run over %s/ - its own stderr follows:\n' "$1" >&2
+      sed 's/^/  /' < "$WORK/fix.err" >&2
+    fi
+  }
+
+  # 1. THE CONVERSATIONAL STOP. Classified contradict, nothing written.
+  run_fixture stopped
+  if [ "$FIXRC" = "2" ]; then
+    die_unmeasured "the self-assertion's nested run over $FIXREL/stopped/ could not measure it (exit 2); its reason is on stderr just above."
+  fi
+  if [ "$FIXRC" = "1" ] && grep -q 'classified as contradict' "$WORK/fix.out"; then
+    selftest_upheld=$((selftest_upheld + 1))
+    printf '  self-assertion 1 upheld: a contradiction classified and then stopped in conversation, with nothing written to the spec, is refused.\n'
+  else
+    finding "$FIXREL/stopped/spec.md:1: a contradiction recorded as classified, with no concern row and no ruling file anywhere, was NOT refused (nested run exited $FIXRC). That is B11 exactly, and it is the gap R34 inherited from R23."
+  fi
+
+  # 2. THE SAME CONTRADICTION WRITTEN DOWN. Without this half, assertion 1
+  #    would also pass for a check that refuses every contradict record it
+  #    sees, which would make raising a ruling properly indistinguishable from
+  #    not raising one.
+  run_fixture asked
+  if [ "$FIXRC" = "2" ]; then
+    die_unmeasured "the self-assertion's nested run over $FIXREL/asked/ could not measure it (exit 2); its reason is on stderr just above."
+  fi
+  if [ "$FIXRC" = "0" ]; then
+    selftest_upheld=$((selftest_upheld + 1))
+    printf '  self-assertion 2 upheld: the same contradiction, written up with its concern row and its ruling, is clean.\n'
+  else
+    finding "$FIXREL/asked/spec.md:1: a contradiction written up exactly as rulings.md requires was refused anyway (nested run exited $FIXRC). A check that cannot tell a raised ruling from an unraised one is not asserting the ask."
+  fi
+fi
 
 # ---------------------------------------------------------------------------
 # The spec's Areas of concern rows. One record per cited ruling id:
@@ -203,7 +409,6 @@ while IFS="$(printf '\t')" read -r cline cstate cid did; do
 done < "$WORK/concerns.tsv"
 
 in_list() { printf '%s' "$2" | grep -qxF -- "$1"; }
-
 # ---------------------------------------------------------------------------
 # The rulings directory. Absent and unreadable are different sentences.
 # ---------------------------------------------------------------------------
@@ -219,6 +424,7 @@ if [ -e "$RULINGS" ]; then
 fi
 
 FILE_IDS=""
+RULED_INTENTS=""
 pending_count=0
 ruling_count=0
 
@@ -352,6 +558,12 @@ if [ "$DIRSTATE" = "present" ]; then
       }
       printf "STATUS\t%d\t%s\n", (cnt["Status"] == 1 ? ln["Status"] : 0), st
 
+      # The intent this ruling was raised for, emitted for EVERY status. A
+      # ruling that has already been ruled asked its question just as much as a
+      # pending one did, so it discharges the classification record all the
+      # same. Emitted before the pending-only exit below for that reason.
+      if (cnt["Intent"] == 1 && val["Intent"] != "") printf "INTENTVAL\t%d\t%s\n", ln["Intent"], val["Intent"]
+
       if (st != "pending") exit
 
       # Everything from ## Ruling down belongs to the human and MUST still
@@ -373,6 +585,7 @@ if [ "$DIRSTATE" = "present" ]; then
       loc="$(rel "$f"):$kline"
       case "$kind" in
         STATUS) status="$detail" ;;
+        INTENTVAL) RULED_INTENTS="$RULED_INTENTS$(intent_key "$detail")"$'\n' ;;
         EMPTYFILE) finding "$loc: the ruling file is empty. An empty file is not an ask." ;;
         NOSTATUS) finding "$loc: no Status: line in the header block. Nothing can count this ruling, so a live contradiction reads as none." ;;
         BADSTATUS) finding "$loc: Status: carries something other than exactly one of pending, ruled, lapsed, superseded with nothing else on the line." ;;
@@ -391,8 +604,11 @@ if [ "$DIRSTATE" = "present" ]; then
 
     if [ "$status" = "pending" ]; then
       pending_count=$((pending_count + 1))
+      cited_checked=$((cited_checked + 1))
       if ! in_list "$id" "$CITED_IDS"; then
         finding "$(rel "$f"):1: $id is pending but no C row in the spec's Areas of concern cites it. The ask is invisible to anyone reading the spec, which is where intake looks."
+      else
+        cited_upheld=$((cited_upheld + 1))
       fi
     fi
   done
@@ -404,25 +620,89 @@ fi
 if [ -f "$WORK/open.tsv" ]; then
   while IFS="$(printf '\t')" read -r oline ocid odid; do
     [ -n "${oline:-}" ] || continue
+    open_checked=$((open_checked + 1))
     if ! in_list "$odid" "$FILE_IDS"; then
       if [ "$DIRSTATE" = "absent" ]; then
         finding "$(rel "$SPEC"):$oline: concern $ocid is open citing $odid, and there is no .claude/productizer/rulings directory at all. The lifecycle stopped and nobody was asked."
       else
         finding "$(rel "$SPEC"):$oline: concern $ocid is open citing $odid, but no rulings/$odid-*.md exists. The lifecycle stopped and nobody was asked."
       fi
+    else
+      open_upheld=$((open_upheld + 1))
     fi
   done < "$WORK/open.tsv"
 fi
 
+# ---------------------------------------------------------------------------
+# THE STOP THAT WROTE NOTHING TO THE SPEC.
+#
+# Everything above starts from the spec or from the rulings directory, so a
+# contradiction stopped in conversation - no concern row, no ruling file - is
+# invisible to it. That is the original B11 failure and it survived the R23
+# split into R33 and R34 untouched.
+#
+# The evidence such a stop DOES leave is the classification record.
+# `record-classification.sh` writes one per intent before anything else
+# happens, naming exactly one of extend, refine, duplicate, contradict; and
+# `references/rulings.md` is explicit about the order that follows a
+# `contradict`: allocate the ids, write the ruling file, add the concern row,
+# COMMIT, and only THEN ask. So a record saying `contradict` with no ruling
+# file naming the same intent is precisely a stop that asked in a session and
+# wrote nothing - detectable, by location, with nothing quoted.
+#
+# WHAT THIS STILL CANNOT SEE, and it is worth stating plainly: an intent that
+# was never classified at all leaves no record either, and nothing in this
+# repository lists the intents that arrived. Closing that needs Stage 1 to
+# record the classification before it asks, which is a writer-side obligation
+# no check can substitute for.
+# ---------------------------------------------------------------------------
+CLASSREL=".claude/productizer/classifications"
+CLASS="$ROOT/$CLASSREL"
+CLASSSTATE="absent"
+if [ -e "$CLASS" ]; then
+  [ -d "$CLASS" ] ||
+    die_unmeasured "$CLASSREL exists and is not a directory. A path that is not the store the contract names says nothing about what was classified."
+  { [ -r "$CLASS" ] && [ -x "$CLASS" ]; } ||
+    die_unmeasured "$CLASSREL exists and cannot be listed. Whether a contradiction was classified and then left unwritten is UNKNOWN, not no."
+  CLASSSTATE="present"
+  for c in "$CLASS"/*.md; do
+    [ -e "$c" ] || continue
+    printf '%s\n' "$(rel "$c")"         # coverage: one line per file examined
+    class_seen=$((class_seen + 1))
+    { [ -f "$c" ] && [ -r "$c" ]; } ||
+      die_unmeasured "cannot read $(rel "$c"). A classification nobody could open is not a classification that is fine."
+    # Read whole-line, the same way the rulings' Status is read: `contradict`
+    # appears in the four-value list inside these records' own prose, and a
+    # substring match would classify every record as a contradiction.
+    cval="$(awk '/^Classification:/ { sub(/^Classification:[ \t]*/, ""); print; exit }' "$c")"
+    [ "$cval" = "contradict" ] || continue
+    contradict_checked=$((contradict_checked + 1))
+    cintent="$(awk '/^Intent:/ { sub(/^Intent:[ \t]*/, ""); print; exit }' "$c")"
+    if [ -z "$cintent" ]; then
+      finding "$(rel "$c"):1: this record classifies an intent as contradict and names no intent, so no ruling can be joined to it. Nothing can tell whether anyone was asked."
+      continue
+    fi
+    if in_list "$(intent_key "$cintent")" "$RULED_INTENTS"; then
+      contradict_upheld=$((contradict_upheld + 1))
+    elif [ "$DIRSTATE" = "absent" ]; then
+      finding "$(rel "$c"):1: this intent was classified as contradict and there is no .claude/productizer/rulings directory at all. The lifecycle stopped in conversation and wrote nothing - the ask has nowhere to land and nobody is holding the question."
+    else
+      finding "$(rel "$c"):1: this intent was classified as contradict and no ruling file names it in its Intent field. rulings.md writes the file BEFORE the question is asked, so a contradiction with a record and no ruling is a stop that ended in a session."
+    fi
+  done
+fi
+
 printf 'rulings examined: %d\n' "$ruling_count"
 printf 'pending rulings: %d\n' "$pending_count"
+printf 'classification records examined: %d\n' "$class_seen"
+printf 'open concerns checked for a ruling that exists: %d, upheld %d\n' "$open_checked" "$open_upheld"
+printf 'pending rulings checked for a concern row: %d, upheld %d\n' "$cited_checked" "$cited_upheld"
+printf 'contradict classifications checked for a ruling: %d, upheld %d\n' "$contradict_checked" "$contradict_upheld"
 if [ "$DIRSTATE" = "absent" ]; then
   printf 'note: no .claude/productizer/rulings directory - this repo has never raised a contradiction. That is no count, not a measured zero.\n'
 fi
-
-if [ "$found" -ne 0 ]; then
-  printf 'FAIL: a contradiction was stopped without a question anyone can answer. R23 asks which wins; these findings are the ask that never landed.\n' >&2
-  exit 1
+if [ "$CLASSSTATE" = "absent" ]; then
+  printf 'note: no %s directory - nothing here has recorded a classification. That is no count, not a measured zero, and it is the one state in which a conversational stop stays invisible.\n' "$CLASSREL"
 fi
 
-printf 'PASS: every open concern cites a ruling that exists, every pending ruling is cited back and is filled in enough to answer.\n'
+verdict

@@ -23,6 +23,11 @@
 #   4-classified-unrecorded.md  3 MINUS THAT ROW, and nothing else. The single
 #                             line between a green run and a red one.
 #   5-counter-only.md         2 with the counter moved and nothing else moved
+#   6-refine-recorded.md      2 with ONE change-log row added, naming R1 in
+#                             the `Refined` column. 2 and 6 differ by exactly
+#                             that row, which is the whole of R32.5: the same
+#                             in-place rewrite, once recorded as a refine and
+#                             once not.
 #
 # THE TEMPLATE ROW IS LEFT IN 1-founding.md ON PURPOSE. It names R41-R43, R12
 # and R7, none of which the fixture spec defines. If the check ever stops
@@ -37,7 +42,7 @@
 #   2  could not run - no git, no check to test, no temporary directory
 set -euo pipefail
 
-VERSION="changelog-row-selftest 1.0"
+VERSION="changelog-row-selftest 2.0"
 
 HERE="$(cd "$(dirname "$0")" && pwd -P)"
 CHECK="$HERE/../../scripts/check-changelog-row.sh"
@@ -143,6 +148,39 @@ expect premise-one-commit 2 err "only 1 reachable commit holds" "$founding"
 wordonly="$(build_repo wordonly 1-founding.md 2-word-only.md)"
 expect premise-word-only 2 err "not one of them added an id or replaced a requirement" "$wordonly"
 
+# --- 3b. R32.5: the refine that keeps its id, both ways -----------------------
+# 2-word-only.md rewrites R1's sentence and keeps the id and the status. That
+# is what a refine looks like from the outside, and it is also what a typo fix
+# looks like - which is the point. The check REPORTS it and demands nothing,
+# and these two cases prove it reports it BOTH ways rather than staying silent.
+#
+# The exit code is 2 in both: neither history added an id or replaced a
+# requirement, so nothing blocking was asserted, and R32.5 does not set the
+# exit code by design. What is asserted here is the LINE.
+expect r32.5-unresolved 2 out \
+  "R32.5  refine-recorded-as-a-refine        examined   1  upheld   0  REPORTED, not a finding" \
+  "$wordonly"
+expect r32.5-names-the-id 2 out \
+  "R1 kept its id and its status at" \
+  "$wordonly"
+
+# The same rewrite with a row naming R1 in `Refined`. One row is the whole
+# difference, and it moves R32.5 from reported to upheld.
+refined="$(build_repo refined 1-founding.md 6-refine-recorded.md)"
+expect r32.5-resolved 2 out \
+  "R32.5  refine-recorded-as-a-refine        examined   1  upheld   1  held" \
+  "$refined"
+
+# And the negative control for R32.5 itself: a history with NO in-place
+# rewrite must say it asserted nothing, not that it held. An assertion that
+# reports `held` over an empty set is the defect this whole suite exists for.
+# 2 -> 3 supersedes R2 and adds R3, so a status moved and no sentence was
+# rewritten in place - the one shape that leaves R32.5 with nothing to fire on.
+norewrite="$(build_repo norewrite 2-word-only.md 3-classified-recorded.md)"
+expect r32.5-not-asserted 0 out \
+  "R32.5  refine-recorded-as-a-refine        examined   0  upheld   0  unmeasured - nothing to fire on" \
+  "$norewrite"
+
 # --- 4. the counter moved and nothing else -----------------------------------
 # The trigger fired and cannot be attributed to an id. No verdict, not a pass.
 counter="$(build_repo counter 1-founding.md 5-counter-only.md)"
@@ -157,4 +195,4 @@ if [ "$failed" -ne 0 ]; then
   printf 'FAIL: the check did not produce the verdict these histories should produce. Its result against the real spec means nothing until this is green.\n' >&2
   exit 1
 fi
-printf 'PASS: a recorded classification is green, the same history minus its row is red on all four assertions, a reworded requirement is not demanded, and a one-commit history, a counter-only commit and a shallow clone are each refused rather than passed.\n'
+printf 'PASS: a recorded classification is green, the same history minus its row is red on all four assertions, a reworded requirement is not demanded, an in-place rewrite is REPORTED with and without its `Refined` row and asserts nothing where there is no rewrite at all, and a one-commit history, a counter-only commit and a shallow clone are each refused rather than passed.\n'

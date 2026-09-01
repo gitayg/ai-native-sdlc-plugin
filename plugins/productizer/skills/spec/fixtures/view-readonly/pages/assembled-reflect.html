@@ -1,0 +1,6 @@
+<!doctype html><meta charset="utf-8"><title>an assembled object handed to a getter</title>
+<p>The far end of the same idea: the object is assembled and then handed to a
+reflective getter, so the property is a plain argument rather than an access.
+Nothing here is a member expression at all. The object must still be found, and
+what is asked of it must be reported as unknown rather than as nothing.</p>
+<script>Reflect.get(window["cla" + "ude"], "use")("artifact");</script>

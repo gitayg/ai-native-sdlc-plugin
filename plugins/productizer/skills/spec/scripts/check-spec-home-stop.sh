@@ -53,6 +53,55 @@
 #       control: without it, a detector that fired on the mere existence of a
 #       record would pass A2 and A3 and be worthless.
 #
+# A1 TO A4 READ A TREE'S STATE, AND A STATE HAS NO CLOCK IN IT. That was 1.0's
+# defect and it is the reason for the next two: in an unreachable-home tree
+# 1.0 called EVERY record a violation, so a record written on Tuesday while
+# the home worked and a record written on Thursday after it broke produced the
+# same finding. Only the second was classified against a remembered copy.
+#
+#   A5  a record committed BEFORE the commit that broke the home -> NOT a
+#       finding. Git knows when both happened, and `merge-base --is-ancestor`
+#       reads ANCESTRY rather than dates, which is what "before" has to mean
+#       in a history where committer clocks disagree and a rebase rewrites
+#       them. A record written IN the breaking commit is NOT before it: a
+#       commit is its own ancestor, and the first build of this said `before`
+#       for exactly that record until the constructed history caught it.
+#   A6  a record committed AFTER it -> a finding. A5's inverse, and mandatory:
+#       a timeline that only ever spares records is a detector switched off.
+#
+# A5 AND A6 NEED A HISTORY RATHER THAN A TREE, so they are BUILT at run time
+# in the temporary directory this run already owns, not committed under
+# `fixtures/` - a case directory there cannot carry a git history of its own
+# inside this repository. One construction exercises both: commit one has a
+# reachable home and a record, commit two deletes the spec and adds a second
+# record. The two records differ in exactly one thing, which side of the
+# deletion they were written on. That is the two-tree experiment moved onto
+# the time axis.
+#
+# EVERY WAY THE TIMELINE CANNOT BE READ LEAVES THE FINDING STANDING, and says
+# which way it was: not a work tree, no commit ever deleted the spec path, the
+# record untracked. Downgrading a finding on an unreadable timeline would turn
+# every untracked tree into an alibi. A SHALLOW CLONE IS REFUSED, not passed:
+# it holds neither commit, so every record would look undateable for a reason
+# about the clone and not about the record.
+#
+#   A7  THIS REPOSITORY. Every assertion above is about a fixture or a
+#       construction, so through 1.0 the check examined its own test data and
+#       the question of whether THIS repository stopped was asserted by
+#       nothing. A7 runs the same detector over `--root`.
+#
+#       A7 IS CONDITIONAL AND SAYS SO WHEN IT DOES NOT FIRE. R19's trigger is
+#       an unreachable spec home; this repository's is reachable, so the
+#       requirement is not in force here and A7 renders NO verdict on the
+#       stop. It prints that it did not fire, the summary prints NOT ASSERTED,
+#       and the PASS line says in as many words that it is not a statement
+#       about this repository. Printing `A7 held` there would be a vacuous
+#       hold, which is the defect this whole file exists to stop repeating.
+#       What A7 does assert unconditionally is A3's half: a record HERE that
+#       cannot name the spec it was made against is a finding whatever the
+#       home is doing. And a root with no `.claude/productizer` at all asserts
+#       nothing rather than holding - it has nothing to stop.
+#
 # THE PREMISE IS GUARDED BOTH WAYS, AND A FAILED PREMISE IS NEVER A PASS.
 #
 #   a case declared unreachable whose spec turns out readable   exit 2
@@ -105,12 +154,14 @@
 #   0  clean - every assertion held, or (--tree) the tree holds no finding
 #   1  findings - an assertion did not hold, or (--tree) the tree holds one
 #   2  could not run - bad usage, no fixture, no python3, a case whose premise
-#      did not hold, or an assertion no case exercised. Never confused with 0.
+#      did not hold, an assertion no case exercised, a shallow clone under a
+#      tree whose timeline had to be read, or a constructed history that did
+#      not come out as constructed. Never confused with 0.
 set -euo pipefail
 
 export LC_ALL=C
 
-VERSION="check-spec-home-stop 1.0"
+VERSION="check-spec-home-stop 2.0"
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SKILL="$(dirname "$HERE")"
@@ -118,6 +169,16 @@ SKILL="$(dirname "$HERE")"
 ROOT=""
 FIXTURE="$SKILL/fixtures/spec-home-stop"
 TREE=""
+
+# Coverage lines are bare only for trees that ARE this repository. Set to 0
+# around a constructed history in a temporary directory.
+EMIT_PATHS=1
+
+# The store's location inside a tree. The detector holds the same constant;
+# they are the one contract `record-classification.sh` writes to.
+STORE_IN_TREE=".claude/productizer/classifications"
+# The spec path the tree itself declares, filled in per tree by the detector.
+SPEC_IN_TREE=""
 
 die_unmeasured() { printf 'check-spec-home-stop: %s\n' "$1" >&2; exit 2; }
 
@@ -138,6 +199,8 @@ while [ "$#" -gt 0 ]; do
 done
 [ "$#" -eq 0 ] || die_unmeasured "takes no positional arguments; got: $1"
 
+# stderr-ok: `command -v` on a missing name writes nothing useful and this is
+# a pure presence probe - the refusal below carries the whole diagnosis.
 command -v python3 >/dev/null 2>&1 ||
   die_unmeasured "python3 is not on PATH, so no tree can be read. Refusing rather than reporting an unexamined fixture as clean."
 
@@ -303,6 +366,10 @@ out("INFO", "records=%d" % len(records))
 for name in records:
     path = os.path.join(store, name)
     out("PATH", show(path))
+    # The caller needs to name this record to git without an absolute path
+    # ever being printed, so the basename travels and the caller rebuilds the
+    # path from the store it already knows.
+    out("RECORD", name, show(path))
     try:
         with open(path, encoding="utf-8") as fh:
             text = fh.read()
@@ -357,6 +424,128 @@ PY
 # ---------------------------------------------------------------------------
 D_HOME=""; D_WHY=""; D_RECORDS=""; D_TOTAL=0; D_A2=0; D_A3=0
 
+# ---------------------------------------------------------------------------
+# THE TIMELINE. 1.0 read a tree's STATE, and a state has no clock in it.
+#
+# In a tree whose spec home is unreachable, 1.0 called EVERY record a
+# violation. But a record written on Tuesday, when the home worked, and a
+# record written on Thursday, after it broke, are not the same event: only the
+# second was classified against a remembered copy. A check that cannot tell
+# them apart calls a correct lifecycle guilty for a breakage that happened
+# afterwards, and a check that cries wolf gets switched off.
+#
+# Git knows both dates, and they are not read as dates. `merge-base
+# --is-ancestor` is ancestry, and ancestry is what "before" means in a history
+# where committer clocks disagree and a rebase rewrites them.
+#
+#   the commit that DELETED the spec path   the breakage
+#   the OLDEST commit touching the record   when the record was written
+#
+# If the record's commit is an ancestor of the breakage, the record predates
+# it: reported as a note, never as a finding.
+#
+# EVERY WAY THE TIMELINE CANNOT BE READ LEAVES THE FINDING STANDING, and says
+# so. Not a work tree, the spec path never deleted in this history, the record
+# untracked: each of those means the timeline was NOT APPLIED, and a finding
+# this check cannot date is a finding it still holds. Downgrading on an
+# unreadable timeline would turn every untracked tree into an alibi.
+#
+# A SHALLOW CLONE IS REFUSED, NOT PASSED. It holds neither commit, so every
+# record would look undateable for a reason about the clone.
+# ---------------------------------------------------------------------------
+git_top() { # <dir> -> the work tree top, or nothing
+  # stderr-ok: git's own diagnosis when this is not a work tree IS the answer
+  # to "can the timeline be read here"; hiding it would make "no history" and
+  # "a git that failed" the same empty string.
+  local top
+  if top="$(git -C "$1" rev-parse --show-toplevel)"; then
+    printf '%s' "$top"
+  fi
+}
+
+apply_timeline() { # <tree>
+  local tree top shallow del rec rc name shown line cls loc text kept
+  tree="$1"
+  if [ -z "$SPEC_IN_TREE" ]; then
+    D_TIMELINE="not applied - the tree declared no spec path, so there is no path whose deletion could be the breakage"
+    return 0
+  fi
+  top="$(git_top "$tree")"
+  if [ -z "$top" ]; then
+    D_TIMELINE="not applied - this tree is not inside a git work tree, so nothing here dates a record against the breakage"
+    return 0
+  fi
+
+  shallow="unknown"
+  if shallow="$(git -C "$top" rev-parse --is-shallow-repository)"; then :; fi
+  [ "$shallow" != "true" ] ||
+    die_unmeasured "the tree being examined sits in a SHALLOW clone. Neither the commit that broke the spec home nor the commit that wrote a record is reachable, so a record cannot be dated against the breakage at all - UNKNOWN, not innocent and not guilty. Fetch full history (fetch-depth: 0) and re-run."
+
+  # The commit that removed the spec path. `git log` exits 0 and prints
+  # nothing when the path was never deleted, so an empty result is an answer
+  # and is read as one.
+  del="$(git -C "$top" log --diff-filter=D --format=%H -1 -- "$tree/$SPEC_IN_TREE")"
+  if [ -z "$del" ]; then
+    D_TIMELINE="not applied - this history holds no commit that deleted the spec path, so there is no breakage to date a record against. Every record's finding stands."
+    return 0
+  fi
+
+  kept="$WORK/findings.kept"
+  : > "$kept"
+  while IFS="$(printf '\t')" read -r cls loc text; do
+    [ -n "$cls" ] || continue
+    if [ "$cls" != "A2" ]; then
+      printf '%s\t%s\t%s\n' "$cls" "$loc" "$text" >> "$kept"
+      continue
+    fi
+    name=""
+    while IFS="$(printf '\t')" read -r rec shown; do
+      [ -n "$rec" ] || continue
+      case "$loc" in "$shown":*) name="$rec" ;; esac
+    done < "$WORK/records.txt"
+    if [ -z "$name" ]; then
+      printf '%s\t%s\t%s\n' "$cls" "$loc" "$text" >> "$kept"
+      continue
+    fi
+    # The OLDEST commit touching this record is when it was written.
+    line="$(git -C "$top" log --format=%H -- "$tree/$STORE_IN_TREE/$name" | tail -1)"
+    if [ -z "$line" ]; then
+      printf '%s\t%s\t%s\n' "$cls" "$loc" "$text" >> "$kept"
+      continue
+    fi
+    rc=0
+    if [ "$line" = "$del" ]; then
+      # A record written IN the very commit that broke the home is not a
+      # record that predates the breakage - `--is-ancestor` calls a commit its
+      # own ancestor, which would make the worst case look like the innocent
+      # one. Measured, not reasoned: the first build of this said `before` for
+      # a record added in the deletion commit, and the constructed history
+      # caught it.
+      rc=1
+    else
+      # A non-zero exit here is the ANSWER - "not an ancestor" - and not a
+      # failure, so it is taken as a value rather than allowed to end the run.
+      git -C "$top" merge-base --is-ancestor "$line" "$del" || rc=$?
+    fi
+    case "$rc" in
+      0)
+        D_PREDATE=$((D_PREDATE + 1))
+        D_A2=$((D_A2 - 1))
+        D_TOTAL=$((D_TOTAL - 1))
+        printf '  timeline %s: this record was committed BEFORE the commit that made the spec home unreachable, so it was not classified against a remembered copy. Not a finding.\n' "$loc"
+        ;;
+      1)
+        printf '%s\t%s\t%s\n' "$cls" "$loc" "$text" >> "$kept"
+        ;;
+      *)
+        die_unmeasured "git merge-base --is-ancestor exited $rc while dating a record against the breakage, so whether that record predates it is UNKNOWN - not before, and not after."
+        ;;
+    esac
+  done < "$WORK/findings.txt"
+  mv "$kept" "$WORK/findings.txt"
+  D_TIMELINE="applied - $D_PREDATE record(s) predate the breakage and are not findings"
+}
+
 run_detector() { # <tree> <printable prefix>
   local rc=0
   python3 "$WORK/detect.py" "$1" "$2" > "$WORK/detect.tsv" || rc=$?
@@ -364,16 +553,26 @@ run_detector() { # <tree> <printable prefix>
     die_unmeasured "the tree could not be examined (see the reason above). Unmeasured, and never a pass."
 
   D_HOME=""; D_WHY=""; D_RECORDS=""; D_TOTAL=0; D_A2=0; D_A3=0
+  D_PREDATE=0; D_TIMELINE="not applied"; SPEC_IN_TREE=""
   : > "$WORK/findings.txt"
+  : > "$WORK/records.txt"
   local kind a b c
   while IFS="$(printf '\t')" read -r kind a b c; do
     case "$kind" in
-      PATH) printf '%s\n' "$a" ;;
+      PATH)
+        # Coverage lines name files IN THIS REPOSITORY. A constructed
+        # history lives in a temporary directory, and printing its paths
+        # bare would declare coverage for files the runner cannot match
+        # and that nobody can open after the run.
+        if [ "$EMIT_PATHS" -eq 1 ]; then printf '%s\n' "$a"; else printf '    constructed: %s\n' "$a"; fi ;;
+      RECORD) printf '%s\t%s\n' "$a" "$b" >> "$WORK/records.txt" ;;
       INFO)
         case "$a" in
           home=*)    D_HOME="${a#home=}"; D_WHY="$b" ;;
           records=*) D_RECORDS="${a#records=}" ;;
-          "declared home="*) printf '  declared home: %s, spec path %s\n' "${a#declared home=}" "$b" ;;
+          "declared home="*)
+            SPEC_IN_TREE="$b"
+            printf '  declared home: %s, spec path %s\n' "${a#declared home=}" "$b" ;;
         esac
         ;;
       FINDING)
@@ -389,6 +588,10 @@ run_detector() { # <tree> <printable prefix>
 
   [ -n "$D_HOME" ] && [ -n "$D_RECORDS" ] ||
     die_unmeasured "the detector reported no home state or no record count for this tree. Unmeasured."
+
+  if [ "$D_HOME" = "unreachable" ] && [ "$D_A2" -gt 0 ]; then
+    apply_timeline "$1"
+  fi
 }
 
 print_findings() { # <label>
@@ -410,6 +613,7 @@ if [ -n "$TREE" ]; then
   run_detector "$TREE" ""
   printf '  spec home: %s%s\n' "$D_HOME" "$([ -n "$D_WHY" ] && printf ' — %s' "$D_WHY")"
   printf '  classification records: %s\n' "$D_RECORDS"
+  printf '  timeline: %s\n' "$D_TIMELINE"
   print_findings "detected"
   printf '  findings: %d (A2 %d, A3 %d)\n' "$D_TOTAL" "$D_A2" "$D_A3"
   if [ "$D_TOTAL" -gt 0 ]; then
@@ -503,6 +707,7 @@ for CASE_DIR in "$FIXTURE"/*/; do
 
   printf '  spec home: %s%s\n' "$D_HOME" "$([ -n "$D_WHY" ] && printf ' — %s' "$D_WHY")"
   printf '  classification records: %s\n' "$D_RECORDS"
+  printf '  timeline: %s\n' "$D_TIMELINE"
   print_findings "detected"
 
   # --- the verdict the detector actually reached ---------------------------
@@ -536,6 +741,194 @@ for CASE_DIR in "$FIXTURE"/*/; do
   fi
 done
 
+
+# ---------------------------------------------------------------------------
+# A5 AND A6: THE TIMELINE, ON A HISTORY BUILT FOR THE PURPOSE.
+#
+# 1.0 read a tree's STATE. In an unreachable-home tree every record was a
+# finding, and a record written before the home broke was indistinguishable
+# from one written after. These two assertions are the difference, and they
+# need a HISTORY rather than a tree, so they are built rather than committed:
+# a case directory under `fixtures/` cannot carry a git history of its own
+# inside this repository.
+#
+#   A5  a record committed BEFORE the breakage -> NOT a finding
+#   A6  a record committed AFTER the breakage  -> a finding
+#
+# ONE HISTORY EXERCISES BOTH, and it is the same construction twice over:
+# commit one has a reachable home and a record; commit two deletes the spec
+# and adds a second record. The two records differ in exactly one thing -
+# which side of the deletion they were written on - which is the two-tree
+# experiment moved onto the time axis.
+#
+# Nothing is written into the repository under examination: the history is
+# built in the temporary directory this run already owns and removed with it.
+# ---------------------------------------------------------------------------
+A5_EX=0; A5_UP=0
+A6_EX=0; A6_UP=0
+
+# Both records are WELL FORMED on purpose - a valid 40-hex commit and a hash -
+# so A3 cannot fire on either and the only thing separating the two histories
+# is which side of the deletion the record was written on.
+write_record() { # <dir> <name>
+  cat > "$1/$STORE_IN_TREE/$2.md" <<REC
+Intent: $2
+Classification: extend
+Recorded: 2026-01-01
+Spec path: .claude/productizer/spec.md
+Spec commit: 0123456789abcdef0123456789abcdef01234567
+Spec hash: sha256:0000000000000000000000000000000000000000000000000000000000000000
+In scope count: 1
+
+## Requirement ids in scope
+
+R1
+REC
+}
+
+# build_timeline_repo <dir> <before|after>
+#
+# TWO histories, not one, and that is the point. On a single history holding
+# both records, "one was spared" and "one was not" are two readings of one
+# number, so any break moves both and neither can be falsified alone. One
+# record per history separates them: the never-spare break reddens A5 only,
+# the always-spare break reddens A6 only.
+build_timeline_repo() {
+  local dir side
+  dir="$1"; side="$2"
+  mkdir -p "$dir/$STORE_IN_TREE"
+  cat > "$dir/.claude/productizer/config.json" <<'JSON'
+{"product": {"spec_home": "example/home-repo"}, "spec": {"path": ".claude/productizer/spec.md"}}
+JSON
+  printf '# Living spec — timeline case\n\n## Requirements\n\n- **R1** — The lifecycle shall stop.\n' \
+    > "$dir/.claude/productizer/spec.md"
+  git -c init.defaultBranch=main init -q "$dir"
+  git -C "$dir" config user.email "fixture@example.invalid"
+  git -C "$dir" config user.name "spec-home-stop timeline"
+  if [ "$side" = "before" ]; then
+    write_record "$dir" rec
+    git -C "$dir" add -A
+    git -C "$dir" commit -q -m "the home is reachable and one classification is recorded"
+    rm -f "$dir/.claude/productizer/spec.md"
+    git -C "$dir" add -A
+    git -C "$dir" commit -q -m "the spec home breaks, and nothing is classified afterwards"
+  else
+    git -C "$dir" add -A
+    git -C "$dir" commit -q -m "the home is reachable and nothing is classified"
+    rm -f "$dir/.claude/productizer/spec.md"
+    write_record "$dir" rec
+    git -C "$dir" add -A
+    git -C "$dir" commit -q -m "the spec home breaks, and a classification is recorded anyway"
+  fi
+}
+
+# run_timeline_case <label> <before|after> - guards the construction, then
+# reports what the detector made of it. A construction that did not come out
+# as constructed exercised nothing, which is exit 2 and never a pass.
+run_timeline_case() {
+  local label side dir
+  label="$1"; side="$2"
+  dir="$WORK/timeline-$side"
+  build_timeline_repo "$dir" "$side"
+  printf 'constructed history: %s\n' "$label"
+  EMIT_PATHS=0
+  run_detector "$dir" ""
+  EMIT_PATHS=1
+  printf '  spec home: %s%s\n' "$D_HOME" "$([ -n "$D_WHY" ] && printf ' — %s' "$D_WHY")"
+  printf '  classification records: %s\n' "$D_RECORDS"
+  printf '  timeline: %s\n' "$D_TIMELINE"
+  print_findings "detected"
+
+  [ "$D_HOME" = "unreachable" ] ||
+    die_unmeasured "the constructed history '$side' measures its spec home as $D_HOME after the deletion commit, so the assertion it carries was never exercised. Unmeasured, not a pass."
+  [ "$D_RECORDS" = "1" ] ||
+    die_unmeasured "the constructed history '$side' holds $D_RECORDS record(s) and not the 1 it was built with, so what was exercised is unknown."
+  case "$D_TIMELINE" in
+    applied*) ;;
+    *) die_unmeasured "the timeline was NOT APPLIED to the constructed history '$side' ($D_TIMELINE), so the assertion it carries swept an empty set. An assertion with nothing to fire on holds vacuously forever." ;;
+  esac
+}
+
+# --- A5: the record was written before the home broke ------------------------
+run_timeline_case "one record, committed BEFORE the spec home broke" before
+A5_EX=$((A5_EX + 1))
+if [ "$D_PREDATE" -eq 1 ] && [ "$D_TOTAL" -eq 0 ]; then
+  A5_UP=$((A5_UP + 1))
+  printf '  held: A5 — expected the record to be spared and no finding to remain; 1 spared, 0 findings\n'
+else
+  failed=$((failed + 1))
+  printf '  FINDING: did not hold - A5 expected 1 record spared and 0 findings; observed %d spared, %d finding(s) (A2 %d, A3 %d)\n' \
+    "$D_PREDATE" "$D_TOTAL" "$D_A2" "$D_A3"
+fi
+
+# --- A6: the record was written after it -------------------------------------
+# A5's inverse, and mandatory: a timeline that only ever spares records is a
+# detector switched off, and it would pass A5 on its own.
+run_timeline_case "one record, committed AFTER the spec home broke" after
+A6_EX=$((A6_EX + 1))
+if [ "$D_A2" -eq 1 ] && [ "$D_PREDATE" -eq 0 ] && [ "$D_A3" -eq 0 ]; then
+  A6_UP=$((A6_UP + 1))
+  printf '  held: A6 — expected 1 finding of class A2 and nothing spared; observed A2 %d, spared %d\n' "$D_A2" "$D_PREDATE"
+else
+  failed=$((failed + 1))
+  printf '  FINDING: did not hold - A6 expected exactly 1 A2 finding, 0 spared and no A3; observed A2 %d, spared %d, A3 %d\n' \
+    "$D_A2" "$D_PREDATE" "$D_A3"
+fi
+
+# ---------------------------------------------------------------------------
+# A7: THIS REPOSITORY.
+#
+# Every assertion above this line is about a fixture or a construction. Whether
+# THIS repository stopped was asserted by nothing, which is a check measuring
+# its own test data and calling the result compliance.
+#
+# A7 IS CONDITIONAL, AND SAYS SO OUT LOUD WHEN IT DOES NOT FIRE. R19's trigger
+# is an unreachable spec home. This repository's home is reachable, so the
+# requirement is not in force here and A7 renders NO verdict on the stop - it
+# reports that it did not fire. Printing `A7 held` there would be a vacuous
+# hold, which is the exact defect this file was written to stop repeating.
+#
+# What it DOES assert unconditionally is the other half: a record in this
+# repository that cannot name the spec it was made against is a finding here
+# as much as in a fixture, whatever the home is doing.
+# ---------------------------------------------------------------------------
+A7_INFORCE=0; A7_UP=0
+printf 'this repository\n'
+# The premise A7 needs before anything: a root that actually runs this
+# lifecycle. A directory with no `.claude/productizer` has not failed to
+# stop - it has nothing to stop - and reporting a hold there would be a
+# vacuous hold wearing this repository'"'"'s name.
+if [ ! -d "$ROOT/.claude/productizer" ]; then
+  printf '  A7 NOT APPLICABLE: this root holds no .claude/productizer, so it does not run this lifecycle and there is nothing here to stop. Nothing asserted.\n'
+else
+run_detector "$ROOT" ""
+printf '  spec home: %s%s\n' "$D_HOME" "$([ -n "$D_WHY" ] && printf ' — %s' "$D_WHY")"
+printf '  classification records: %s\n' "$D_RECORDS"
+printf '  timeline: %s\n' "$D_TIMELINE"
+print_findings "detected"
+
+if [ "$D_HOME" = "unreachable" ]; then
+  A7_INFORCE=1
+  if [ "$D_A2" -eq 0 ]; then
+    A7_UP=1
+    printf '  held: A7 — this repository'"'"'s spec home is unreachable and no classification was recorded against a remembered copy\n'
+  else
+    failed=$((failed + 1))
+    printf '  FINDING: did not hold - A7: this repository'"'"'s spec home is unreachable and %d classification(s) were recorded anyway\n' "$D_A2"
+  fi
+else
+  printf '  A7 DID NOT FIRE: this repository'"'"'s spec home is reachable, so R19'"'"'s trigger never came about and this run renders NO verdict on whether this repository would stop. Not a pass - nothing was asserted.\n'
+fi
+
+if [ "$D_A3" -gt 0 ]; then
+  failed=$((failed + 1))
+  printf '  FINDING: %d record(s) in this repository cannot name the spec they were made against. That is a finding whatever the home is doing.\n' "$D_A3"
+else
+  printf '  A3 over this repository: %s record(s) examined, none unable to name its spec commit\n' "$D_RECORDS"
+fi
+fi
+
+
 [ "$cases" -gt 0 ] ||
   die_unmeasured "the fixture holds no case directory, so nothing about R19 was exercised. An empty case set is unmeasured, not clean."
 
@@ -544,6 +937,13 @@ printf 'assertion A1 (unreachable home, nothing classified -> clean): exercised 
 printf 'assertion A2 (unreachable home, a classification recorded anyway -> finding): exercised %d, upheld %d\n' "$A2_EX" "$A2_UP"
 printf 'assertion A3 (a record that cannot name its spec commit -> finding): exercised %d, upheld %d\n' "$A3_EX" "$A3_UP"
 printf 'assertion A4 (reachable home, a well-formed record -> clean): exercised %d, upheld %d\n' "$A4_EX" "$A4_UP"
+printf 'assertion A5 (a record committed BEFORE the breakage -> not a finding): exercised %d, upheld %d\n' "$A5_EX" "$A5_UP"
+printf 'assertion A6 (a record committed AFTER the breakage -> a finding): exercised %d, upheld %d\n' "$A6_EX" "$A6_UP"
+if [ "$A7_INFORCE" -eq 1 ]; then
+  printf 'assertion A7 (THIS repository stopped): in force - its spec home is unreachable; upheld %d\n' "$A7_UP"
+else
+  printf 'assertion A7 (THIS repository stopped): NOT IN FORCE and therefore NOT ASSERTED - its spec home is reachable, so R19 never triggered here. This run says nothing about whether this repository would stop, and does not pretend otherwise.\n'
+fi
 
 if [ "$failed" -gt 0 ]; then
   printf 'FAIL: %d case(s) did not reach the verdict R19 requires. An unreachable spec home no longer stops a classification, or the detector fires where it must not.\n' "$failed" >&2
@@ -557,9 +957,16 @@ unexercised=""
 [ "$A2_EX" -gt 0 ] || unexercised="$unexercised A2"
 [ "$A3_EX" -gt 0 ] || unexercised="$unexercised A3"
 [ "$A4_EX" -gt 0 ] || unexercised="$unexercised A4"
+[ "$A5_EX" -gt 0 ] || unexercised="$unexercised A5"
+[ "$A6_EX" -gt 0 ] || unexercised="$unexercised A6"
 if [ -n "$unexercised" ]; then
   printf 'REFUSED: no case exercised%s. An assertion with nothing to fire on holds vacuously, and this run asserts nothing about it - unmeasured, not clean.\n' "$unexercised" >&2
   exit 2
 fi
 
-printf 'PASS: %d constructed cases. An unreachable spec home with nothing classified is clean (A1); the same tree with one classification recorded is a finding (A2); a record that cannot name its spec commit is a finding (A3); and a reachable home with a well-formed record stays clean (A4).\n' "$cases"
+if [ "$A7_INFORCE" -eq 1 ]; then
+  SAYS_REPO="this repository's own spec home is unreachable and it stopped (A7)"
+else
+  SAYS_REPO="this repository's spec home is reachable, so A7 rendered NO verdict on it - the pass below is about the constructed cases and NOT a statement that this repository would stop"
+fi
+printf 'PASS: %d constructed cases and one built history. An unreachable spec home with nothing classified is clean (A1); the same tree with one classification recorded is a finding (A2); a record that cannot name its spec commit is a finding (A3); a reachable home with a well-formed record stays clean (A4); a record committed before the home broke is spared (A5) and one committed after it is not (A6). %s.\n' "$cases" "$SAYS_REPO"

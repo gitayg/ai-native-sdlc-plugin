@@ -50,6 +50,39 @@
 #      section below; this is the assertion 2.0 adds, and the reason for it is
 #      that the five above had never once been evaluated.
 #
+#   7. EVERY CORROBORATED CLASSIFICATION HAS A RECORD OF ITS OWN. This is
+#      3.0's, and it fills the hole 2.0's own summary was blind to. Assertion 6
+#      asks only whether the store is EMPTY. A store holding three records and
+#      a backlog corroborating five classifications satisfied it completely,
+#      and the difference was printed as a NOTE - so a classification that left
+#      a backlog line and no record walked past every assertion in 2.0. It was
+#      not hypothetical: adding one such line to this repo's backlog left 2.0
+#      exiting 0.
+#
+#      THE JOIN IS THE INTENT IDENTIFIER. Records are named and keyed by it,
+#      and a backlog line recording a classification cites the intent as an
+#      issue link. A line naming exactly one intent is joinable and asserted; a
+#      line naming none, or several, is NOT asserted and says so by location.
+#      You cannot demand a record for an intent nothing named, and inferring
+#      one from the surrounding text would be this check guessing. On this
+#      repository that leaves one line unasserted, and it is printed.
+#
+#   8. ADVISORY - EVERY MERGED INTENT CITED IN THE CHANGE LOG HAS A RECORD.
+#      Assertion 7 still cannot see a classification that left NO backlog line
+#      at all. The change log can: a row that CITES AN ISSUE is a row about an
+#      arriving intent whose merge changed the spec, and an intent whose
+#      classification changed the spec was certainly classified. The rejection
+#      of the change log below is a rejection of it as THE corroborator, and
+#      none of its three reasons reaches a row that names an issue.
+#
+#      IT IS ADVISORY BECAUSE IT STARTS RED, and that is measured: on this
+#      repository one merged intent has a row and no record. That is a real
+#      gap, it is named by location, and the remedy is a record only the writer
+#      can make - so the failing count is printed, kept out of every `upheld`
+#      total, and does not touch the exit code. This repo's own convention for
+#      a new assertion that starts red is advisory first. Promoting it to
+#      blocking is a one-line change and belongs with the store being complete.
+#
 # ASSERTIONS ARE COUNTED SEPARATELY, NOT ROLLED INTO ONE FLAG. The summary
 # names each assertion and how many records upheld it, how many failed it, and
 # how many did not assert it at all - a record whose commit could not be
@@ -135,13 +168,20 @@
 #   is the same reason this lifecycle commits its records beside the spec
 #   instead of in issue comments.
 #
-#   KNOWN LIMITATION, written down rather than discovered later: the pattern
-#   requires the backticked spelling. A backlog saying "classified as extend"
-#   in running prose is not matched. The direction of that error is the safe
-#   one - a missed match yields exit 2, unmeasured, and never a pass. The
-#   backticks are required on purpose: an unbackticked pattern also matches
-#   this repo's own prose about what intake WILL classify, and a corroborator
-#   that fires on a sentence in the future tense manufactures findings.
+#   THE BACKTICKED-SPELLING LIMITATION 2.0 WROTE DOWN IS FIXED IN 3.0, AND THE
+#   FIX WAS MEASURED BOTH WAYS. The pattern now also matches the past-tense
+#   prose spellings and the ruling form `Closed <date> as a duplicate of R23`.
+#   On this repo's backlog: 3 lines matched by the backticked pattern alone, 4
+#   by the widened one. The line it gains is a real duplicate ruling the old
+#   pattern could never see.
+#
+#   It is still PAST TENSE ONLY, and that half is measured too: running an
+#   unbackticked, tense-free pattern over the same file also matches this
+#   repo's own sentence `Intake will classify it a duplicate`, which is prose
+#   about what intake WILL do and a record of nothing. 2.0's header predicted
+#   that false positive; 3.0 confirmed it by running the wider pattern rather
+#   than reasoning about it, which is why the widening keeps `classified` and
+#   never `classify`, and requires `of R<n>` on the ruling form.
 #
 #   The backlog is read on every run, not only when the store is empty, so the
 #   set of files this check declares as examined does not depend on the verdict
@@ -192,14 +232,20 @@
 #   0  clean - and never over an empty store
 #   1  findings, including an empty store in a repo that classified
 #   2  could not run - no work tree, no spec, an unreadable store or record, a
-#      recorded commit this clone cannot resolve, or an empty store with
+#      SHALLOW CLONE (which holds none of the commits the records cite, so
+#      every one of them would look unresolvable for a reason about the clone),
+#      a recorded commit this clone cannot resolve, or an empty store with
 #      nothing corroborating that any classification was ever made. Never
 #      confused with 0.
+#
+# ASSERTION 8 SETS NO EXIT CODE. Its failures are printed as ADVISORY lines by
+# location and are added to no `upheld` total. An advisory that quietly moved
+# the exit code would be a blocking assertion wearing a softer word.
 set -euo pipefail
 
 export LC_ALL=C
 
-VERSION="check-classification-provenance 2.0"
+VERSION="check-classification-provenance 3.0"
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 LIB="$HERE/classification-record.py"
@@ -209,8 +255,23 @@ SPEC_REL=".claude/productizer/spec.md"
 STORE_REL=".claude/productizer/classifications"
 BACKLOG_REL=".claude/productizer/backlog.md"
 
-# The corroborating pattern. Backticks are load-bearing; see the header.
-EVIDENCE_RE='classified `(extend|refine|duplicate|contradict)`'
+# The corroborating pattern, WIDENED IN 3.0 AND MEASURED BEFORE IT WAS.
+#
+#   backticked spelling alone (2.0)  3 lines of this repo's backlog
+#   the alternation below (3.0)      4 lines
+#
+# The line it adds is a duplicate ruling written as `Closed <date> as a
+# duplicate of R23` - a real classification, of a kind 2.0 could never see,
+# because the four words never appear in backticks on it.
+#
+# IT IS STILL PAST TENSE ONLY, and that is the measurement too: an
+# unbackticked, tense-free pattern also matches this repo's own line reading
+# `Intake will classify it a duplicate`, which is prose about what intake WILL
+# do and a record of nothing. 2.0's header predicted that false positive; it
+# was then confirmed by running the wider pattern over the file, so the
+# widening keeps `classified`, never `classify`, and requires `of R<n>` on the
+# ruling form so a bare mention of the word cannot corroborate anything.
+EVIDENCE_RE='classified (as )?(an? )?(\*\*)?`?(extend|refine|duplicate|contradict)`?(\*\*)?|([Cc]losed|[Rr]esolved|[Mm]erged) [^|]{0,40}as an? (duplicate|contradiction) of R[0-9]+'
 
 usage() {
   printf 'usage: check-classification-provenance.sh [--version] [--help] [--root DIR]\n'
@@ -257,6 +318,20 @@ if [ -z "$ROOT" ]; then
 fi
 [ -d "$ROOT" ] || die_unmeasured "--root $ROOT is not a directory"
 
+# A SHALLOW CLONE IS REFUSED, NOT PASSED. Assertion 3 refetches the spec at the
+# commit each record cites; a shallow clone holds none of them, so every record
+# would report as unresolvable for a reason that is about the clone and not
+# about the record. Said once, here, rather than discovered per record.
+# stderr-ok: git's own diagnosis when --root is not a work tree IS the answer
+# to "can this history be read", and suppressing it would leave an empty string
+# indistinguishable from a repository that is genuinely not shallow.
+SHALLOW="unknown"
+if SHALLOW_OUT="$(git -C "$ROOT" rev-parse --is-shallow-repository)"; then
+  SHALLOW="$SHALLOW_OUT"
+fi
+[ "$SHALLOW" != "true" ] ||
+  die_unmeasured "this is a SHALLOW clone. The commit every record cites is unreachable here, so whether any classification was made against the whole spec is UNKNOWN - not yes, and not no. Fetch full history (fetch-depth: 0) and re-run."
+
 SPEC="$ROOT/$SPEC_REL"
 STORE="$ROOT/$STORE_REL"
 BACKLOG="$ROOT/$BACKLOG_REL"
@@ -278,6 +353,8 @@ a_name_up=0;  a_name_bad=0
 a_uniq_up=0;  a_uniq_bad=0
 a_body_up=0;  a_body_bad=0
 a_store_up=0; a_store_bad=0; a_store_none=0
+a_per_up=0;   a_per_bad=0;   a_per_none=0
+a_log_up=0;   a_log_bad=0;   a_log_none=0
 
 printf '%s\n' "$SPEC_REL"          # coverage: one line per file examined
 
@@ -450,22 +527,178 @@ if [ "$records" -gt 0 ]; then
   a_store_up=1
 elif [ "$corroborated" -gt 0 ]; then
   a_store_bad=1
-  shown=0
-  while IFS= read -r line; do
-    [ -n "$line" ] || continue
-    lno="${line%%:*}"
-    word="$(printf '%s\n' "$line" | sed -n 's/.*classified `\([a-z]*\)`.*/\1/p')"
-    case "$word" in extend|refine|duplicate|contradict) ;; *) word="—" ;; esac
-    shown=$((shown + 1))
-    if [ "$shown" -le 20 ]; then
-      finding "$BACKLOG_REL:$lno: an intake classification of \`$word\` is recorded here, and the store holds no provenance record for it. R6 needs the ids that were in scope and R19 needs the hash of what was read; neither exists for this classification, so neither can ever be checked."
-    fi
-  done < "$WORK/evidence"
-  if [ "$corroborated" -gt 20 ]; then
-    printf '    ... and %d more corroborated classification(s), not listed.\n' "$((corroborated - 20))"
-  fi
 else
   a_store_none=1
+fi
+
+# ---------------------------------------------------------------------------
+# ASSERTION 7: EVERY CORROBORATED CLASSIFICATION HAS A RECORD OF ITS OWN.
+#
+# This is 3.0's assertion, and the hole it fills is the one 2.0's own summary
+# was blind to. Assertion 6 asks whether the store is EMPTY. A store holding
+# three records and a backlog corroborating five classifications satisfied it
+# completely: the two extra classifications were invisible to both halves of
+# the mechanism, and the difference was printed as a NOTE. So a classification
+# that left a backlog line and no record walked past every assertion in 2.0.
+#
+# The join is the INTENT IDENTIFIER. Records are named and keyed by it, and a
+# backlog line that records a classification cites the intent as an issue
+# link. A line naming exactly one intent is joinable and is asserted. A line
+# naming none, or more than one, is NOT asserted and says so by location: you
+# cannot demand a record for an intent nothing named, and inventing one from
+# the surrounding text would be this check guessing.
+# ---------------------------------------------------------------------------
+: > "$WORK/record-intents"
+if [ -s "$WORK/intents.tsv" ]; then
+  cut -f1 "$WORK/intents.tsv" | sort -u > "$WORK/record-intents"
+fi
+
+classification_word() { # <backlog line, as grep -n printed it>
+  local w
+  w="$(printf '%s\n' "$1" | sed -n -E 's/.*classified (as )?(an? )?\**`?(extend|refine|duplicate|contradict)`?\**.*/\3/p' | head -1)"
+  if [ -z "$w" ]; then
+    w="$(printf '%s\n' "$1" | sed -n -E 's/.*as an? (duplicate|contradiction) of R[0-9]+.*/\1/p' | head -1)"
+    [ "$w" != "contradiction" ] || w="contradict"
+  fi
+  # Only ever a word from the closed set of four reaches stdout. A record
+  # names an intent a stranger can write, and this output is committed.
+  case "$w" in extend|refine|duplicate|contradict) printf '%s' "$w" ;; *) printf '%s' "—" ;; esac
+}
+
+while IFS= read -r line; do
+  [ -n "$line" ] || continue
+  lno="${line%%:*}"
+  word="$(classification_word "$line")"
+
+  # The intent identifiers this line names, deduplicated. grep -o exits 1 on a
+  # genuine no-match, which is an ANSWER here and not a failure, so it is taken
+  # as a value rather than allowed to kill the run under `set -e`.
+  ids=""
+  ids="$(printf '%s\n' "$line" | grep -o -E '\[#[0-9]+\]\(' | sed -E 's/^\[#([0-9]+)\]\($/\1/' | sort -u)" || :
+  count=0
+  for one in $ids; do count=$((count + 1)); : "$one"; done
+
+  if [ "$count" -ne 1 ]; then
+    a_per_none=$((a_per_none + 1))
+    printf '  %s:%s note: a classification of `%s` is recorded here and the line names %d intent identifier(s), so no record can be looked for. NOT asserted - not a pass and not a finding.\n' \
+      "$BACKLOG_REL" "$lno" "$word" "$count"
+    continue
+  fi
+
+  have=0
+  while IFS= read -r known; do
+    [ -n "$known" ] || continue
+    if [ "$known" = "$ids" ]; then have=1; fi
+  done < "$WORK/record-intents"
+
+  if [ "$have" -eq 1 ]; then
+    a_per_up=$((a_per_up + 1))
+  else
+    a_per_bad=$((a_per_bad + 1))
+    finding "$BACKLOG_REL:$lno: an intake classification of \`$word\` is recorded here and the store holds no provenance record for the intent this line names. R6 needs the ids that were in scope and R19 needs the hash of what was read; neither exists for this classification, so neither can ever be checked. The store cannot fill itself: Stage 2 intake has to call record-classification.sh at the moment it settles on one of the four."
+  fi
+done < "$WORK/evidence"
+
+# ---------------------------------------------------------------------------
+# ASSERTION 8, ADVISORY: A MERGED SPEC CHANGE THAT CITES AN INTENT IS ITSELF
+# EVIDENCE THAT THE INTENT WAS CLASSIFIED.
+#
+# 2.0's header REJECTED the change log as THE corroborator and was right to:
+# it records merges, duplicate and contradict merge nothing by definition, and
+# some of its rows record spec edits that were never an arriving intent. None
+# of that argues against using it as AN ADDITIONAL one. A row that CITES AN
+# ISSUE is a row about an arriving intent - the objection does not reach it -
+# and an intent whose classification changed the spec was certainly
+# classified. This closes the case assertion 7 cannot see: a classification
+# that left NO backlog line at all, and would otherwise be invisible to both
+# halves.
+#
+# IT IS ADVISORY, and the reason is measured rather than tactful. On this
+# repository it fires: one merged intent has a row and no record. That is a
+# real gap and it is named by location below, but it is a gap in the STORE
+# rather than in this check, and the remedy is a record only the writer can
+# make. This repo's own convention for a new assertion that starts red is to
+# declare it advisory first (`R8 asserts every added requirement has a row,
+# advisory first because it starts red`), and promoting it to blocking is a
+# one-line change once the store is complete. An advisory count is NEVER added
+# into `upheld` and never changes the exit code.
+# ---------------------------------------------------------------------------
+python3 - "$SPEC" <<'PY' > "$WORK/log-intents"
+"""Intent identifiers cited by the spec's `## Change log` rows.
+
+Emits `<line>\t<intent>` per cited issue. Columns are located by HEADER NAME,
+never by position, and a row whose first cell is a `<placeholder>` is not a
+record of anything.
+"""
+import re
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as handle:
+    lines = handle.read().split("\n")
+
+start = None
+for index, line in enumerate(lines):
+    if re.match(r'^##\s+Change log\s*$', line):
+        start = index + 1
+        break
+if start is None:
+    raise SystemExit(0)                 # no table: assertion 8 asserts nothing
+end = len(lines)
+for index in range(start, len(lines)):
+    if re.match(r'^##\s', lines[index]):
+        end = index
+        break
+
+columns = None
+for index in range(start, end):
+    line = lines[index]
+    if not line.lstrip().startswith("|"):
+        continue
+    parts = line.strip().split("|")
+    if parts and parts[0].strip() == "":
+        parts = parts[1:]
+    if parts and parts[-1].strip() == "":
+        parts = parts[:-1]
+    row = [part.strip() for part in parts]
+    if not row or all(re.match(r'^:?-{2,}:?$', cell) for cell in row):
+        continue
+    if columns is None:
+        lowered = [cell.lower() for cell in row]
+        if "issue" in lowered:
+            columns = lowered.index("issue")
+        continue
+    if re.match(r'^<[^>]*>$', row[0]):
+        continue
+    if columns >= len(row):
+        continue
+    for found in re.finditer(r'\[#([0-9]+)\]\(', row[columns]):
+        sys.stdout.write("%d\t%s\n" % (index + 1, found.group(1)))
+PY
+
+if [ -s "$WORK/log-intents" ]; then
+  while IFS="$(printf '\t')" read -r lno intent; do
+    [ -n "$intent" ] || continue
+    have=0
+    while IFS= read -r known; do
+      [ -n "$known" ] || continue
+      if [ "$known" = "$intent" ]; then have=1; fi
+    done < "$WORK/record-intents"
+    if [ "$have" -eq 1 ]; then
+      a_log_up=$((a_log_up + 1))
+    else
+      a_log_bad=$((a_log_bad + 1))
+      # PROMOTED TO BLOCKING once the store was complete, which is the condition
+      # this assertion was written to wait for. It began advisory because it
+      # started red - the change log cited an intent (#3) whose merge changed
+      # the spec and which had left no record at all, and a check that is red on
+      # arrival for a gap only the writer can close teaches people to ignore it.
+      # That record now exists, the assertion holds 3 of 3, and an advisory that
+      # has gone green is an assertion nobody is enforcing.
+      finding "$SPEC_REL:$lno: this change-log row cites an arriving intent whose merge changed the spec, and the store holds no provenance record for it. A classification that changed the spec certainly happened; which ids were in scope and which spec was read are unrecorded and can never be checked."
+    fi
+  done < "$WORK/log-intents"
+else
+  a_log_none=1
 fi
 
 # ---------------------------------------------------------------------------
@@ -507,6 +740,11 @@ printf '  2b exactly one record per intent, at the content: %d upheld, %d failed
   "$a_uniq_up" "$a_uniq_bad"
 printf '  6 the store is not empty in a repo that classified: %d upheld, %d failed, %d not asserted\n' \
   "$a_store_up" "$a_store_bad" "$a_store_none"
+printf '  7 every corroborated classification has a record of its own: %d upheld, %d failed, %d not asserted\n' \
+  "$a_per_up" "$a_per_bad" "$a_per_none"
+printf '  8 every merged intent cited in the change log has a record: %d upheld, %d failed, %d not asserted\n' \
+  "$a_log_up" "$a_log_bad" "$a_log_none"
+printf '  note: assertion 8 was advisory until the store was complete, because it started red on a gap only the writer could close and a check that is red on arrival teaches people to ignore it. The store is complete, so it now sets the exit code like the rest. An advisory that has gone green is an assertion nobody is enforcing.\n'
 
 if [ "$found" -ne 0 ]; then
   if [ "$records" -eq 0 ]; then

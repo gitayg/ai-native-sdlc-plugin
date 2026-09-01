@@ -1,0 +1,5 @@
+<!doctype html><meta charset="utf-8"><title>an evaluator inside an evaluator</title>
+<p>Three levels, each one a string the level above hands to eval, each written
+with escapes so the inner source is not readable as text either. The name is at
+the bottom and nothing above it spells anything.</p>
+<script>eval("eval(\"eval('window.claude.use(\\\"artifact\\\")')\")");</script>

@@ -136,12 +136,39 @@
 # counter-only commit and a shallow clone are each refused rather than passed.
 # Run it before trusting a green run here.
 #
+#   R32.5  refine-recorded-as-a-refine - REPORTED, NEVER DEMANDED
+#          A requirement whose id and status are unchanged and whose SENTENCE
+#          changed is a refine landing - and it is character-for-character the
+#          same event as fixing a typo in that sentence. 1.0 left it out
+#          entirely. 2.0 detects it, lists it by location, and calls it
+#          RESOLVED when a `Refined` entry names it at that commit and
+#          UNRESOLVED when nothing does. UNRESOLVED does not set the exit code.
+#
+#          THE DECISION NOT TO DEMAND IT WAS MEASURED, not argued. This
+#          repository's entire spec history - 14 versions, 13 commits after the
+#          founding one - holds ZERO in-place requirement rewrites. The 8
+#          word-only commits changed acceptance rows and prose, never a
+#          requirement definition. So the repository carries no evidence at all
+#          about how often such a rewrite is a refine and how often it is a
+#          typo: a demand would have fired 0 times, caught 0 refines and cried
+#          wolf 0 times, and a rule with no observations behind it is a guess.
+#          Meanwhile the ONLY in-place rewrite committed anywhere here is the
+#          fixture `spec/2-word-only.md`, which exists to be the anti-cry-wolf
+#          control - 1 of 1 observed rewrites is a rewording. Demanding a row
+#          there would demand one for a typo, which is what got the text-diff
+#          trigger rejected in the first place.
+#
+#          WHAT WOULD CLOSE IT is named in the report rather than guessed at:
+#          an author writing the id into `Refined`, which R32.5 then upholds
+#          (the fixture proves both halves), or a classification record whose
+#          `Classification` is `refine`, joined to the merge commit. The second
+#          is the upstream fix and it does not exist to be read today.
+#
 # ONLY THE `Added`, `Refined` AND `Superseded / withdrawn` COLUMNS ARE PARSED,
 # never `Summary`. Summary is prose, ids are cited inside it in passing, and
 # an id matched there would let any row satisfy any commit. `Refined` is read
-# for the undefined-id probe below and matched against nothing: a refine that
-# keeps its id is invisible to the trigger, so demanding that column would be
-# demanding a record for an event this check cannot detect.
+# for the undefined-id probe and, since 2.0, for R32.5 - which reports against
+# it and never demands it, for the measured reason above.
 #
 # THE COLUMNS ARE LOCATED BY HEADER NAME, never by position. A column inserted
 # tomorrow would otherwise shift every cell silently, and the check would go on
@@ -198,8 +225,10 @@
 #
 # KNOWN LIMITATIONS, written down rather than discovered later:
 #   - A refine that rewrites a requirement in place, keeping its id, is
-#     invisible here. See the anti-cry-wolf section above: it is
-#     indistinguishable from a typo fix by any evidence in the repository.
+#     DETECTED since 2.0 and still not DEMANDED. See R32.5: it is
+#     indistinguishable from a typo fix by any evidence in the repository, so
+#     the run names it and renders no verdict on which it was. An unresolved
+#     rewrite is a real gap and the report is where it is admitted, not hidden.
 #   - A classification that merged nothing is correct by construction under
 #     R32 and is not looked for. It leaves no commit to the spec, so there is
 #     nothing to find; its record lives where the intent lives - a `D` ruling
@@ -217,13 +246,18 @@
 #   1  findings - a spec-changing classification with no row recording it
 #   2  could not run, or could not measure. Never 0.
 #
+# R32.5 SETS NONE OF THEM. An unresolved in-place rewrite is printed and
+# counted and leaves the exit code exactly where the other four assertions put
+# it, because this check cannot tell which of two events it saw and an exit
+# code is a verdict.
+#
 # EXIT PRECEDENCE: UNMEASURED BEATS FINDINGS BEATS CLEAN, as in
 # `check-superseded-text.sh`. A run that could not reach a verdict on some
 # commit exits 2 even when it also found a real omission; the findings are
 # still printed. 1 is a complete verdict and such a run does not have one.
 set -euo pipefail
 
-VERSION="check-changelog-row 1.0"
+VERSION="check-changelog-row 2.0"
 ROOT=""
 MAX_VERSIONS=400
 
@@ -350,7 +384,7 @@ def parse_requirements(path):
     if proc.returncode != 0:
         refuse("spec-requirements.sh refused %s (exit %d); nothing here read "
                "the spec" % (path, proc.returncode))
-    out = {}
+    status, text = {}, {}
     for line in proc.stdout.split("\n"):
         if not line.strip():
             continue
@@ -358,8 +392,12 @@ def parse_requirements(path):
         if len(fields) < 5:
             refuse("spec-requirements.sh emitted a record with %d fields, not "
                    "5, while reading %s" % (len(fields), path))
-        out.setdefault(fields[0], fields[2])
-    return out
+        if fields[0] not in status:
+            status[fields[0]] = fields[2]
+            # The parser collapses whitespace, so a re-wrap is not an edit and
+            # a reflowed paragraph does not read as a rewritten requirement.
+            text[fields[0]] = fields[4]
+    return status, text
 
 
 RE_COUNTER_HEAD = re.compile(r'^Next requirement id\s*$')
@@ -514,7 +552,7 @@ def parse_change_log(text, where):
 # ---------------------------------------------------------------------------
 with open(spec_abs, encoding="utf-8") as handle:
     spec_text = handle.read()
-current_status = parse_requirements(spec_abs)
+current_status, _current_text = parse_requirements(spec_abs)
 cover(spec_rel)
 
 if not current_status:
@@ -564,13 +602,14 @@ try:
         text = git("show", "%s:%s" % (sha, spec_git))
         with open(blob, "w", encoding="utf-8") as handle:
             handle.write(text)
-        statuses = parse_requirements(blob)
-        added_at, _refined_at, superseded_at, _ids_at, _rows_at = (
+        statuses, texts = parse_requirements(blob)
+        added_at, refined_at, superseded_at, _ids_at, _rows_at = (
             parse_change_log(text, "%s@%s" % (spec_rel, short)))
         cover("%s@%s" % (spec_rel, short))
-        versions.append({"sha": short, "status": statuses,
+        versions.append({"sha": short, "status": statuses, "text": texts,
                          "counter": counter_of(text),
                          "log_added": added_at,
+                         "log_refined": refined_at,
                          "log_superseded": superseded_at})
 
     if len(versions) < 2:
@@ -603,6 +642,7 @@ try:
     # THE TRIGGER: which commits changed the spec, and which did not
     # =======================================================================
     changing = []       # commits a classification changed the spec at
+    rewrites = []       # commits that rewrote a requirement sentence in place
     excluded = []       # commits that touched the spec and changed no structure
     counter_only = []   # signal (c) alone - no id to attribute, no verdict
     counter_pairs = 0
@@ -621,11 +661,25 @@ try:
             counter_pairs += 1
             moved_counter = after["counter"] > before["counter"]
 
+        # THE REFINE THAT KEEPS ITS ID. An id present on both sides, with the
+        # same status, whose SENTENCE changed. That is a refine landing - and
+        # it is character-for-character the same event as fixing a typo.
+        rewritten = sorted(
+            [rid for rid, body in after["text"].items()
+             if rid in before["text"]
+             and before["status"].get(rid) == after["status"].get(rid)
+             and before["text"][rid] != body],
+            key=lambda i: int(i[1:]))
+
         entry = {"sha": after["sha"], "before": before["sha"],
                  "appeared": appeared, "replaced": replaced,
+                 "rewritten": rewritten,
                  "counter": moved_counter,
                  "log_added": after["log_added"],
+                 "log_refined": after["log_refined"],
                  "log_superseded": after["log_superseded"]}
+        if rewritten:
+            rewrites.append(entry)
         if appeared or replaced:
             changing.append(entry)
         elif moved_counter:
@@ -660,6 +714,84 @@ try:
             "there is no id to look for in any column, so this run has NO "
             "verdict on whether that change was recorded. Not a pass."
             % (spec_rel, entry["sha"], entry["before"], entry["sha"]))
+
+    # =======================================================================
+    # R32.5  THE REFINE THAT KEEPS ITS ID - REPORTED, NOT DEMANDED
+    # =======================================================================
+    #
+    # 1.0's header said a refine that rewrites a requirement in place is
+    # invisible here because nothing in the repository separates it from a typo
+    # fix. The `Refined` column was then put forward as the separator: a commit
+    # that rewrites a requirement's sentence and writes nothing in that column
+    # is arguably exactly the violation.
+    #
+    # IT WAS MEASURED BEFORE IT WAS BELIEVED, and the measurement says do not
+    # make it a finding:
+    #
+    #   this repository's whole spec history - 14 versions, 13 commits after
+    #   the founding one - contains ZERO commits that rewrote a requirement's
+    #   sentence in place. The 8 word-only commits changed acceptance rows and
+    #   prose, never a requirement definition. So there is no evidence at all
+    #   about how often such a rewrite is a refine and how often it is a typo:
+    #   the rule would have fired 0 times, caught 0 refines and cried wolf 0
+    #   times, and a rule with no observations behind it is a guess.
+    #
+    #   the only in-place rewrite committed anywhere in this repository is the
+    #   fixture `spec/2-word-only.md`, whose own case name is `word-only` and
+    #   whose purpose is to be the anti-cry-wolf control. 1 of 1 observed
+    #   rewrites is a rewording. Demanding a row there would demand a
+    #   change-log row for a typo, which is the failure mode that got the
+    #   text-diff trigger rejected in the first place.
+    #
+    # So this assertion REPORTS. Every in-place rewrite is listed by location
+    # and by id, and each is called RESOLVED when a `Refined` entry names it at
+    # that commit and UNRESOLVED when nothing does. UNRESOLVED does not set the
+    # exit code, because the check cannot tell which of the two events it was
+    # and saying so is more honest than picking. What WOULD tell them apart is
+    # named in the report: an author writing the id into `Refined`, or a
+    # classification record whose `Classification` is `refine`. Neither exists
+    # to be read today, and the second is the upstream fix.
+    r5_examined = 0
+    r5_resolved = 0
+    r5_unresolved = []
+    for entry in rewrites:
+        for rid in entry["rewritten"]:
+            r5_examined += 1
+            if rid in entry["log_refined"]:
+                r5_resolved += 1
+            else:
+                r5_unresolved.append(
+                    "%s: %s kept its id and its status at %s and its sentence "
+                    "changed, and no row names it in the `Refined` column at "
+                    "that commit. A refine that keeps its id and a typo fix "
+                    "are the same diff; nothing in this repository separates "
+                    "them, so this run renders NO verdict on which it was. "
+                    "Reported, not demanded - the `Refined` column is what "
+                    "would settle it."
+                    % (spec_rel, rid, entry["sha"]))
+
+    sys.stdout.write("    IN-PLACE REQUIREMENT REWRITES (R32.5, reported and "
+                     "never demanded):\n")
+    if not rewrites:
+        sys.stdout.write("      none - no commit in this history rewrote a "
+                         "requirement's sentence while keeping its id and "
+                         "status, so R32.5 was NOT ASSERTED by this run. Not a "
+                         "hold: an assertion with nothing to fire on holds "
+                         "vacuously.\n")
+    for entry in rewrites:
+        sys.stdout.write("      %s  rewrote %-18s `Refined` at that commit "
+                         "names %s\n"
+                         % (entry["sha"], ", ".join(entry["rewritten"]),
+                            ", ".join(sorted(entry["log_refined"],
+                                             key=lambda i: int(i[1:]))) or "-"))
+    sys.stdout.write("    R32.5  refine-recorded-as-a-refine%s"
+                     "        examined %3d  upheld %3d  %s\n"
+                     % ("", r5_examined, r5_resolved,
+                        "unmeasured - nothing to fire on" if r5_examined == 0
+                        else ("held" if r5_resolved == r5_examined
+                              else "REPORTED, not a finding")))
+    for text in r5_unresolved:
+        sys.stdout.write("    UNRESOLVED  %s\n" % text)
 
     # Refused only when there is NOTHING to say. A counter-only commit is a
     # different fact - the trigger fired and could not be attributed - and it

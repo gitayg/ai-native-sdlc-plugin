@@ -33,3 +33,10 @@ evals/results/
 # "not run", signals.sh reports ABSENT, and CI never reads it at all - the
 # workflow writes its own copy to a temp directory.
 .claude/productizer/checks-result.json
+
+# The Artifact gate's decision record. One line per publish it judged, written
+# by .claude/hooks/artifact-gate.sh and read by `view-publish-refused` as the
+# only evidence the Artifact tool actually invokes the hook. NOT committed: it
+# records what one machine published, not a property of the tree you cloned,
+# and a committed copy would let a fresh clone claim a firing nobody observed.
+.claude/productizer/artifact-gate-log.jsonl

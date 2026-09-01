@@ -1,0 +1,5 @@
+<!doctype html><meta charset="utf-8"><title>a handler whose name is declared elsewhere</title>
+<p>The binding is in one region and the call is in another. Reading either one
+alone reads no capability name.</p>
+<script>var N = "art" + "ifact";</script>
+<button onclick="window.claude.use(N)">go</button>

@@ -1,28 +1,50 @@
-# cases.tsv - five TAB-separated fields: id, expect, group, page, note
+# cases.tsv - six TAB-separated fields: id, expect, group, page, names, note
 #
 #   expect  finding = the classifier must report at least one finding on this page
 #           clean   = it must report none
 #   group   which assertion the case is counted under: spelling, unreadable,
-#           forbidden, clean. A group with no case in it is exit 2, never a pass.
+#           forbidden, clean, folded. A group with no case in it is exit 2,
+#           never a pass.
 #   page    a file under pages/
+#   names   the capability names the classifier must resolve on this page,
+#           separated by ';', or the word `none` for "it must resolve no name".
+#           This field is what tells a request that was FOLDED to its name from
+#           one that was merely flagged as unreadable - and `none` is the
+#           assertion that the check never invents a name it did not read.
 #   note    why the case exists. Not parsed.
 #
-bracket-double-quote	finding	spelling	bracket-double-quote.html	the audit case: the same capability, spelled so a literal search for the dotted form reads zero
-bracket-single-quote	finding	spelling	bracket-single-quote.html	the other quote character
-bracket-spaced	finding	spelling	bracket-spaced.html	whitespace between every token
-optional-chaining	finding	spelling	optional-chaining.html	both links of the chain optional, and the call still happens
-newline-split	finding	spelling	newline-split.html	one expression across four lines; a line-oriented pattern sees none of it
-alias-of-use	finding	spelling	alias-of-use.html	the method taken as a value; the call site never names the object
-alias-of-object	finding	spelling	alias-of-object.html	the object taken as a value; the call site never names it either
-computed-key	finding	unreadable	computed-key.html	the property name is assembled at run time
-escaped-key	finding	unreadable	escaped-key.html	a string escape spells the property; the bytes do not
-computed-argument	finding	unreadable	computed-argument.html	the capability name arrives in a variable
-concatenated-argument	finding	unreadable	concatenated-argument.html	two literals and a plus; each half harmless, the sum not
-template-argument	finding	unreadable	template-argument.html	a template literal with a substitution reads as a string and is not one
-dotted-artifact	finding	forbidden	dotted-artifact.html	the plain form the 1.0 check caught; kept so a rewrite cannot lose it
-unknown-name	finding	forbidden	unknown-name.html	an unrecognised name has not been shown to be output-only
-other-property	finding	forbidden	other-property.html	a reach into the capability object by a property this check cannot read
-dotted-downloads	clean	clean	dotted-downloads.html	output only, with the shipped page's truthiness guard; a test is not a declaration
-prose-only	clean	clean	prose-only.html	a page that discusses capabilities at length and declares none
-no-script	clean	clean	no-script.html	no script at all; zero is measured here because the file was read
-destructured-use	finding	spelling	destructured-use.html	bound off the object by destructuring; after that neither receiver nor property is written anywhere
+bracket-double-quote	finding	spelling	bracket-double-quote.html	artifact	the audit case: the same capability, spelled so a literal search for the dotted form reads zero
+bracket-single-quote	finding	spelling	bracket-single-quote.html	artifact	the other quote character
+bracket-spaced	finding	spelling	bracket-spaced.html	artifact	whitespace between every token
+optional-chaining	finding	spelling	optional-chaining.html	artifact	both links of the chain optional, and the call still happens
+newline-split	finding	spelling	newline-split.html	artifact	one expression across four lines; a line-oriented pattern sees none of it
+alias-of-use	finding	spelling	alias-of-use.html	none	the method taken as a value; the call site never names the object, and no name is resolved
+alias-of-object	finding	spelling	alias-of-object.html	artifact	the object taken as a value; the call site never names it either
+destructured-use	finding	spelling	destructured-use.html	none	bound off the object by destructuring; after that neither receiver nor property is written anywhere
+computed-key	finding	unreadable	computed-key.html	none	the property name is assembled by a method call, which is on the far side of what the folder follows
+computed-argument	finding	unreadable	computed-argument.html	none	the name arrives from window.name, so it is not in the file in any form
+opaque-eval	finding	unreadable	opaque-eval.html	none	an evaluator on base64. The undecidable side of the line, and it must be loud and nameless
+reassigned-name	finding	unreadable	reassigned-name.html	none	the binding is written twice; folding the first write would resolve a name the page may never ask for
+object-handed-over	finding	unreadable	object-handed-over.html	none	the object handed to a reflective getter; no property access is written after it anywhere, and 2.0 passed this page CLEAN
+assembled-reflect	finding	unreadable	assembled-reflect.html	none	the object assembled AND handed to a getter: no member expression anywhere. 2.0 passed this page CLEAN
+concatenated-argument	finding	folded	concatenated-argument.html	artifact	two literals and a plus. 2.0 called this unreadable; 3.0 must call it artifact
+escaped-key	finding	folded	escaped-key.html	artifact	a string escape spells the property; decoding it resolves the request the bytes hide
+template-argument	finding	folded	template-argument.html	artifact	a template literal whose substitution is a binding that folds
+bound-name	finding	folded	bound-name.html	artifact	declared once as a literal, used somewhere else; the call site spells a variable
+template-plain	finding	folded	template-plain.html	artifact	a template literal with no substitution: a string with different punctuation
+bound-downloads	finding	folded	bound-downloads.html	downloads	folds to the ONE name a view may ask for, and is still a finding. The folder names; it does not certify
+split-eval	finding	folded	split-eval.html	artifact	the header's own case, split so no contiguous fragment spells anything. 2.0 passed this CLEAN
+handler-bound	finding	folded	handler-bound.html	artifact	the binding is in a script and the call is in an event-handler attribute; either half alone reads nothing
+nested-eval	finding	folded	nested-eval.html	artifact	three evaluators deep, each level escaped into the one above; the name is at the bottom and nothing above it spells anything
+function-constructor	finding	folded	function-constructor.html	artifact	the Function constructor is eval under another spelling, and 2.0 passed this page CLEAN
+assembled-object	finding	folded	assembled-object.html	artifact	object, property and name all built from pairs of literals; the receiver's seven letters never appear together. 2.0 passed this page CLEAN
+dotted-artifact	finding	forbidden	dotted-artifact.html	artifact	the plain form the 1.0 check caught; kept so a rewrite cannot lose it
+unknown-name	finding	forbidden	unknown-name.html	telepathy	an unrecognised name has not been shown to be output-only
+other-property	finding	forbidden	other-property.html	none	a reach into the capability object by a property this check cannot classify
+event-handler	finding	forbidden	event-handler.html	artifact	no script element at all; the request is an attribute the browser hands to the same engine
+unparsable-region	finding	forbidden	unparsable-region.html	artifact	a string that never closes, so the folder cannot run at all. The byte nets must still find the request: a page that breaks the parser must not become a page that declares nothing
+dotted-downloads	clean	clean	dotted-downloads.html	downloads	output only, written as a literal at the call site, with the shipped page's truthiness guard
+prose-only	clean	clean	prose-only.html	none	a page that discusses capabilities at length and declares none
+no-script	clean	clean	no-script.html	none	no script at all; zero is measured here because the file was read
+parser-stress	clean	clean	parser-stress.html	none	regexes holding slashes, a division, nested template substitutions, an apostrophe and comments about capabilities. If the tokenizer loses its place it misreads what follows
+settimeout-callback	clean	clean	settimeout-callback.html	none	the shipped page's own shape: a timer handed a FUNCTION is scheduling, not an evaluator. Flagging it would fail the real dashboard

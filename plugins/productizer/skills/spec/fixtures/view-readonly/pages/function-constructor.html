@@ -1,0 +1,5 @@
+<!doctype html><meta charset="utf-8"><title>the Function constructor</title>
+<p>Not eval by name. The Function constructor compiles a string into a function
+body, which is the same act under another spelling, and the request inside it is
+split across three literals.</p>
+<script>var f = new Function("return window.cla" + "ude.u" + "se('artifact');");f();</script>

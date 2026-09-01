@@ -1,0 +1,6 @@
+<!doctype html><meta charset="utf-8"><title>the capability object handed to a getter</title>
+<p>No property access is ever written after the object. A reflective getter
+takes the object and an assembled key, and returns the request; the call
+happens on the value that comes back. Nothing on this line spells the property,
+and nothing anywhere spells the reach.</p>
+<script>Reflect.get(window.claude, "u" + "se")("artifact");</script>

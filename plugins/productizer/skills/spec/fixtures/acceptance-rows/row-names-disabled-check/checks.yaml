@@ -1,0 +1,11 @@
+version: 1
+checks:
+  - id: alpha
+    coverage:
+      spec_units:
+        - id: R1
+  - id: beta
+    enabled: false
+    coverage:
+      spec_units:
+        - id: R2

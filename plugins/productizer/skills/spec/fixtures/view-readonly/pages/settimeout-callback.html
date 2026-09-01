@@ -1,0 +1,12 @@
+<!doctype html><meta charset="utf-8"><title>a timer that schedules a function</title>
+<p>The shape the shipped page actually uses. setTimeout and setInterval turn
+text into code only when they are handed text; handed a function they are
+ordinary scheduling, and a check that flagged them would flag the real
+dashboard and be switched off by the end of the week.</p>
+<button id="copy">copy</button>
+<script>
+var b = document.getElementById("copy");
+function tick() { b.textContent = "copy"; }
+b.onclick = function () { b.textContent = "copied"; setTimeout(tick, 1300); };
+setInterval(tick, 50000);
+</script>

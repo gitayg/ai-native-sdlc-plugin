@@ -106,10 +106,147 @@
 # reason, never the path it came from: this text is quoted into transcripts and
 # into committed records, and an absolute path there is somebody's home
 # directory published to everyone who clones the repo.
+#
+# EVERY DECISION IS RECORDED, AND THAT RECORD IS THE ONLY THING THAT CAN SHOW
+# THE TOOL ACTUALLY CALLS THIS HOOK.
+#
+# `check-view-publish-refused.sh` feeds this gate a payload on stdin and reads
+# the decision off stdout. Every one of its assertions therefore holds just as
+# well for a correct gate that NOTHING EVER INVOKES. Its A6 narrowed that to
+# the wiring - settings.json names this file on the Artifact matcher, and the
+# named file is byte-identical to the one driven - and its own comment says in
+# capitals that the wiring is asserted and the firing is not. The stated reason
+# it could not be closed was that proving the firing needs a real publish,
+# which is the act this gate exists to refuse.
+#
+# That reason is wrong, and this record is why. THIS GATE DOES NOT REFUSE EVERY
+# PUBLISH. A page declaring only `downloads` - which is what the dashboard
+# declares, and what gets published routinely - is ALLOWED. So an ordinary,
+# permitted publish is available as evidence, and no forbidden page has to be
+# published to watch the hook run. What was missing was not an opportunity; it
+# was that the hook left no trace when it ran.
+#
+# WHAT IS WRITTEN, AND WHY IT IS THIS LITTLE. One JSON object per line, to
+# `.claude/productizer/artifact-gate-log.jsonl`, which is NOT committed - the
+# same reason checks-result.json is not: a record of one run on one machine
+# describes somebody's working state, not a property of the tree you cloned.
+# Each line carries a UTC timestamp in two spellings (ISO for a reader, epoch
+# seconds so a recency window can be computed without `date -d` or `date -v`,
+# neither of which is portable), the decision, the tool action, this gate's own
+# version, and the identity of the page - AS ITS BASENAME ONLY, rendered to
+# `[A-Za-z0-9._-]` and truncated. A basename contains no `/` by construction,
+# so it cannot be an absolute path; the slug spelling `-Users-<name>-` that a
+# generated file leaked here once cannot survive the render either, and is
+# redacted outright if it somehow does. No reason text is recorded: the reason
+# quotes the page, and a page's own bytes in a log file is the page publishing
+# itself by another route.
+#
+# RECORDING CAN NEVER CHANGE A DECISION. The write happens AFTER the decision
+# has already been printed on stdout and after `_rc=0` has been set, and every
+# call site tests the result, which switches `set -e` off for the whole body.
+# A missing directory, a full disk, an unwritable file, a `date` that answers
+# nonsense - each returns quietly and the gate has already decided. A gate that
+# fails because its logging failed is worse than a gate that does not log.
+#
+# IT IS BOUNDED. Trimmed to the last GATE_LOG_MAX lines after each append.
+#
+# ARTIFACT_GATE_LOG REDIRECTS IT, AND THAT IS DELIBERATE. The check drives this
+# hook twenty times per run; those writes must not land in the file that is
+# supposed to be evidence of the TOOL calling it, or the check would be reading
+# back its own footprints. It points the variable at a temp file instead. The
+# same lever can silence the real log for anyone who exports it, which makes
+# the firing assertion go UNMEASURED - never a false pass.
+#
+# WHAT A RECORD PROVES, AND WHAT IT DOES NOT. A record proves this hook ran,
+# under the tool, on the publish it names. It does NOT prove the tool would
+# invoke it for a publish this gate would REFUSE - the tool has never been
+# asked to make one - unless a `deny` line appears in the log, which is the
+# only thing that would settle it. The check says so in those words rather
+# than counting an allow as evidence of a refusal.
+#
+# CONCURRENCY. Two hooks running at once append single short lines, which is
+# atomic below PIPE_BUF on every platform this runs on; the trim is not, and a
+# trim racing an append can lose a line. Losing a line loses evidence and never
+# forges any, so it is written down rather than locked against.
 set -euo pipefail
 
+GATE_VERSION="artifact-gate 1.1"
+
+# The record is trimmed to this many lines. Large enough that a day of ordinary
+# publishing stays visible, small enough that it never grows without bound.
+GATE_LOG_MAX=200
+
 _rc=2
-trap '[ "$_rc" = 0 ] && exit 0; exit 2' EXIT
+_gate_action='?'
+_gate_target='-'
+GATE_LOG=''
+
+# A basename, an action name, rendered so it can be neither a path nor a
+# smuggled control character. Always succeeds: this is logging, and logging
+# that can fail the gate is the failure mode being avoided.
+gate_render() {
+  local s=''
+  s="$(printf '%s' "$1" | LC_ALL=C tr -c 'A-Za-z0-9._-' '?')" || s='?'
+  s="${s:0:64}"
+  case "$s" in
+    *-Users-*|*-users-*|*-home-*|*-Home-*|*-root-*) s='(redacted)' ;;
+  esac
+  [ -n "$s" ] || s='-'
+  printf '%s' "$s"
+}
+
+_gate_trim() {
+  local n='' tmp=''
+  n="$(wc -l < "$GATE_LOG")" || return 0
+  n="${n//[![:digit:]]/}"
+  [ -n "$n" ] || return 0
+  [ "$n" -gt "$GATE_LOG_MAX" ] || return 0
+  tmp="$GATE_LOG.$$.tmp"
+  tail -n "$GATE_LOG_MAX" "$GATE_LOG" > "$tmp" || { rm -f "$tmp"; return 0; }
+  mv -f "$tmp" "$GATE_LOG" || { rm -f "$tmp"; return 0; }
+}
+
+# Built with `jq --argjson`/`--arg`, never by concatenation, for the same
+# reason the decision itself is: text out of the payload reaches this line, and
+# a page named `","decision":"allow` must not be able to write a second field.
+record() {
+  [ -n "$GATE_LOG" ] || return 0
+  command -v jq >/dev/null 2>&1 || return 0
+  local dir='' secs='' iso='' line=''
+  dir="${GATE_LOG%/*}"
+  [ "$dir" != "$GATE_LOG" ] || dir='.'
+  [ -d "$dir" ] || return 0
+  secs="$(date -u +%s)" || return 0
+  case "$secs" in ''|*[!0-9]*) return 0 ;; esac
+  iso="$(date -u +%Y-%m-%dT%H:%M:%SZ)" || return 0
+  line="$(jq -cn --arg ts "$iso" --argjson epoch "$secs" \
+                 --arg decision "$1" --arg action "$_gate_action" \
+                 --arg target "$_gate_target" --arg gate "$GATE_VERSION" \
+    '{ts: $ts, epoch: $epoch, decision: $decision,
+      action: $action, target: $target, gate: $gate}')" || return 0
+  printf '%s\n' "$line" >> "$GATE_LOG" || return 0
+  _gate_trim
+}
+
+# Every status that is not a successfully emitted decision becomes 2, because a
+# gate that crashes with 1 or 127 is a gate that published. A block is a
+# decision this gate made about a publish, so it is recorded like any other.
+_gate_finish() {
+  if [ "$_rc" = 0 ]; then exit 0; fi
+  record blocked || :
+  exit 2
+}
+trap _gate_finish EXIT
+
+# Resolved AFTER the trap is installed. A hook that died locating its own log
+# would exit with a status that is neither 0 nor 2, and Claude Code runs the
+# tool anyway on any other status - the log would have published the page.
+_gate_here=''
+_gate_here="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)" || _gate_here=''
+GATE_LOG="${ARTIFACT_GATE_LOG:-}"
+if [ -z "$GATE_LOG" ] && [ -n "$_gate_here" ]; then
+  GATE_LOG="$_gate_here/../productizer/artifact-gate-log.jsonl"
+fi
 
 command -v jq >/dev/null 2>&1 || {
   echo "artifact-gate: jq is not installed, so this gate cannot read the publish it is meant to judge. Blocking." >&2
@@ -143,6 +280,10 @@ emit() {
                            permissionDecision: $decision,
                            permissionDecisionReason: $reason}}'
   _rc=0
+  # After the decision is on stdout and after _rc is 0. In that order on
+  # purpose: nothing the recorder does can now change what this gate decided,
+  # and `|| :` switches `set -e` off for the whole of record's body.
+  record "$1" || :
   exit 0
 }
 
@@ -186,6 +327,11 @@ action="$(printf '%s' "$payload" | jq -er '
   echo "artifact-gate: the hook payload was not the shape this gate expects (${action:-jq failed and said nothing}). Blocking, because a gate that cannot see what it is judging has not judged it." >&2
   exit 2; }
 
+# Recorded from here on. `|| _gate_action='?'` rather than letting a failure
+# reach `set -e`: a render that failed would otherwise block a publish this
+# gate had not yet judged, which is the recorder deciding, not the gate.
+_gate_action="$(gate_render "$action")" || _gate_action='?'
+
 case "$GATE_NON_PUBLISHING" in
   *" $action "*)
     allow "artifact-gate: \`$action\` does not publish a new version of a page, so R31 does not reach it. Nothing was judged about any page's capabilities here."
@@ -216,6 +362,7 @@ page whose capabilities are unknown is not a page with none."
 }
 
 base="${file##*/}"
+_gate_target="$(gate_render "$base")" || _gate_target='?'
 
 [ -f "$file" ] && [ -r "$file" ] || {
   refuse "The page named for publication (\`$base\`) is not a readable file at the path

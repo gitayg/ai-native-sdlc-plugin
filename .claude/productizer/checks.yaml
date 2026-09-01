@@ -267,10 +267,16 @@ checks:
           verdict: Partial
           reason: >-
             R34 is the ASK half of the old R23, split out under B31. Asserts that a raised concern
-            cites a ruling that exists, is cited back, and is filled in enough to answer. What is
-            still unasserted is inherited from R23 and is not fixed by the split: a contradiction
-            stopped in conversation, with nothing written to the spec at all, leaves this check
-            nothing to find.
+            cites a ruling that exists, is cited back, and is filled in enough to answer - AND that
+            every intent recorded as `contradict` has a ruling naming it in its Intent field. That
+            last one reaches the stop the others cannot see: a contradiction stopped in conversation
+            with nothing written to the spec, which is B11 and which the R23 split did not touch.
+            Both halves are exercised on a committed fixture every run, because this repository has
+            no rulings and no contradiction on record, so every sweep would otherwise be over an
+            empty set - the failure a check here already shipped with. Still unasserted: an intent
+            never classified at all leaves no record either, and no check can find it. The fix is
+            Stage 1 recording the classification before it asks, which the recorder already
+            supports and nothing forces.
       # Files the check actually opened, one per line. The spec is always one of
       # them, so a run that opened nothing is a bug rather than an empty repo.
       from: stdout_paths
@@ -354,9 +360,18 @@ checks:
         - id: R9
           verdict: Partial
           reason: >-
-            Asserts only the marker-delimited requirements section is current with the active
-            requirements; the rest of GUIDE.md - the majority of the file - can contradict them and
-            still pass.
+            Asserts the marker-delimited section is byte-identical to a fresh render, that every
+            active requirement's committed row is the row the spec produces today, that a bare
+            prose id outside the section resolves, and that no status word outside it contradicts
+            the spec. The rest of the guide can still contradict a requirement WITHOUT naming its
+            id, and 1.2 tried to narrow that and REFUTED the attempt with measurement rather than
+            argument: three traceability rules run against this guide with a planted contradiction
+            of R17 scored precision 0.00 (five fires, five false), zero examined, and 0.06 whose
+            single catch fires identically on the sentence's own NEGATION. No lexical rule
+            separates a sentence from its negation; closing this needs a model in the check path,
+            which `models.checks` forbids outright. Partial is therefore deliberate, not pending.
+            The check prints the hole's SIZE every run - 85 prose paragraphs outside the section,
+            3 reachable by any assertion here, 82 examined by nothing.
       # The script's own count of active requirements it rendered. A run that
       # rendered none never prints this line - it exits 3 - so a zero here is
       # impossible rather than merely unlikely.
@@ -402,13 +417,16 @@ checks:
         - id: R30
           verdict: Partial
           reason: >-
-            Classifies the capability a published view declares and accepts only `downloads`, which
-            writes to the viewer's own device and reads nothing back. It asserts what the page ASKS
-            for, by RESOLVING what the page reaches for rather than matching one spelling - the
-            audit's `window.claude["use"]("artifact")`, which version 1.0 read as zero declarations
-            and passed clean, is now a named finding, and an unresolvable request is a finding
-            rather than an absence. What is left: it observes the REQUEST, not the file arriving on
-            the viewer's device, and a capability granted in the publish call is unasserted here.
+            Classifies what a published view requests and accepts only a `downloads` written as a
+            plain string literal AT THE CALL SITE. A name the check had to ASSEMBLE - concatenation,
+            template, binding, escape, evaluated source - is reported with the name and is still a
+            finding, `downloads` included: a fold is an inference about a run-time value and this
+            check never certifies what it inferred. What is NOT asserted, and is why this is not
+            Covered: the file actually arriving on the viewer's device, and the platform property
+            that `downloads` writes only there. That is a fact about the publishing service, not
+            about this repository, and nothing here can reach it. The other surface - a capability
+            granted in the publish CALL - is asserted by `view-publish-refused`, which drives the
+            real hook and has now observed it firing.
         - id: R31
           verdict: Partial
           reason: >-
@@ -419,15 +437,22 @@ checks:
             `view-publish-refused` against the real hook; this check observes the page not asking,
             which is the earlier and weaker of the two.
         - id: R4
-          verdict: Partial
-          reason: >-
-            Asserts both halves. The generator writes no repository file - every file hashed before
-            and after, content and mtime, falsified four ways. The page half no longer turns on one
-            source spelling: the request is found by receiver, by property and by binding, so bracket
-            keys, quote variants, whitespace, optional chaining, an alias of the object or of the
-            method, and a destructured `use` all resolve, and anything unresolvable is a FINDING
-            rather than a zero. What is left: it reads bytes, not a syntax tree, so a request
-            assembled at run time is reported unreadable rather than resolved.
+          verdict: Covered
+          evidence: >-
+            Both halves. The generator writes no repository file - every file hashed before and
+            after, content and mtime, falsified by a builder that appends to one file and creates
+            another. The page half no longer reads BYTES: the page's JavaScript is tokenized
+            (escapes decoded, templates with nested substitutions, regex told from division,
+            comments skipped) across script bodies, event-handler attributes and javascript: URLs,
+            and every capability name and property key is CONSTANT-FOLDED - concatenation,
+            templates, and identifiers bound exactly once, with writes counted across declarations,
+            parameters, catch, destructuring, every assignment operator and ++/--. Six nets,
+            including evaluators whose folded text is rescanned as source. Four pages version 2.0
+            passed CLEAN are now findings - measured directly, each version against its own corpus:
+            `window["ev"+"al"]("window.cla"+"ude.u"+"se('artifact')")` exits 0 under 2.0 and 1
+            under 3.0, naming `artifact`. Seven assertions over 35 cases, each falsified alone
+            against a patched classifier, and each case asserts the resolved NAME or `none` so a
+            folded request is told from an unreadable one.
       # One bare path per repository file hashed. `must_cover: none` and NOT
       # all_triggering, deliberately: this examines the whole tree rather than
       # the change, so a commit that DELETES a file would name a path that no
@@ -534,11 +559,16 @@ checks:
         - id: R36
           verdict: Partial
           reason: >-
-            R36 is the RECORD half of the old R8, split out under B31. Asserts that every active
-            requirement has a row in the acceptance criteria table, falsified by adding one
-            without. What is still unasserted is inherited from R8 and untouched by the split: it
-            asserts a row EXISTS, never that the row is TRUE - a row naming a check that does not
-            assert the requirement passes here.
+            Asserts every active requirement has a row, and since 1.1 that WHAT A ROW NAMES IS
+            REAL: a cited check exists in checks.yaml and is not switched off, at least one check
+            a row cites carries a spec_units claim for that requirement, a cited path resolves,
+            and a cited script exists. Eight committed cases falsify each separately. It found a
+            live defect on its first run - R19's row named `classification-provenance`, which
+            claims only R6, while R19 is claimed by `spec-home-stop`; the two artifacts disagreed
+            and nothing had noticed. Still Partial, and the residue is narrower than before: it
+            asserts a named check CLAIMS the requirement, never that it PROVES it. Rows naming a
+            corpus, a config key or a promise are unverifiable prose and are listed by id under
+            NOT VERIFIED on every run rather than absorbed into the pass.
       # Every requirement PARSED, not the subset that produced findings.
       # "0 missing rows" is only a claim about a spec somebody actually parsed.
       from: stdout_count
@@ -668,14 +698,20 @@ checks:
         - id: R6
           verdict: Partial
           reason: >-
-            Asserts, per provenance record, that the ids in scope are exactly the set active in the
-            spec at the commit the record names, and that the classification is exactly one of the
-            four - the half a graded eval on outcomes cannot see. It asserts the RECORD, never the
-            act: what stands behind an honest record is the writer, not this check. The empty-set
-            hole is closed one step and not shut - an empty store is a finding when the backlog
-            records a classification and unmeasured when it does not - but a classification that
-            left neither a record nor a backlog line is invisible to both halves, and the
-            corroborator matches only the backticked spelling.
+            Asserts per record that the ids in scope are exactly the set active in the spec at the
+            commit the record names, and that the classification is one of the four. Since 3.0 it
+            also asserts, per corroborated classification, that a record EXISTS for the intent that
+            line names - the hole 2.0 left, where three records against five corroborated
+            classifications passed and printed the difference as a NOTE. And assertion 8 asserts the
+            same for every change-log row citing an arriving intent whose merge changed the spec:
+            it began advisory because it started red on intent #3, which was classified, merged and
+            left no record; that record now exists and the assertion is blocking. The corroborator
+            is widened past the backticked spelling, measured at 3 lines to 4 on this backlog, and
+            deliberately not tense-free - a tense-free pattern matches this repo's own prose about
+            what intake WILL classify. Still NOT asserted: the act. A classification that merges
+            nothing - a duplicate or a contradiction - writes no change-log row and no spec delta,
+            so no artefact in this repository records it. Closing that needs Stage 2 to call
+            record-classification.sh at the moment it settles on one of the four.
       # Files actually opened, one per line. The spec is always one of them, so
       # a run that opened nothing is a bug rather than a repo with no records.
       # `must_cover` omitted deliberately: an `always` check taking no {files},
@@ -789,9 +825,19 @@ checks:
           verdict: Partial
           reason: >-
             Refuses a spec change that edits, supersedes or points forward at the contested
-            requirement, but recognises the incoming behaviour only by shared EARS trigger, forward
-            pointer or verbatim sentence - the same behaviour merged under a different trigger is
-            let through.
+            requirement, and now recognises the incoming behaviour merged under a DIFFERENT EARS
+            keyword or a reworded condition - the audit's case, which the previous version reported
+            as merely allocated and passed. THE LIMITATION THIS ROW USED TO CARRY WAS REFUTED BY
+            MEASUREMENT: it argued that closing the gap needs a similarity threshold and that a
+            threshold starts refusing unrelated intents. Measured over every pair of requirements in
+            this spec, the new rule flags 19 with ZERO from different lineages, against 22 and THREE
+            for the old one - the widening removed false positives rather than adding them, because
+            the old rule's condition clause for a ubiquitous requirement was the system name alone
+            and matched every ubiquitous requirement against every other. The rule is exercised on a
+            committed fixture in every run, both ways, because this repository has no pending ruling
+            and the sweep alone would assert nothing. Still unasserted: the same behaviour with BOTH
+            condition and obligation rewritten past the overlap bar, and R12 against a real pending
+            ruling here, of which there are none.
       from: stdout_paths
       pattern: '^(\S+)$'
       min_covered: 1
@@ -1300,14 +1346,18 @@ checks:
         - id: R19
           verdict: Partial
           reason: >-
-            Asserts the obligation over four constructed trees - an unreachable home with nothing
-            classified is clean, the same tree with one record is a finding, a record that cannot
-            name its spec commit is a finding, and a reachable home with a well-formed record stays
-            clean. Three things are NOT asserted. It reads a tree's STATE, not a timeline, so a
-            record written before the home broke is indistinguishable from one written after. It
-            does not resolve a well-formed commit against an object store - that is
-            `classification-provenance`'s half. And the configured command examines the fixture,
-            not this repository, so whether THIS repo stopped is asserted by nothing.
+            Asserts the obligation over four constructed trees and a built history. STATE: an
+            unreachable home with nothing classified is clean, the same tree with one record is a
+            finding, a record that cannot name its spec commit is a finding, a reachable home with a
+            well-formed record stays clean. TIMELINE, which 1.0 could not read: a record committed
+            BEFORE the commit that broke the home is spared and one committed AFTER is not - by
+            ancestry, not dates, because committer clocks disagree and rebases rewrite them. Each
+            falsified alone against its own single-record history; a two-record history would have
+            let one number stand for two readings. A shallow clone is refused. It now also runs its
+            detector over THIS repository rather than only its fixtures. What is NOT asserted: this
+            repository's home is reachable, so R19's trigger never fires here and the run renders NO
+            verdict on whether this repository would stop - it says so rather than holding
+            vacuously.
       from: stdout_paths
       pattern: '^(\S+)$'
       must_cover: none
@@ -1401,13 +1451,17 @@ checks:
           verdict: Partial
           reason: >-
             Asserts the CONSEQUENCE completely and the TRIGGER partially. Every commit at which an id
-            appeared or a requirement went superseded or withdrawn is checked for a row recording that
-            id in the column for that kind of change, in the commit that made the change - four
-            assertions, each counted where its loop runs, each falsified alone. What is NOT asserted is
-            the rest of the trigger: a REFINE that keeps its id and rewrites the sentence changes the
-            spec and is invisible here, because no evidence in the repository separates it from a typo
-            fix. So a classification of that shape can merge with no row and this stays green. Also
-            unasserted: that a row's issue, branch and PR cells are TRUE - only the ids are matched.
+            appeared or a requirement went superseded or withdrawn is checked for a row recording
+            that id in the column for that kind of change, in the commit that made the change - four
+            assertions, each falsified alone. A fifth is REPORTED and never demanded: a requirement
+            whose id and status are unchanged and whose sentence changed is a refine landing, and it
+            is character-for-character the same event as a typo fix. It is listed by location, called
+            RESOLVED when a `Refined` entry names it at that commit, and sets no exit code. That is
+            measured rather than conceded: this repository's entire spec history holds ZERO in-place
+            requirement rewrites - a synthetic history proves the detector works, so the zero is
+            measured and not a broken probe - and the only in-place rewrite committed anywhere here
+            is the fixture that exists to be the anti-cry-wolf control. There is no evidence base for
+            the refine-to-typo ratio, so demanding a row would be a rule with nothing behind it.
       from: stdout_paths
       pattern: '^(\S+)$'
       must_cover: none
@@ -1457,19 +1511,26 @@ checks:
         - id: R31
           verdict: Partial
           reason: >-
-            Drives the real PreToolUse hook and asserts it REFUSES, which is R31's obligation and the
-            half nothing observed before. Both surfaces: the capability asked for inside the page, and
-            the capability granted by the publish CALL - the second being the one `view-read-only`
-            states in its own limitations that it cannot see. Six assertion groups, each falsified on
-            its own against patched copies of the hook and of settings.json. A6 closes the wiring gap:
-            settings.json names this hook on the Artifact matcher, the named file exists and is
-            executable, and it is byte-identical to the one the other assertions drove - so a
-            registration pointing at a stale or different copy is a finding rather than a pass. THE
-            WIRING IS ASSERTED, THE FIRING IS NOT. Nothing here proves the Artifact tool actually
-            calls the hook, because proving that needs a real publish, which is the act this gate
-            exists to refuse. Also unasserted: a capability granted by an earlier publish and
-            inherited by a later call that omits `capabilities`, since that declaration is held by
-            the publishing service and not by this repository.
+            Drives the real PreToolUse hook and asserts it REFUSES - R31's obligation, and the half
+            nothing observed before. Both surfaces: the capability asked for inside the page, and the
+            one granted by the publish CALL, which `view-read-only` states it cannot see. Eight
+            assertion groups, each falsified separately against patched copies of the hook and of
+            settings.json, on macOS/BSD and under GNU coreutils.
+            A6 asserts the WIRING - settings.json names this hook, the named file exists, is
+            executable, and is byte-identical to the one driven. A7 asserts the FIRING, which was
+            previously argued to be unprovable: the gate records every decision to an uncommitted
+            JSON-lines file, and a real dashboard publish produced `decision: allow, action: publish`
+            - the Artifact tool does invoke this hook. A8 asserts the recorder from the other end, so
+            a recorder that silently stopped is a finding rather than an A7 that reads `nothing has
+            published yet` forever.
+            WHAT THE EVIDENCE DOES NOT COVER, printed on every run: every record is a publish the gate
+            ALLOWED, so it shows the tool invokes the hook and not that it would invoke it for a
+            publish the hook would REFUSE - only a recorded deny settles that, and one appears only if
+            a forbidden publish is attempted. A record proves the hook ran, not who ran it. Where no
+            publish has happened the firing is UNASSERTED and says so rather than refusing: a clone
+            that never publishes cannot observe it, and a permanent blocking refusal there is a gate
+            people route around. And a capability granted by an earlier publish and inherited by a
+            later call that omits `capabilities` is held by the publishing service, not this repo.
       from: stdout_paths
       pattern: '^(\S+)$'
       must_cover: none

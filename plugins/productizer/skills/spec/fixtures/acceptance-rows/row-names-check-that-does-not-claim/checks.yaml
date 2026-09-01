@@ -1,0 +1,6 @@
+version: 1
+checks:
+  - id: alpha
+    coverage:
+      spec_units:
+        - id: R1
