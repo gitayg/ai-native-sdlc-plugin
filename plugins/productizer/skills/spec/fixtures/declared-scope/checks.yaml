@@ -1,0 +1,105 @@
+# Fixture: a check that exits ZERO having examined LESS THAN IT DECLARED.
+#
+# R15 - IF A CHECK EXITS ZERO HAVING EXAMINED LESS THAN IT DECLARED, THEN THE
+# LIFECYCLE SHALL REPORT IT AS HOLLOW AND TREAT IT AS A FAILURE.
+#
+# The behaviour lives in run-checks.sh and its acceptance row says it was
+# "proven on a stub and on real semgrep" - a demonstration, not a standing
+# test. Nothing stopped a refactor turning the hollow refusal back into a pass
+# while every run stayed green, because a hollow pass is the quietest failure
+# there is: exit 0, no finding, no line anybody reads. This file is the
+# standing case, and `scripts/check-declared-scope.sh` is what runs it.
+#
+# TWO CHECKS, AND BOTH HALVES MATTER:
+#
+#   hollow-shortfall  prints ONE path while declaring a minimum of TWO, and
+#                     exits 0. It must come back `hollow`, and that status
+#                     must change the verdict - a status written into a file
+#                     that still lets the run exit 0 is a skip wearing a
+#                     different name.
+#
+#   honest-pass       prints BOTH paths, declaring the same minimum of two
+#                     and `must_cover: all_triggering` on top. It must still
+#                     PASS. A runner that refused this one would have swapped
+#                     the defect for its mirror image and still be wrong -
+#                     and deleting a real pass is how a coverage rule gets
+#                     switched off for being noisy.
+#
+# The two differ in ONE thing: how many paths the tool prints. Same tool, same
+# exit code, same pattern, same minimum. Anything that makes both go the same
+# way is a regression, whichever way they go.
+#
+# ONE MECHANISM PER CHECK, DELIBERATELY. `hollow-shortfall` fails on
+# `min_covered` alone, with `must_cover: none`, so that a refactor breaking
+# only the minimum has nothing else to hide behind. If it also declared
+# `must_cover: all_triggering`, the second rule would keep the row red and the
+# broken one would never be noticed.
+#
+# SELF-CONTAINED ON PURPOSE. It names no path outside itself and runs nothing
+# but `echo`, so it behaves the same in a fresh clone on any machine. The two
+# paths in `changed.txt` do not have to exist: the runner is being asked what
+# the CHECK reported it examined, not what is on disk. An absolute path here
+# would have made the test pass on one machine and refuse on every other one.
+version: 1
+
+policy:
+  empty_run: refuse
+  # There is no spec beside this fixture and there should not be one. The
+  # subject is what the runner does with a check's OWN declared scope; an
+  # underivable spec denominator would refuse the run for a second, unrelated
+  # reason, and the fixture would pass for the wrong cause.
+  spec_coverage: "off"
+
+defaults:
+  mode: batch
+  severity: block
+  timeout_seconds: 30
+
+checks:
+  - id: hollow-shortfall
+    why: it exits zero having printed one path while declaring a minimum of two, so if it ever comes back anything but hollow the runner has started accepting a check that examined less than it said it would
+    when:
+      always: true
+    severity: block
+    requires: [echo]
+    # `echo` stating it is there and working. There is no --version on every
+    # platform's echo, and a version flag that errors on one libc would report
+    # `no_version` on one machine and `hollow` on another.
+    version_command: [echo, "fixture-echo"]
+    mode: batch
+    command: [echo, "fixture/one.txt"]
+    exit_codes:
+      pass: [0]
+      fail: [1]
+      refused: [2]
+    coverage:
+      from: stdout_paths
+      # No anchors: `echo` puts its operands on ONE line, so a per-line anchor
+      # would capture nothing and every row would read hollow for the wrong
+      # reason - which would make the shortfall untestable by hiding it under
+      # a pattern bug.
+      pattern: '(\S+)'
+      must_cover: none
+      min_covered: 2
+
+  - id: honest-pass
+    why: it exits zero having printed everything it declared, and must still pass - a runner that refused this one would have replaced the hollow-pass defect with its mirror image, and a coverage rule that fails honest work gets switched off
+    when:
+      always: true
+    severity: block
+    requires: [echo]
+    version_command: [echo, "fixture-echo"]
+    mode: batch
+    command: [echo, "fixture/one.txt", "fixture/two.txt"]
+    exit_codes:
+      pass: [0]
+      fail: [1]
+      refused: [2]
+    coverage:
+      from: stdout_paths
+      pattern: '(\S+)'
+      # Both rules at once here, because this row is the one asserting that a
+      # satisfied declaration really is satisfied. The minimum matches
+      # `hollow-shortfall`'s exactly; only the number of paths printed differs.
+      must_cover: all_triggering
+      min_covered: 2

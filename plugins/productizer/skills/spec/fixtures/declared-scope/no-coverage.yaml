@@ -1,0 +1,51 @@
+# Fixture: a check that declares NO coverage requirement at all.
+#
+# R5 - EVERY CHECK SHALL DECLARE WHAT IT MUST HAVE EXAMINED FOR ITS PASS TO
+# COUNT. R5 had no check of its own. The obligation it states is the one that
+# makes R15 mean anything: a check with no declared scope cannot be hollow,
+# because there is nothing for it to fall short of. Undeclared is the way
+# round every coverage assertion in this repo, and it is one deleted YAML key
+# away in every check.
+#
+# WHAT THE RUNNER ACTUALLY DOES, MEASURED, NOT ASSUMED. It refuses the config
+# AT LOAD - exit 2, bad usage - naming the check that has no `coverage`. It
+# does not warn, does not default to a minimum of zero, and writes no result
+# file at all. That last part is the load-bearing half: there is no green
+# document left behind for a later stage to read as a pass.
+#
+# THIS FILE IS DELIBERATELY NOT LOADABLE. It is not a second config for the
+# same run; `scripts/check-declared-scope.sh` points the runner at it in a
+# separate invocation and asserts the refusal. It sits beside `checks.yaml`
+# rather than inside it because a config that fails to parse takes every other
+# check in the file down with it, and the R15 case has to be able to run.
+#
+# The check below is `honest-pass` from `checks.yaml` with exactly one thing
+# removed: the `coverage:` block. Everything else is identical, so the refusal
+# can only be about the missing declaration.
+version: 1
+
+policy:
+  empty_run: refuse
+  spec_coverage: "off"
+
+defaults:
+  mode: batch
+  severity: block
+  timeout_seconds: 30
+
+checks:
+  - id: undeclared-scope
+    why: it states no scope at all, so nothing it exits zero on can ever be measured against what it should have looked at
+    when:
+      always: true
+    severity: block
+    requires: [echo]
+    version_command: [echo, "fixture-echo"]
+    mode: batch
+    command: [echo, "fixture/one.txt", "fixture/two.txt"]
+    exit_codes:
+      pass: [0]
+      fail: [1]
+      refused: [2]
+    # NO `coverage:` KEY. That absence is the whole fixture. Do not add one to
+    # make this file "valid" - a valid file here proves nothing.

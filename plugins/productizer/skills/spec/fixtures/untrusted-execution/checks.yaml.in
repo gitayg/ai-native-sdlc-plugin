@@ -1,0 +1,45 @@
+# Fixture skeleton. `check-untrusted-execution.sh` copies this into a temporary
+# repository, substitutes the four @@markers@@ from one row of `cases.yaml`,
+# and hands the result to run-checks.sh.
+#
+# ONE ROW PER CONFIG, ON PURPOSE. run-checks.sh refuses a whole config the
+# moment one argv is refused, so two payloads in one file would mean the second
+# was never reached and its assertion would be vacuous - a green that came from
+# never having been asked.
+#
+# `spec_coverage: "off"` because this fixture is about what the runner AGREES TO
+# RUN, not about coverage. Quoted, because YAML 1.1 reads a bare `off` as false.
+# `min_covered: 0` for the same reason: a payload that is refused prints
+# nothing, and a hollow-coverage failure would hide the refusal being asserted
+# behind a second, unrelated one.
+version: 1
+
+policy:
+  empty_run: refuse
+  spec_coverage: "off"
+  allow_repo_local_tools: @@ALLOW@@
+
+defaults:
+  timeout_seconds: 30
+  mode: batch
+  severity: block
+
+checks:
+  - id: payload
+    why: one payload from cases.yaml, handed to the runner to find out whether it agrees to run it
+    when:
+      always: true
+    severity: block
+    requires: @@REQUIRES@@
+    version_command: @@VERSION@@
+    mode: batch
+    command: @@COMMAND@@
+    exit_codes:
+      pass: [0]
+      fail: [1]
+      refused: [2]
+    coverage:
+      from: stdout_paths
+      pattern: '^(\S+)$'
+      must_cover: none
+      min_covered: 0

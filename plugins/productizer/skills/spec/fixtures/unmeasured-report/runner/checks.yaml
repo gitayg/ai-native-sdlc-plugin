@@ -1,0 +1,50 @@
+# Fixture: a run whose coverage denominator cannot be derived.
+#
+# R25 - IF A VALUE COULD NOT BE MEASURED, THEN THE LIFECYCLE SHALL REPORT IT AS
+# UNMEASURED. This half is about the PRINTED line, not the result file. Its pair
+# R26 - do not record it as zero - is asserted elsewhere by reading the result
+# file, and the two are separable: a run can print UNMEASURED and still write 0.
+#
+# `policy.spec` names a file that is not in the sandbox, so the count of active
+# requirements has no source. The runner must say so in words on the stream a
+# person reads.
+#
+# SELF-CONTAINED. No path here points outside this fixture and no tool named
+# here exists anywhere, so the run is the same on every machine and in a fresh
+# clone.
+version: 1
+
+policy:
+  empty_run: refuse
+  # `require` is what makes the absent denominator matter. Under `auto` the
+  # coverage block is reported not_declared and the printed line never reaches
+  # the branch this fixture exists to exercise.
+  spec_coverage: require
+  spec: no-spec-lives-in-this-fixture.md
+
+defaults:
+  timeout_seconds: 30
+  mode: batch
+  severity: block
+
+checks:
+  # Named so that nothing will ever install it. A fixture naming a plausible
+  # tool goes green on the one machine where somebody happens to have it.
+  - id: unreachable-tool
+    why: the tool is absent on every machine, so this check examines nothing and the run has something to report besides the denominator
+    when:
+      always: true
+    severity: block
+    requires: [definitely-not-a-real-tool]
+    version_command: [definitely-not-a-real-tool, --version]
+    mode: batch
+    command: [definitely-not-a-real-tool, --scan, "{files}"]
+    exit_codes:
+      pass: [0]
+      fail: [1]
+      refused: [2]
+    coverage:
+      from: stdout_paths
+      pattern: '^(\S+)$'
+      must_cover: none
+      min_covered: 1

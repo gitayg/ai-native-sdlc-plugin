@@ -1,0 +1,314 @@
+# Fixture: P4 - a repository being examined never chooses what runs - and the
+# three requirements that enforce it. Driven by
+# `scripts/check-untrusted-execution.sh`.
+#
+# EVERY PAYLOAD HERE IS INERT. The most a payload does if a guard fails open is
+# create an empty marker file in a temporary directory that is deleted on exit.
+# Nothing removes a file, nothing opens a socket, nothing pushes a tag. That is
+# a deliberate constraint on a fixture whose entire job is to be refused: a
+# fixture whose payload is only safe because the guard works is a fixture that
+# punishes the first regression with the damage it was written to prevent.
+#
+# ---------------------------------------------------------------------------
+# publish_cases - R17
+#
+# Command text handed to `templates/publish-gate.sh` on stdin as a PreToolUse
+# payload. The gate JUDGES; it never executes. Both directions are here on
+# purpose: a gate that blocks everything is as broken as one that blocks
+# nothing, and only the allow rows can tell the two apart. The allow rows are
+# also the ones that decide whether the gate survives contact with a real
+# repository - a gate an agent cannot work around gets switched off within a
+# day, and a gate that is off protects nothing.
+#
+#   expect: block   the gate must exit 2
+#   expect: allow   the gate must exit 0
+#
+# @@MARKER@@ is replaced at run time with a path inside a temporary directory.
+# The one row that uses it is a canary: it is shaped like a publish AND would
+# create a file if the gate ever executed what it judges. The check asserts that
+# directory is still empty afterwards.
+# ---------------------------------------------------------------------------
+publish_cases:
+
+  # --- the plain forms ---
+  - expect: block
+    why: a release created from the command line reaches everyone watching the repo
+    command: 'gh release create v9.9.9 --notes-file notes.md'
+  - expect: block
+    why: uploading an asset to a release is the same act one step later
+    command: 'gh -R owner/repo release upload v9.9.9 dist.tgz'
+  - expect: block
+    why: the plainest publish there is
+    command: 'npm publish'
+  - expect: block
+    why: an intervening option is an ordinary spelling, and an argv[1]-only pattern lets it through
+    command: 'npm --loglevel=silly publish'
+  - expect: block
+    why: quotation marks are not an attack, they are how an agent writes it
+    command: 'npm "publish"'
+  - expect: block
+    why: an absolute path is the same binary
+    command: '/usr/bin/npm publish'
+  - expect: block
+    why: an interposer must not launder the command behind it
+    command: 'sudo npm publish'
+  - expect: block
+    why: env sets a variable and then runs the same publish
+    command: 'env NPM_TOKEN=x npm publish'
+  - expect: block
+    why: eval is sh -c spelled shorter
+    command: 'eval "npm publish"'
+  - expect: block
+    why: a shell wrapper must be unwrapped, not trusted
+    command: 'sh -c "npm publish"'
+  - expect: block
+    why: every segment is judged, not just the first
+    command: 'echo drafting && npm publish'
+  - expect: block
+    why: another registry, the same irreversible act
+    command: 'twine publish dist/fixture-0.0.0.tar.gz'
+  - expect: block
+    why: and another
+    command: 'cargo publish'
+  - expect: block
+    why: pushing tags is how a release starts almost everywhere
+    command: 'git push --tags'
+  - expect: block
+    why: a tag pushed by name is the commoner spelling and the same act
+    command: 'git push origin v9.9.9'
+  - expect: block
+    why: git global options must not hide the subcommand behind them
+    command: 'git -C . push origin refs/tags/v9.9.9'
+  - expect: block
+    why: a deploy puts a site in front of people
+    command: 'netlify deploy --prod'
+  - expect: block
+    why: same
+    command: 'vercel deploy --prod'
+  - expect: block
+    why: same
+    command: 'wrangler publish'
+  - expect: block
+    why: syncing a build to a public bucket is a deploy with no deploy in its name
+    command: 'aws s3 sync ./site s3://a-bucket/'
+  - expect: block
+    why: a static site generator with a deploy subcommand
+    command: 'hugo deploy'
+  - expect: block
+    why: mail cannot be recalled, which is the reason this gate exists at all
+    command: 'msmtp -t < release-email.txt'
+  - expect: block
+    why: a webhook post is a publish to everyone in the channel
+    command: 'curl -X POST https://hooks.slack.com/services/T0/B0/xxxx -d @post.json'
+  - expect: block
+    why: publishing the plugin itself
+    command: 'claude plugin publish'
+
+  # --- the canary ---
+  #
+  # A publish wrapped around a file creation. It must be BLOCKED like any other
+  # publish, and the file must not exist afterwards - which is the evidence
+  # that the gate judged the command rather than running it. Everything else
+  # in this list is trusted not to execute; this row measures it.
+  - expect: block
+    why: shaped like a publish and would leave a trace if the gate ever ran what it judges
+    command: 'sh -c "touch @@MARKER@@; npm publish"'
+    canary: true
+
+  # --- fails closed on what it cannot resolve ---
+  - expect: block
+    why: the subcommand is a variable, so the gate cannot know which subcommand this is
+    command: 'npm $CMD'
+  - expect: block
+    why: a command substitution decides the tag, and that is only known once the shell runs
+    command: 'npm $(cat CMD)'
+  - expect: block
+    why: an expansion on a push is unresolvable and a push of a tag is irreversible
+    command: 'git push origin $TAG'
+  - expect: block
+    why: a backtick is the older spelling of the same unresolvable thing
+    command: 'git push origin `cat VERSION`'
+  - expect: block
+    why: wrappers nested deeper than the gate unwraps mean it cannot see what finally runs
+    command: 'eval eval eval eval eval npm publish'
+
+  # --- and the other direction ---
+  - expect: allow
+    why: reading the state of the tree is not publishing
+    command: 'git status'
+  - expect: allow
+    why: an expansion in a commit message is the spelling agents emit constantly; blocking it is how a gate gets switched off
+    command: 'git commit -m "$MSG"'
+  - expect: allow
+    why: a build is not a deploy
+    command: 'npm run build'
+  - expect: allow
+    why: tests must run without asking anyone
+    command: 'npm test'
+  - expect: allow
+    why: reading a diff
+    command: 'git diff HEAD~1 --stat'
+  - expect: allow
+    why: listing tags is not pushing one
+    command: 'git tag -l'
+  - expect: allow
+    why: a linter
+    command: 'shellcheck --severity=warning fixture/one.sh'
+  - expect: allow
+    why: reading a file
+    command: 'cat README.md'
+  - expect: allow
+    why: a draft pull request is reviewable and revertible, which is the line this gate draws
+    command: 'gh pr create --draft --title "a title" --body-file pr.md'
+  - expect: allow
+    why: looking at a release is not making one
+    command: 'gh release view v1.2.3'
+  - expect: allow
+    why: listing a bucket is not writing to it
+    command: 'aws s3 ls s3://a-bucket/'
+  - expect: allow
+    why: building a site is the agent's own work
+    command: 'hugo --minify'
+  - expect: allow
+    why: a make target that is not a release
+    command: 'make test'
+  - expect: allow
+    why: an ordinary fetch over https to a host that is nobody's audience
+    command: 'curl -s https://example.com/status.json'
+
+# ---------------------------------------------------------------------------
+# decision_probes - R17's second half
+#
+# R17 is "block it UNTIL A PERSON DECIDES", and the gate implements the block
+# and no decision. These are the ways a person could plausibly express a yes.
+# The check runs a command the gate has just blocked once per probe and asserts
+# that at least ONE of them lifts the block. None does today; the assertion is
+# written against the obligation and is expected to fail until there is a
+# channel to assert against. Narrowing it to "the gate blocks" would be the
+# defect R18's own acceptance row already has - a row that names the mechanism
+# can never catch the mechanism being wrong.
+#
+# The list is committed rather than improvised so that the negative result says
+# exactly what was tried. Adding a real channel means adding it here.
+# ---------------------------------------------------------------------------
+decision_probes:
+  env:
+    - PUBLISH_GATE_APPROVED=1
+    - PUBLISH_GATE_ALLOW=1
+    - PUBLISH_GATE=allow
+    - PUBLISH_APPROVED=1
+    - PRODUCTIZER_PUBLISH_APPROVED=1
+    - GATE_APPROVED=1
+    - HUMAN_APPROVED=1
+    - APPROVED=1
+  files:
+    - .publish-approved
+    - .claude/productizer/publish-approved
+    - .claude/hooks/publish-approved
+  payload_fields:
+    - '{"permission_decision": "allow"}'
+    - '{"approved": true}'
+    - '{"human_approved": true}'
+
+# ---------------------------------------------------------------------------
+# argv_cases - R18 and R22
+#
+# Each row becomes one `checks.yaml` in a temporary repository, handed to
+# run-checks.sh. `expect: refuse` means the runner must exit 2 - an invalid
+# config, never partially honoured - and the payload's marker must be ABSENT
+# afterwards. `expect: run` means the opposite: the runner must exit 0 and, if
+# the row names a marker, that marker must be PRESENT.
+#
+# EVERY REFUSE ROW IS LIVE-PROBED FIRST. The same argv is executed once in a
+# throwaway directory, and the row is only asserted if the marker appears
+# there. A payload that turned out to be inert for an unrelated reason - a
+# missing interpreter, a typo, a tool that ignores its argument - would make
+# the marker's absence prove nothing at all, and that is exit 2, unmeasured,
+# never a pass.
+#
+# `allow_repo_local_tools` is set per row to keep the two requirements apart.
+# Where a row is refused by R18's argv rule alone, the flag is TRUE, so the
+# refusal cannot be coming from R22's default. Only the row that is about a
+# repo-local path uses the default.
+# ---------------------------------------------------------------------------
+argv_cases:
+
+  - id: inline-shell
+    requirement: R18
+    why: the canonical case - a shell with an inline program, which is arbitrary code wearing a list
+    allow_repo_local_tools: true
+    expect: refuse
+    marker: marker-inline-shell
+    requires: [bash]
+    version_command: [bash, --version]
+    command: [bash, -c, 'touch marker-inline-shell']
+
+  - id: inline-interpreter
+    requirement: R18
+    why: an interpreter with an inline program, the other half of the sentence
+    allow_repo_local_tools: true
+    expect: refuse
+    marker: marker-inline-interpreter
+    requires: [python3]
+    version_command: [python3, --version]
+    command: [python3, -c, 'open("marker-inline-interpreter", "w").close()']
+
+  - id: positional-program
+    requirement: R18
+    why: BYPASS 1 - awk takes its program as a positional argument, so a rule hunting for -c/-e/-E has nothing to find
+    allow_repo_local_tools: true
+    expect: refuse
+    marker: marker-awk-positional
+    requires: [awk]
+    version_command: [awk, --version]
+    command: [awk, 'BEGIN { system("touch marker-awk-positional") }']
+
+  - id: interpreter-operand
+    requirement: R18
+    why: BYPASS 2 - a repo-local script rode in as an OPERAND, because the gate read value[0] only
+    allow_repo_local_tools: false
+    expect: refuse
+    marker: marker-interpreter-operand
+    requires: [python3]
+    version_command: [python3, --version]
+    command: [python3, lint.py]
+
+  - id: unlisted-build-tool
+    requirement: R18
+    why: BYPASS 3 - make is in neither list, and every recipe line in a repository's Makefile is a shell command
+    allow_repo_local_tools: true
+    expect: refuse
+    marker: marker-make-recipe
+    requires: [make]
+    version_command: [make, --version]
+    command: [make, check]
+
+  - id: legitimate-command
+    requirement: R18
+    why: the other direction - a gate that refuses everything is not a gate, and this must still run
+    allow_repo_local_tools: true
+    expect: run
+    marker: null
+    requires: [echo]
+    version_command: [echo, fixture-echo-1.0]
+    command: [echo, fixture/one-changed-file.txt]
+
+  - id: repo-local-denied
+    requirement: R22
+    why: the default - a repository's own tool does not run on the machine that cloned it until someone says so
+    allow_repo_local_tools: false
+    expect: refuse
+    marker: marker-repo-local-tool
+    requires: [./tool.sh]
+    version_command: [./tool.sh, --version]
+    command: [./tool.sh]
+
+  - id: repo-local-allowed
+    requirement: R22
+    why: the opt-in - a gate that never opens is not a gate, it is a ban, and R22 says "only where that is allowed", not "never"
+    allow_repo_local_tools: true
+    expect: run
+    marker: marker-repo-local-tool
+    requires: [./tool.sh]
+    version_command: [./tool.sh, --version]
+    command: [./tool.sh]

@@ -1,0 +1,4 @@
+this file is present and is not JSON {
+A result that exists and will not parse is a different fact from a
+result that was never written, and the page has a different marker
+for each. Neither of them is zero.

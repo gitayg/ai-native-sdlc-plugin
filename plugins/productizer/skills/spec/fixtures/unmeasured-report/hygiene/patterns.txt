@@ -1,0 +1,6 @@
+# An empty local pattern list, comments only.
+#
+# It is passed with --patterns so the run does not resolve whatever private list
+# the operator happens to have configured. Without it the same check would behave
+# differently on two machines, and a fixture that behaves differently on two
+# machines is not evidence about the tool.

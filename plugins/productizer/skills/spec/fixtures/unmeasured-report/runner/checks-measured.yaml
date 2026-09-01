@@ -1,0 +1,38 @@
+# The same run with one difference: `policy.spec` names a file that IS in the
+# sandbox, so the denominator is derivable.
+#
+# THE HONEST INVERSE. A reporter that printed UNMEASURED unconditionally would
+# satisfy every assertion about the unmeasurable case and be worthless. This
+# config exists so the reporter has to be right in both directions: it must
+# report the measured count here and must not say UNMEASURED.
+version: 1
+
+policy:
+  empty_run: refuse
+  spec_coverage: require
+  spec: spec.md
+
+defaults:
+  timeout_seconds: 30
+  mode: batch
+  severity: block
+
+checks:
+  - id: unreachable-tool
+    why: the same absent tool as the unmeasurable config, so the only difference between the two runs is whether the denominator has a source
+    when:
+      always: true
+    severity: block
+    requires: [definitely-not-a-real-tool]
+    version_command: [definitely-not-a-real-tool, --version]
+    mode: batch
+    command: [definitely-not-a-real-tool, --scan, "{files}"]
+    exit_codes:
+      pass: [0]
+      fail: [1]
+      refused: [2]
+    coverage:
+      from: stdout_paths
+      pattern: '^(\S+)$'
+      must_cover: none
+      min_covered: 1

@@ -11,23 +11,25 @@
       ".claude/productizer/checks.yaml",
       "README.md",
       "plugins/productizer/.claude-plugin/plugin.json",
-      "plugins/productizer/skills/spec/references/checks.md",
+      "plugins/productizer/skills/spec/fixtures/timeout-zero/changed.txt",
+      "plugins/productizer/skills/spec/fixtures/timeout-zero/checks.yaml",
+      "plugins/productizer/skills/spec/scripts/check-cannot-run-coverage.sh",
       "plugins/productizer/skills/spec/scripts/run-checks.sh"
     ],
-    "file_count": 7,
+    "file_count": 9,
     "tags": []
   },
   "verdict": "pass",
   "exit_code": 0,
   "counts": {
-    "declared": 19,
-    "triggered": 19,
-    "passed": 19,
+    "declared": 24,
+    "triggered": 24,
+    "passed": 23,
     "blocking_failures": 0,
-    "advisory_failures": 0,
+    "advisory_failures": 1,
     "disabled": 0,
     "not_triggered": 0,
-    "spec_units_unsatisfied": 21
+    "spec_units_unsatisfied": 12
   },
   "spec_coverage": {
     "mode": "report",
@@ -37,51 +39,96 @@
     "enforced": false,
     "units_total": 25,
     "counts": {
-      "Covered": 2,
-      "Partial": 0,
-      "Missing": 21,
+      "Covered": 11,
+      "Partial": 9,
+      "Missing": 3,
       "n/a": 2
     },
     "units": [
       {
         "id": "R1",
         "text": "The lifecycle shall hold exactly one living spec per product.",
-        "verdict": "Missing",
-        "note": "no check in this config names this requirement",
-        "exercised": false,
-        "claims": []
+        "verdict": "Covered",
+        "note": null,
+        "exercised": true,
+        "claims": [
+          {
+            "check": "spec-home",
+            "claimed": "Covered",
+            "reason": null,
+            "evidence": "Counts living specs across `product.repos` and refuses when a repo is unreachable, on the ground that an unreachable repo makes the number UNKNOWN rather than one.",
+            "check_status": "pass",
+            "voided": null
+          }
+        ]
       },
       {
         "id": "R2",
         "text": "The lifecycle shall keep requirement ids permanent: never reused, never renumbered.",
-        "verdict": "Missing",
-        "note": "no check in this config names this requirement",
-        "exercised": false,
-        "claims": []
+        "verdict": "Covered",
+        "note": null,
+        "exercised": true,
+        "claims": [
+          {
+            "check": "spec-integrity",
+            "claimed": "Covered",
+            "reason": null,
+            "evidence": "Every id defined in any reachable spec version is still defined today, under its own number, meaning what it meant. Falsified by deleting an active id and by moving a sentence to a different id.",
+            "check_status": "pass",
+            "voided": null
+          }
+        ]
       },
       {
         "id": "R3",
         "text": "The lifecycle shall keep a replaced requirement's original text in the spec, marked superseded.",
-        "verdict": "Missing",
-        "note": "no check in this config names this requirement",
-        "exercised": false,
-        "claims": []
+        "verdict": "Partial",
+        "note": "superseded-text: Asserts that a superseded requirement still present in the spec carries its original text and marker; does not assert that it is still present at all - deleting the entry outright passes. Measured: the count drops from 3 to 2 and the run stays green.",
+        "exercised": true,
+        "claims": [
+          {
+            "check": "superseded-text",
+            "claimed": "Partial",
+            "reason": "Asserts that a superseded requirement still present in the spec carries its original text and marker; does not assert that it is still present at all - deleting the entry outright passes. Measured: the count drops from 3 to 2 and the run stays green.",
+            "evidence": null,
+            "check_status": "pass",
+            "voided": null
+          }
+        ]
       },
       {
         "id": "R4",
         "text": "Every published view shall be read-only with respect to the spec.",
-        "verdict": "Missing",
-        "note": "no check in this config names this requirement",
-        "exercised": false,
-        "claims": []
+        "verdict": "Partial",
+        "note": "view-read-only: Asserts the generator writes no repository file, but asserts the page's self-publishing half only against the literal source pattern `claude.use(\"<string>\")`, so a capability reached by another spelling or granted in the publish call is unasserted.",
+        "exercised": true,
+        "claims": [
+          {
+            "check": "view-read-only",
+            "claimed": "Partial",
+            "reason": "Asserts the generator writes no repository file, but asserts the page's self-publishing half only against the literal source pattern `claude.use(\"<string>\")`, so a capability reached by another spelling or granted in the publish call is unasserted.",
+            "evidence": null,
+            "check_status": "pass",
+            "voided": null
+          }
+        ]
       },
       {
         "id": "R5",
         "text": "Every check shall declare what it must have examined for its pass to count.",
-        "verdict": "Missing",
-        "note": "no check in this config names this requirement",
-        "exercised": false,
-        "claims": []
+        "verdict": "Covered",
+        "note": null,
+        "exercised": true,
+        "claims": [
+          {
+            "check": "declared-scope",
+            "claimed": "Covered",
+            "reason": null,
+            "evidence": "A check declaring no coverage requirement is refused at config load; driven through the real runner over a committed fixture.",
+            "check_status": "pass",
+            "voided": null
+          }
+        ]
       },
       {
         "id": "R6",
@@ -102,74 +149,163 @@
       {
         "id": "R8",
         "text": "When a requirement is added, the lifecycle shall allocate the next unused id and record it in the acceptance criteria table.",
-        "verdict": "Missing",
-        "note": "no check in this config names this requirement",
-        "exercised": false,
-        "claims": []
+        "verdict": "Partial",
+        "note": "acceptance-rows: Asserts that every active requirement has an acceptance-criteria row, not that the id allocated was the next unused one; R99 allocated while the counter reads R29 passes cleanly.; spec-integrity: Asserts the allocation half - the counter is above every id ever used, superseded included, and every addition is named in the change log. The acceptance-row half is asserted by `acceptance-rows`, and neither check asserts both, so no single check covers R8 end to end.",
+        "exercised": true,
+        "claims": [
+          {
+            "check": "acceptance-rows",
+            "claimed": "Partial",
+            "reason": "Asserts that every active requirement has an acceptance-criteria row, not that the id allocated was the next unused one; R99 allocated while the counter reads R29 passes cleanly.",
+            "evidence": null,
+            "check_status": "pass",
+            "voided": null
+          },
+          {
+            "check": "spec-integrity",
+            "claimed": "Partial",
+            "reason": "Asserts the allocation half - the counter is above every id ever used, superseded included, and every addition is named in the change log. The acceptance-row half is asserted by `acceptance-rows`, and neither check asserts both, so no single check covers R8 end to end.",
+            "evidence": null,
+            "check_status": "pass",
+            "voided": null
+          }
+        ]
       },
       {
         "id": "R9",
         "text": "When a release is prepared, the lifecycle shall regenerate the user guide from the active requirements.",
-        "verdict": "Missing",
-        "note": "no check in this config names this requirement",
-        "exercised": false,
-        "claims": []
+        "verdict": "Partial",
+        "note": "guide-current: Asserts only the marker-delimited requirements section is current with the active requirements; the rest of GUIDE.md - the majority of the file - can contradict them and still pass.",
+        "exercised": true,
+        "claims": [
+          {
+            "check": "guide-current",
+            "claimed": "Partial",
+            "reason": "Asserts only the marker-delimited requirements section is current with the active requirements; the rest of GUIDE.md - the majority of the file - can contradict them and still pass.",
+            "evidence": null,
+            "check_status": "pass",
+            "voided": null
+          }
+        ]
       },
       {
         "id": "R10",
         "text": "When a repository with history is imported, the lifecycle shall mark every drafted requirement inferred and unconfirmed.",
-        "verdict": "Missing",
-        "note": "no check in this config names this requirement",
-        "exercised": false,
-        "claims": []
+        "verdict": "Partial",
+        "note": "import-marking: Catches an import that marked some drafted requirements but not all; an import that marked none and named no Stage 0c is invisible, because every detection cohort anchors on an existing marker.",
+        "exercised": true,
+        "claims": [
+          {
+            "check": "import-marking",
+            "claimed": "Partial",
+            "reason": "Catches an import that marked some drafted requirements but not all; an import that marked none and named no Stage 0c is invisible, because every detection cohort anchors on an existing marker.",
+            "evidence": null,
+            "check_status": "pass",
+            "voided": null
+          }
+        ]
       },
       {
         "id": "R11",
         "text": "When a published view is regenerated, the lifecycle shall read every figure in it from a file in the repository.",
-        "verdict": "Missing",
-        "note": "no check in this config names this requirement",
-        "exercised": false,
-        "claims": []
+        "verdict": "Covered",
+        "note": null,
+        "exercised": true,
+        "claims": [
+          {
+            "check": "unmeasured-report",
+            "claimed": "Covered",
+            "reason": null,
+            "evidence": "A figure whose source cannot be read is drawn as a marker and never as a number, and a real measurement still renders its number.",
+            "check_status": "pass",
+            "voided": null
+          }
+        ]
       },
       {
         "id": "R12",
         "text": "While a contradiction is unruled, the lifecycle shall merge no spec change that depends on it.",
-        "verdict": "Missing",
-        "note": "no check in this config names this requirement",
-        "exercised": false,
-        "claims": []
+        "verdict": "Partial",
+        "note": "pending-ruling-scope: Refuses a spec change that edits, supersedes or points forward at the contested requirement, but recognises the incoming behaviour only by shared EARS trigger, forward pointer or verbatim sentence - the same behaviour merged under a different trigger is let through.",
+        "exercised": true,
+        "claims": [
+          {
+            "check": "pending-ruling-scope",
+            "claimed": "Partial",
+            "reason": "Refuses a spec change that edits, supersedes or points forward at the contested requirement, but recognises the incoming behaviour only by shared EARS trigger, forward pointer or verbatim sentence - the same behaviour merged under a different trigger is let through.",
+            "evidence": null,
+            "check_status": "pass",
+            "voided": null
+          }
+        ]
       },
       {
         "id": "R13",
         "text": "While a check tool named by the configuration is absent, the lifecycle shall report that check as missing rather than skipped.",
-        "verdict": "Missing",
-        "note": "no check in this config names this requirement",
-        "exercised": false,
-        "claims": []
+        "verdict": "Partial",
+        "note": "missing-tool-reported: Falsifies the missing-tool report only for a bare-name `requires:` resolved via PATH; the executable-path branch - which most of this repo's `requires:` entries use - can regress to a silent skip with all six assertions still holding.",
+        "exercised": true,
+        "claims": [
+          {
+            "check": "missing-tool-reported",
+            "claimed": "Partial",
+            "reason": "Falsifies the missing-tool report only for a bare-name `requires:` resolved via PATH; the executable-path branch - which most of this repo's `requires:` entries use - can regress to a silent skip with all six assertions still holding.",
+            "evidence": null,
+            "check_status": "pass",
+            "voided": null
+          }
+        ]
       },
       {
         "id": "R15",
         "text": "If a check exits zero having examined less than it declared, then the lifecycle shall report it as hollow and treat it as a failure.",
-        "verdict": "Missing",
-        "note": "no check in this config names this requirement",
-        "exercised": false,
-        "claims": []
+        "verdict": "Covered",
+        "note": null,
+        "exercised": true,
+        "claims": [
+          {
+            "check": "declared-scope",
+            "claimed": "Covered",
+            "reason": null,
+            "evidence": "A fixture check exiting 0 having examined less than it declared is reported hollow AND refuses the stage; the inverse still passes. Falsified by patching the hollow branch to record a pass - four of ten assertions went red.",
+            "check_status": "pass",
+            "voided": null
+          }
+        ]
       },
       {
         "id": "R17",
         "text": "If a command would publish or deploy, then the gate shall block it until a person approves.",
-        "verdict": "Missing",
-        "note": "no check in this config names this requirement",
-        "exercised": false,
-        "claims": []
+        "verdict": "Partial",
+        "note": "untrusted-execution: Asserts only that a publishing command is BLOCKED - 30 refused rows and 14 allowed ones, so a gate that blocks everything fails too. The \"until a person decides\" half has no implementation to assert against; see the `publish-gate-decides` check and backlog item B30.",
+        "exercised": true,
+        "claims": [
+          {
+            "check": "untrusted-execution",
+            "claimed": "Partial",
+            "reason": "Asserts only that a publishing command is BLOCKED - 30 refused rows and 14 allowed ones, so a gate that blocks everything fails too. The \"until a person decides\" half has no implementation to assert against; see the `publish-gate-decides` check and backlog item B30.",
+            "evidence": null,
+            "check_status": "pass",
+            "voided": null
+          }
+        ]
       },
       {
         "id": "R18",
         "text": "If a configured command names a shell or an interpreter with an inline program, then the lifecycle shall refuse to run it.",
-        "verdict": "Missing",
-        "note": "no check in this config names this requirement",
-        "exercised": false,
-        "claims": []
+        "verdict": "Covered",
+        "note": null,
+        "exercised": true,
+        "claims": [
+          {
+            "check": "untrusted-execution",
+            "claimed": "Covered",
+            "reason": null,
+            "evidence": "A shell or interpreter carrying an inline program is refused in every argv position, including the three bypasses previously reproduced, while a legitimate command runs.",
+            "check_status": "pass",
+            "voided": null
+          }
+        ]
       },
       {
         "id": "R19",
@@ -182,18 +318,36 @@
       {
         "id": "R20",
         "text": "If a survey finds too little evidence to draft from, then the lifecycle shall refuse to draft a spec from it.",
-        "verdict": "Missing",
-        "note": "no check in this config names this requirement",
-        "exercised": false,
-        "claims": []
+        "verdict": "Covered",
+        "note": null,
+        "exercised": true,
+        "claims": [
+          {
+            "check": "unmeasured-report",
+            "claimed": "Covered",
+            "reason": null,
+            "evidence": "A barren repository reaches the refusing verdict and an evidenced one does not. Falsified by making the survey draft anyway - R20.1 went red.",
+            "check_status": "pass",
+            "voided": null
+          }
+        ]
       },
       {
         "id": "R23",
         "text": "If an intent contradicts an active requirement, then the lifecycle shall stop and ask which wins.",
-        "verdict": "Missing",
-        "note": "no check in this config names this requirement",
-        "exercised": false,
-        "claims": []
+        "verdict": "Partial",
+        "note": "ruling-requested: Asserts that a raised concern has a real, reachable ruling to answer; a contradiction stopped with nothing written to the spec at all leaves it nothing to find, and the `stop` half of R23 is asserted by no declared check.",
+        "exercised": true,
+        "claims": [
+          {
+            "check": "ruling-requested",
+            "claimed": "Partial",
+            "reason": "Asserts that a raised concern has a real, reachable ruling to answer; a contradiction stopped with nothing written to the spec at all leaves it nothing to find, and the `stop` half of R23 is asserted by no declared check.",
+            "evidence": null,
+            "check_status": "pass",
+            "voided": null
+          }
+        ]
       },
       {
         "id": "R24",
@@ -215,10 +369,19 @@
       {
         "id": "R25",
         "text": "If a value could not be measured, then the lifecycle shall report it as unmeasured.",
-        "verdict": "Missing",
-        "note": "no check in this config names this requirement",
-        "exercised": false,
-        "claims": []
+        "verdict": "Covered",
+        "note": null,
+        "exercised": true,
+        "claims": [
+          {
+            "check": "unmeasured-report",
+            "claimed": "Covered",
+            "reason": null,
+            "evidence": "Each tool says the word on the line a person reads, asserted across the runner, the hygiene check and the status report, with the inverse asserted too. Falsified by stopping the runner printing it - R25.1 went red.",
+            "check_status": "pass",
+            "voided": null
+          }
+        ]
       },
       {
         "id": "R26",
@@ -248,10 +411,19 @@
       {
         "id": "R22",
         "text": "Where a repository declares its own check tools, the lifecycle shall run them only if the configuration explicitly opts in.",
-        "verdict": "Missing",
-        "note": "no check in this config names this requirement",
-        "exercised": false,
-        "claims": []
+        "verdict": "Covered",
+        "note": null,
+        "exercised": true,
+        "claims": [
+          {
+            "check": "untrusted-execution",
+            "claimed": "Covered",
+            "reason": null,
+            "evidence": "A repo-local tool does not run with `allow_repo_local_tools` false and does run with it true; both directions asserted, because a gate that never opens is not a gate.",
+            "check_status": "pass",
+            "voided": null
+          }
+        ]
       },
       {
         "id": "R27",
@@ -307,7 +479,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 7,
+      "files_in_scope": 9,
       "enabled": true,
       "tool": {
         "command": [
@@ -327,25 +499,27 @@
           "min_rules": 0
         },
         "observed": {
-          "covered": 7,
+          "covered": 9,
           "covered_items": [
             ".claude/productizer/backlog.md",
             ".claude/productizer/checks-result.json",
             ".claude/productizer/checks.yaml",
             "README.md",
             "plugins/productizer/.claude-plugin/plugin.json",
-            "plugins/productizer/skills/spec/references/checks.md",
+            "plugins/productizer/skills/spec/fixtures/timeout-zero/changed.txt",
+            "plugins/productizer/skills/spec/fixtures/timeout-zero/checks.yaml",
+            "plugins/productizer/skills/spec/scripts/check-cannot-run-coverage.sh",
             "plugins/productizer/skills/spec/scripts/run-checks.sh"
           ],
           "rules_loaded": null,
-          "files_in_scope": 7,
+          "files_in_scope": 9,
           "not_examined": []
         },
         "satisfied": true,
         "reasons": []
       },
       "timed_out": false,
-      "output_tail": ".claude/productizer/backlog.md\n.claude/productizer/checks-result.json\n.claude/productizer/checks.yaml\nREADME.md\nplugins/productizer/.claude-plugin/plugin.json\nplugins/productizer/skills/spec/references/checks.md\nplugins/productizer/skills/spec/scripts/run-checks.sh\n",
+      "output_tail": ".claude/productizer/backlog.md\n.claude/productizer/checks-result.json\n.claude/productizer/checks.yaml\nREADME.md\nplugins/productizer/.claude-plugin/plugin.json\nplugins/productizer/skills/spec/fixtures/timeout-zero/changed.txt\nplugins/productizer/skills/spec/fixtures/timeout-zero/checks.yaml\nplugins/productizer/skills/spec/scripts/check-cannot-run-coverage.sh\nplugins/productizer/skills/spec/scripts/run-checks.sh\n",
       "status": "pass"
     },
     {
@@ -365,7 +539,7 @@
       "triggered_by": [
         "path:**/*.sh"
       ],
-      "files_in_scope": 1,
+      "files_in_scope": 2,
       "enabled": true,
       "tool": {
         "command": [
@@ -376,7 +550,7 @@
         "exit_code": 0
       },
       "exit_code": 0,
-      "duration_seconds": 1,
+      "duration_seconds": 2,
       "coverage": {
         "from": "per_file_exit",
         "required": {
@@ -385,19 +559,20 @@
           "min_rules": 0
         },
         "observed": {
-          "covered": 1,
+          "covered": 2,
           "covered_items": [
+            "plugins/productizer/skills/spec/scripts/check-cannot-run-coverage.sh",
             "plugins/productizer/skills/spec/scripts/run-checks.sh"
           ],
           "rules_loaded": null,
-          "files_in_scope": 1,
+          "files_in_scope": 2,
           "not_examined": []
         },
         "satisfied": true,
         "reasons": []
       },
       "timed_out": false,
-      "output_tail": "\n===== plugins/productizer/skills/spec/scripts/run-checks.sh\n",
+      "output_tail": "\n===== plugins/productizer/skills/spec/scripts/check-cannot-run-coverage.sh\n\n===== plugins/productizer/skills/spec/scripts/run-checks.sh\n",
       "status": "pass"
     },
     {
@@ -416,7 +591,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 7,
+      "files_in_scope": 9,
       "enabled": true,
       "tool": {
         "command": [
@@ -439,7 +614,7 @@
           "covered": 7,
           "covered_items": [],
           "rules_loaded": null,
-          "files_in_scope": 7,
+          "files_in_scope": 9,
           "not_examined": []
         },
         "satisfied": true,
@@ -472,7 +647,7 @@
       "triggered_by": [
         "path:**/*.sh"
       ],
-      "files_in_scope": 1,
+      "files_in_scope": 2,
       "enabled": true,
       "tool": {
         "command": [
@@ -483,7 +658,7 @@
         "exit_code": 0
       },
       "exit_code": 0,
-      "duration_seconds": 1,
+      "duration_seconds": 2,
       "coverage": {
         "from": "per_file_exit",
         "required": {
@@ -492,19 +667,20 @@
           "min_rules": 0
         },
         "observed": {
-          "covered": 1,
+          "covered": 2,
           "covered_items": [
+            "plugins/productizer/skills/spec/scripts/check-cannot-run-coverage.sh",
             "plugins/productizer/skills/spec/scripts/run-checks.sh"
           ],
           "rules_loaded": null,
-          "files_in_scope": 1,
+          "files_in_scope": 2,
           "not_examined": []
         },
         "satisfied": true,
         "reasons": []
       },
       "timed_out": false,
-      "output_tail": "\n===== plugins/productizer/skills/spec/scripts/run-checks.sh\nplugins/productizer/skills/spec/scripts/run-checks.sh\n",
+      "output_tail": "\n===== plugins/productizer/skills/spec/scripts/check-cannot-run-coverage.sh\nplugins/productizer/skills/spec/scripts/check-cannot-run-coverage.sh\n\n===== plugins/productizer/skills/spec/scripts/run-checks.sh\nplugins/productizer/skills/spec/scripts/run-checks.sh\n",
       "status": "pass"
     },
     {
@@ -523,7 +699,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 7,
+      "files_in_scope": 9,
       "enabled": true,
       "tool": {
         "command": [
@@ -546,7 +722,7 @@
           "covered": 1,
           "covered_items": [],
           "rules_loaded": null,
-          "files_in_scope": 7,
+          "files_in_scope": 9,
           "not_examined": []
         },
         "satisfied": true,
@@ -570,7 +746,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 7,
+      "files_in_scope": 9,
       "enabled": true,
       "tool": {
         "command": [
@@ -581,7 +757,7 @@
         "exit_code": 0
       },
       "exit_code": 0,
-      "duration_seconds": 2,
+      "duration_seconds": 1,
       "coverage": {
         "from": "stdout_paths",
         "required": {
@@ -595,7 +771,7 @@
             ".claude/productizer/spec.md"
           ],
           "rules_loaded": null,
-          "files_in_scope": 7,
+          "files_in_scope": 9,
           "not_examined": []
         },
         "satisfied": true,
@@ -620,7 +796,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 7,
+      "files_in_scope": 9,
       "enabled": true,
       "tool": {
         "command": [
@@ -644,7 +820,7 @@
           "covered": 2,
           "covered_items": [],
           "rules_loaded": null,
-          "files_in_scope": 7,
+          "files_in_scope": 9,
           "not_examined": []
         },
         "satisfied": true,
@@ -669,7 +845,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 7,
+      "files_in_scope": 9,
       "enabled": true,
       "tool": {
         "command": [
@@ -692,7 +868,7 @@
           "covered": 25,
           "covered_items": [],
           "rules_loaded": null,
-          "files_in_scope": 7,
+          "files_in_scope": 9,
           "not_examined": []
         },
         "satisfied": true,
@@ -716,7 +892,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 7,
+      "files_in_scope": 9,
       "enabled": true,
       "tool": {
         "command": [
@@ -736,7 +912,7 @@
           "min_rules": 0
         },
         "observed": {
-          "covered": 352,
+          "covered": 385,
           "covered_items": [
             ".claude-plugin/marketplace.json",
             ".claude/hooks/publish-gate.sh",
@@ -940,14 +1116,14 @@
             "evals/cases/P15-vocabulary-drift-dunning-abandon/prompt.md"
           ],
           "rules_loaded": null,
-          "files_in_scope": 7,
+          "files_in_scope": 9,
           "not_examined": []
         },
         "satisfied": true,
         "reasons": []
       },
       "timed_out": false,
-      "output_tail": "lugins/productizer/skills/spec/templates/import.md\nplugins/productizer/skills/spec/templates/intake.md\nplugins/productizer/skills/spec/templates/intent.md\nplugins/productizer/skills/spec/templates/interview.md\nplugins/productizer/skills/spec/templates/jira-intent.md\nplugins/productizer/skills/spec/templates/learnings.md\nplugins/productizer/skills/spec/templates/managed-settings.json\nplugins/productizer/skills/spec/templates/plan.md\nplugins/productizer/skills/spec/templates/prepare-commit-msg.sh\nplugins/productizer/skills/spec/templates/production-gate.sh\nplugins/productizer/skills/spec/templates/publish-gate.sh\nplugins/productizer/skills/spec/templates/release-blog.md\nplugins/productizer/skills/spec/templates/release-email.md\nplugins/productizer/skills/spec/templates/ruling.md\nplugins/productizer/skills/spec/templates/runners/gate-bypass.json\nplugins/productizer/skills/spec/templates/runners/publish-blast.json\nplugins/productizer/skills/spec/templates/runners/spec-mutation.json\nplugins/productizer/skills/spec/templates/scheduled-bands.md\nplugins/productizer/skills/spec/templates/scheduled-evals.md\nplugins/productizer/skills/spec/templates/session-start.sh\nplugins/productizer/skills/spec/templates/spec-command.md\nplugins/productizer/skills/spec/templates/spec-delta.md\nplugins/productizer/skills/spec/templates/spec.md\nplugins/productizer/skills/spec/templates/threshold.sh\nplugins/productizer/skills/spec/templates/triage-step.yml\nplugins/productizer/skills/spec/templates/user-guide.md\nplugins/productizer/skills/spec/templates/verification-section.md\nplugins/productizer/skills/spec/templates/view.html\nscripts/check-hygiene.sh\n  repository files hashed before and after: 352\n  files the generator moved: 0\n  page bytes read: 444523\n  capability declarations read: 1\n  declares `downloads` - output: it hands the viewer a file and reads nothing back\n  R4 satisfied: the generator moved no repository file, and the page declares nothing that can publish a new version of itself.\n",
+      "output_tail": "lugins/productizer/skills/spec/templates/import.md\nplugins/productizer/skills/spec/templates/intake.md\nplugins/productizer/skills/spec/templates/intent.md\nplugins/productizer/skills/spec/templates/interview.md\nplugins/productizer/skills/spec/templates/jira-intent.md\nplugins/productizer/skills/spec/templates/learnings.md\nplugins/productizer/skills/spec/templates/managed-settings.json\nplugins/productizer/skills/spec/templates/plan.md\nplugins/productizer/skills/spec/templates/prepare-commit-msg.sh\nplugins/productizer/skills/spec/templates/production-gate.sh\nplugins/productizer/skills/spec/templates/publish-gate.sh\nplugins/productizer/skills/spec/templates/release-blog.md\nplugins/productizer/skills/spec/templates/release-email.md\nplugins/productizer/skills/spec/templates/ruling.md\nplugins/productizer/skills/spec/templates/runners/gate-bypass.json\nplugins/productizer/skills/spec/templates/runners/publish-blast.json\nplugins/productizer/skills/spec/templates/runners/spec-mutation.json\nplugins/productizer/skills/spec/templates/scheduled-bands.md\nplugins/productizer/skills/spec/templates/scheduled-evals.md\nplugins/productizer/skills/spec/templates/session-start.sh\nplugins/productizer/skills/spec/templates/spec-command.md\nplugins/productizer/skills/spec/templates/spec-delta.md\nplugins/productizer/skills/spec/templates/spec.md\nplugins/productizer/skills/spec/templates/threshold.sh\nplugins/productizer/skills/spec/templates/triage-step.yml\nplugins/productizer/skills/spec/templates/user-guide.md\nplugins/productizer/skills/spec/templates/verification-section.md\nplugins/productizer/skills/spec/templates/view.html\nscripts/check-hygiene.sh\n  repository files hashed before and after: 385\n  files the generator moved: 0\n  page bytes read: 456379\n  capability declarations read: 1\n  declares `downloads` - output: it hands the viewer a file and reads nothing back\n  R4 satisfied: the generator moved no repository file, and the page declares nothing that can publish a new version of itself.\n",
       "status": "pass"
     },
     {
@@ -964,7 +1140,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 7,
+      "files_in_scope": 9,
       "enabled": true,
       "tool": {
         "command": [
@@ -991,7 +1167,7 @@
             "plugins/productizer/skills/spec/fixtures/missing-tool/changed.txt"
           ],
           "rules_loaded": null,
-          "files_in_scope": 7,
+          "files_in_scope": 9,
           "not_examined": []
         },
         "satisfied": true,
@@ -1015,7 +1191,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 7,
+      "files_in_scope": 9,
       "enabled": true,
       "tool": {
         "command": [
@@ -1038,7 +1214,7 @@
           "covered": 28,
           "covered_items": [],
           "rules_loaded": null,
-          "files_in_scope": 7,
+          "files_in_scope": 9,
           "not_examined": []
         },
         "satisfied": true,
@@ -1062,7 +1238,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 7,
+      "files_in_scope": 9,
       "enabled": true,
       "tool": {
         "command": [
@@ -1085,7 +1261,7 @@
           "covered": 28,
           "covered_items": [],
           "rules_loaded": null,
-          "files_in_scope": 7,
+          "files_in_scope": 9,
           "not_examined": []
         },
         "satisfied": true,
@@ -1109,7 +1285,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 7,
+      "files_in_scope": 9,
       "enabled": true,
       "tool": {
         "command": [
@@ -1134,7 +1310,7 @@
             ".claude/productizer/spec.md"
           ],
           "rules_loaded": null,
-          "files_in_scope": 7,
+          "files_in_scope": 9,
           "not_examined": []
         },
         "satisfied": true,
@@ -1158,7 +1334,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 7,
+      "files_in_scope": 9,
       "enabled": true,
       "tool": {
         "command": [
@@ -1169,7 +1345,7 @@
         "exit_code": 0
       },
       "exit_code": 0,
-      "duration_seconds": 2,
+      "duration_seconds": 1,
       "coverage": {
         "from": "stdout_paths",
         "required": {
@@ -1192,7 +1368,7 @@
             ".claude/productizer/spec.md@842b5cc"
           ],
           "rules_loaded": null,
-          "files_in_scope": 7,
+          "files_in_scope": 9,
           "not_examined": []
         },
         "satisfied": true,
@@ -1216,7 +1392,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 7,
+      "files_in_scope": 9,
       "enabled": true,
       "tool": {
         "command": [
@@ -1241,7 +1417,7 @@
             ".claude/productizer/spec.md"
           ],
           "rules_loaded": null,
-          "files_in_scope": 7,
+          "files_in_scope": 9,
           "not_examined": []
         },
         "satisfied": true,
@@ -1265,7 +1441,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 7,
+      "files_in_scope": 9,
       "enabled": true,
       "tool": {
         "command": [
@@ -1291,7 +1467,7 @@
             ".claude/productizer/backlog.md"
           ],
           "rules_loaded": null,
-          "files_in_scope": 7,
+          "files_in_scope": 9,
           "not_examined": []
         },
         "satisfied": true,
@@ -1315,7 +1491,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 7,
+      "files_in_scope": 9,
       "enabled": true,
       "tool": {
         "command": [
@@ -1342,7 +1518,7 @@
             "plugins/productizer/skills/spec/fixtures/fabricated-zero/changed.txt"
           ],
           "rules_loaded": null,
-          "files_in_scope": 7,
+          "files_in_scope": 9,
           "not_examined": []
         },
         "satisfied": true,
@@ -1366,7 +1542,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 7,
+      "files_in_scope": 9,
       "enabled": true,
       "tool": {
         "command": [
@@ -1394,7 +1570,7 @@
             "plugins/productizer/skills/spec/scripts/request-ruling.sh"
           ],
           "rules_loaded": null,
-          "files_in_scope": 7,
+          "files_in_scope": 9,
           "not_examined": []
         },
         "satisfied": true,
@@ -1418,7 +1594,7 @@
       "triggered_by": [
         "always"
       ],
-      "files_in_scope": 7,
+      "files_in_scope": 9,
       "enabled": true,
       "tool": {
         "command": [
@@ -1445,7 +1621,7 @@
             "plugins/productizer/skills/spec/fixtures/timeout-zero/changed.txt"
           ],
           "rules_loaded": null,
-          "files_in_scope": 7,
+          "files_in_scope": 9,
           "not_examined": []
         },
         "satisfied": true,
@@ -1454,6 +1630,302 @@
       "timed_out": false,
       "output_tail": "plugins/productizer/skills/spec/scripts/run-checks.sh\nplugins/productizer/skills/spec/fixtures/timeout-zero/checks.yaml\nplugins/productizer/skills/spec/fixtures/timeout-zero/changed.txt\n  premise held: 1 row(s) reached no verdict by a mechanism other than an absent tool (timeout).\n  killed-count     status=timeout        coverage key present: False\n  held: 1 no row that reached no verdict records a coverage count\n  held: 2 a check that ran still records its coverage (1 row(s) that reached a verdict carry one)\n  assertions evaluated: 2, upheld: 2\n  R26 satisfied for the cannot-run path: no verdict, no count; and a measured zero survives.\n",
       "status": "pass"
+    },
+    {
+      "id": "declared-scope",
+      "why": "a check that exits zero having examined less than it declared is the largest hollow pass available, and the refusal that stops it had never been tested",
+      "severity": "block",
+      "blocking": true,
+      "mode": "batch",
+      "command": [
+        "./plugins/productizer/skills/spec/scripts/check-declared-scope.sh"
+      ],
+      "trigger_scope": "always",
+      "triggered": true,
+      "triggered_by": [
+        "always"
+      ],
+      "files_in_scope": 9,
+      "enabled": true,
+      "tool": {
+        "command": [
+          "./plugins/productizer/skills/spec/scripts/check-declared-scope.sh",
+          "--version"
+        ],
+        "version": "check-declared-scope 1.0",
+        "exit_code": 0
+      },
+      "exit_code": 0,
+      "duration_seconds": 5,
+      "coverage": {
+        "from": "stdout_paths",
+        "required": {
+          "min_covered": 3,
+          "must_cover": "none",
+          "min_rules": 0
+        },
+        "observed": {
+          "covered": 4,
+          "covered_items": [
+            "plugins/productizer/skills/spec/scripts/run-checks.sh",
+            "plugins/productizer/skills/spec/fixtures/declared-scope/checks.yaml",
+            "plugins/productizer/skills/spec/fixtures/declared-scope/changed.txt",
+            "plugins/productizer/skills/spec/fixtures/declared-scope/no-coverage.yaml"
+          ],
+          "rules_loaded": null,
+          "files_in_scope": 9,
+          "not_examined": []
+        },
+        "satisfied": true,
+        "reasons": []
+      },
+      "timed_out": false,
+      "output_tail": "plugins/productizer/skills/spec/scripts/run-checks.sh\nplugins/productizer/skills/spec/fixtures/declared-scope/checks.yaml\nplugins/productizer/skills/spec/fixtures/declared-scope/changed.txt\nplugins/productizer/skills/spec/fixtures/declared-scope/no-coverage.yaml\n  held: the run exits 3 (refused) over the shortfall; it exited 3. A `hollow` recorded over a run that still exits 0 changes nothing\n  held: the result records status `hollow` for `hollow-shortfall`; it records 'hollow'\n  held: the recorded coverage says it fell short: satisfied=False, examined 1 against a declared minimum of 2\n  held: the reported line reads HOLLOW for `hollow-shortfall`\n  held: it counts as a blocking failure and the verdict is `refused`; verdict 'refused', blocking failures 1\n  held: a check declaring no `coverage` is refused at load with exit 2 (bad config); the runner exited 2. 0 would be a silent acceptance and 3 would mean it loaded the check and ran it\n  held: the refusal names `undeclared-scope` and says it declares no `coverage`\n  held: no result file was written for the undeclared config (it was absent). An undeclared check leaves no green document behind for a later stage to read as a pass\n  held: the declaration a check DID make survives into its row: min_covered=2, must_cover='all_triggering' - a reader can see what that pass was worth\n  held: a check that exits zero having examined everything it declared still PASSES; `honest-pass` recorded status 'pass' with coverage satisfied=True\n  assertions evaluated: 10, upheld: 10, failed: 0\n  R5 and R15 satisfied: an undeclared scope is refused at load, and a check that exits zero having examined less than it declared is reported hollow and refuses the stage - while one that examined everything it declared still passes.\n",
+      "status": "pass"
+    },
+    {
+      "id": "spec-integrity",
+      "why": "every id in every plan, test, review and PR title points at this file, so an id that changes meaning silently invalidates all of them",
+      "severity": "block",
+      "blocking": true,
+      "mode": "batch",
+      "command": [
+        "./plugins/productizer/skills/spec/scripts/check-spec-integrity.sh"
+      ],
+      "trigger_scope": "always",
+      "triggered": true,
+      "triggered_by": [
+        "always"
+      ],
+      "files_in_scope": 9,
+      "enabled": true,
+      "tool": {
+        "command": [
+          "./plugins/productizer/skills/spec/scripts/check-spec-integrity.sh",
+          "--version"
+        ],
+        "version": "check-spec-integrity 1.0",
+        "exit_code": 0
+      },
+      "exit_code": 0,
+      "duration_seconds": 1,
+      "coverage": {
+        "from": "stdout_paths",
+        "required": {
+          "min_covered": 3,
+          "must_cover": "none",
+          "min_rules": 0
+        },
+        "observed": {
+          "covered": 13,
+          "covered_items": [
+            ".claude/productizer/config.json",
+            ".claude/productizer/spec.md",
+            ".claude/productizer/spec.md@842b5cc",
+            ".claude/productizer/spec.md@8b03b65",
+            ".claude/productizer/spec.md@9993a93",
+            ".claude/productizer/spec.md@28d138f",
+            ".claude/productizer/spec.md@dad2ce9",
+            ".claude/productizer/spec.md@f5bfdae",
+            ".claude/productizer/spec.md@a6a9e71",
+            ".claude/productizer/spec.md@4148cef",
+            ".claude/productizer/spec.md@3495c5e",
+            ".claude/productizer/backlog.md",
+            ".claude/productizer/constitution.md"
+          ],
+          "rules_loaded": null,
+          "files_in_scope": 9,
+          "not_examined": []
+        },
+        "satisfied": true,
+        "reasons": []
+      },
+      "timed_out": false,
+      "output_tail": "ec              examined   3  upheld   3  held: the config names exactly one spec path, one home repo, and the home is among the product's repos\n    R1.2  R1   declared-spec-present-and-living   examined   1  upheld   1  held: .claude/productizer/spec.md exists, is readable, carries a `Next requirement id` and 28 requirement definitions\n    R1.3  R1   no-second-living-spec              examined   3  upheld   3  held: exactly one file in the spec home is a living spec, and it is the one the config declares\n          note: universe: *.md under .claude/productizer. Spec-shaped markdown elsewhere in the repository is out of scope by design - see the header.\n    R2.1  R2   ids-permanent-declared             examined   1  upheld   1  held: `spec.ids_are_permanent` is true in .claude/productizer/config.json\n    R2.2  R2   ids-retained                       examined  28  upheld  28  held: every id defined in any of the 9 reachable spec versions is still defined today\n    R2.3  R2   ids-not-renumbered                 examined  28  upheld  28  held: no requirement's sentence has moved from the id it was agreed under to a different id\n    R2.4  R2   ids-not-reused                     examined  28  upheld  28  held: no id was retired and reissued, and no sentence drifted below the 0.50 similarity floor from what was agreed under it\n    R8.1  R8   counter-above-every-id-used        examined  28  upheld  28  held: `Next requirement id` R29 is strictly above every one of the 28 ids ever used, superseded and withdrawn included\n    R8.2  R8   added-ids-recorded-in-changelog    examined   6  upheld   6  held: every id added after the founding commit 842b5cc is named in the `## Change log` table\n    assertions upheld: 9 of 9\n    files examined: 13\nPASS: one living spec in the spec home and the config names it; every id ever defined is still defined, under its own number, meaning what it meant; and the counter is above every id ever used with every addition recorded in the change log.\n",
+      "status": "pass"
+    },
+    {
+      "id": "unmeasured-report",
+      "why": "an unmeasured value that prints as a number is indistinguishable from a real one a month later, and nobody can tell which they are looking at",
+      "severity": "block",
+      "blocking": true,
+      "mode": "batch",
+      "command": [
+        "./plugins/productizer/skills/spec/scripts/check-unmeasured-report.sh"
+      ],
+      "trigger_scope": "always",
+      "triggered": true,
+      "triggered_by": [
+        "always"
+      ],
+      "files_in_scope": 9,
+      "enabled": true,
+      "tool": {
+        "command": [
+          "./plugins/productizer/skills/spec/scripts/check-unmeasured-report.sh",
+          "--version"
+        ],
+        "version": "check-unmeasured-report 1.0",
+        "exit_code": 0
+      },
+      "exit_code": 0,
+      "duration_seconds": 2,
+      "coverage": {
+        "from": "stdout_paths",
+        "required": {
+          "min_covered": 5,
+          "must_cover": "none",
+          "min_rules": 0
+        },
+        "observed": {
+          "covered": 24,
+          "covered_items": [
+            "plugins/productizer/skills/spec/scripts/build-view.sh",
+            "plugins/productizer/skills/spec/scripts/import-survey.sh",
+            "plugins/productizer/skills/spec/scripts/run-checks.sh",
+            "plugins/productizer/skills/spec/scripts/check-hygiene.sh",
+            "plugins/productizer/skills/spec/scripts/stage-status.sh",
+            "plugins/productizer/skills/spec/fixtures/unmeasured-report/view/config.json",
+            "plugins/productizer/skills/spec/fixtures/unmeasured-report/view/spec.md",
+            "plugins/productizer/skills/spec/fixtures/unmeasured-report/view/spec-extra.md",
+            "plugins/productizer/skills/spec/fixtures/unmeasured-report/view/constitution.md",
+            "plugins/productizer/skills/spec/fixtures/unmeasured-report/view/backlog.md",
+            "plugins/productizer/skills/spec/fixtures/unmeasured-report/view/checks-result.json",
+            "plugins/productizer/skills/spec/fixtures/unmeasured-report/view/checks-result-corrupt.json",
+            "plugins/productizer/skills/spec/fixtures/unmeasured-report/survey/barren/notes.txt",
+            "plugins/productizer/skills/spec/fixtures/unmeasured-report/survey/evidenced/package.json",
+            "plugins/productizer/skills/spec/fixtures/unmeasured-report/survey/evidenced/README.md",
+            "plugins/productizer/skills/spec/fixtures/unmeasured-report/survey/evidenced/src/index.js",
+            "plugins/productizer/skills/spec/fixtures/unmeasured-report/survey/evidenced/src/cli.js",
+            "plugins/productizer/skills/spec/fixtures/unmeasured-report/survey/evidenced/tests/widget.test.js",
+            "plugins/productizer/skills/spec/fixtures/unmeasured-report/runner/checks.yaml",
+            "plugins/productizer/skills/spec/fixtures/unmeasured-report/runner/checks-measured.yaml",
+            "plugins/productizer/skills/spec/fixtures/unmeasured-report/runner/spec.md",
+            "plugins/productizer/skills/spec/fixtures/unmeasured-report/runner/changed.txt",
+            "plugins/productizer/skills/spec/fixtures/unmeasured-report/hygiene/patterns.txt",
+            "plugins/productizer/skills/spec/fixtures/unmeasured-report/hygiene/clean.txt"
+          ],
+          "rules_loaded": null,
+          "files_in_scope": 9,
+          "not_examined": []
+        },
+        "satisfied": true,
+        "reasons": []
+      },
+      "timed_out": false,
+      "output_tail": "(never-run)\n  held:    R11.3  a source that is present and will not parse renders the read-and-not-understood marker: `Checks, last run` reads '?' (unreadable)\n  held:    R11.4  the honest inverse: with every source readable the same two tiles report measured values ('3' and 'PASS'), so the markers above are a response to the source and not the page's normal state\n  held:    R20.1  a repository with essentially nothing in it reaches the refusing verdict: the report says 'NOT ENOUGH EVIDENCE TO DRAFT A SPEC.' and names no draft tier\n  the barren survey's own tally: strong 0 (floor 8), weak 0 (floor 6)\n  held:    R20.2  the refusal is grounded in the tally it printed, not unconditional: both tiers came back under the floors the report named beside them\n  held:    R20.3  the other direction: a repository that does state its behaviour reaches a draft tier and does not refuse\n  held:    R25.1  the runner reports a denominator it could not derive on the printed line, in words: 'spec coverage: UNMEASURED'\n  held:    R25.2  the runner's inverse: with a derivable denominator the same line reports the measured count and does not say UNMEASURED\n  held:    R25.3  the hygiene check reports a file it could not open as 'Unmeasured, not clean', exits 2 rather than 0, and counts it as nothing examined\n  held:    R25.4  the hygiene check's inverse: a readable, clean file exits 0 and says nothing about being unmeasured, so the marker above is a response to the file\n  the status report's stage 5: unparseable result -> 'unknown', absent result -> 'not run'\n  held:    R25.5  the status report keeps two words for two facts: a result present and unparseable is reported 'unknown', one never written is reported 'not run', and neither is a number\n  assertions evaluated: 12, upheld: 12\n  R11, R20 and R25 satisfied: a figure that could not be measured is drawn as a marker and never as a number, a survey with nothing to draft from refuses, and each tool says the word on the line a person reads.\n",
+      "status": "pass"
+    },
+    {
+      "id": "untrusted-execution",
+      "why": "this is the plugin's central security claim, and R18's acceptance row named the implementation rather than the obligation, so it could never fail",
+      "severity": "block",
+      "blocking": true,
+      "mode": "batch",
+      "command": [
+        "./plugins/productizer/skills/spec/scripts/check-untrusted-execution.sh",
+        "--assert",
+        "r17-block,r18,r22"
+      ],
+      "trigger_scope": "always",
+      "triggered": true,
+      "triggered_by": [
+        "always"
+      ],
+      "files_in_scope": 9,
+      "enabled": true,
+      "tool": {
+        "command": [
+          "./plugins/productizer/skills/spec/scripts/check-untrusted-execution.sh",
+          "--version"
+        ],
+        "version": "check-untrusted-execution 1.0",
+        "exit_code": 0
+      },
+      "exit_code": 0,
+      "duration_seconds": 6,
+      "coverage": {
+        "from": "stdout_paths",
+        "required": {
+          "min_covered": 2,
+          "must_cover": "none",
+          "min_rules": 0
+        },
+        "observed": {
+          "covered": 8,
+          "covered_items": [
+            "plugins/productizer/skills/spec/fixtures/untrusted-execution/cases.yaml",
+            "plugins/productizer/skills/spec/templates/publish-gate.sh",
+            "plugins/productizer/skills/spec/scripts/run-checks.sh",
+            "plugins/productizer/skills/spec/fixtures/untrusted-execution/checks.yaml.in",
+            "plugins/productizer/skills/spec/fixtures/untrusted-execution/changed.txt",
+            "plugins/productizer/skills/spec/fixtures/untrusted-execution/lint.py",
+            "plugins/productizer/skills/spec/fixtures/untrusted-execution/Makefile",
+            "plugins/productizer/skills/spec/fixtures/untrusted-execution/tool.sh"
+          ],
+          "rules_loaded": null,
+          "files_in_scope": 9,
+          "not_examined": []
+        },
+        "satisfied": true,
+        "reasons": []
+      },
+      "timed_out": false,
+      "output_tail": "`python3 -c open(\"marker-inline-interpreter\", \"w\").close()` left no marker-inline-interpreter\n  held: positional-program [R18, opt-in on] refused the config (exit 2, got 2): BYPASS 1 - awk takes its program as a positional argument, so a rule hunting for -c/-e/-E has nothing to find\n  held: positional-program [R18] executed nothing - `awk BEGIN { system(\"touch marker-awk-positional\") }` left no marker-awk-positional\n  held: interpreter-operand [R18, opt-in off] refused the config (exit 2, got 2): BYPASS 2 - a repo-local script rode in as an OPERAND, because the gate read value[0] only\n  held: interpreter-operand [R18] executed nothing - `python3 lint.py` left no marker-interpreter-operand\n  held: unlisted-build-tool [R18, opt-in on] refused the config (exit 2, got 2): BYPASS 3 - make is in neither list, and every recipe line in a repository's Makefile is a shell command\n  held: unlisted-build-tool [R18] executed nothing - `make check` left no marker-make-recipe\n  held: legitimate-command [R18, opt-in on] ran the config to a clean verdict (exit 0, got 0): the other direction - a gate that refuses everything is not a gate, and this must still run\n  held: repo-local-denied [R22, opt-in off] refused the config (exit 2, got 2): the default - a repository's own tool does not run on the machine that cloned it until someone says so\n  held: repo-local-denied [R22] executed nothing - `./tool.sh` left no marker-repo-local-tool\n  held: repo-local-allowed [R22, opt-in on] ran the config to a clean verdict (exit 0, got 0): the opt-in - a gate that never opens is not a gate, it is a ban, and R22 says \"only where that is allowed\", not \"never\"\n  held: repo-local-allowed [R22] actually executed - `./tool.sh` left its marker-repo-local-tool, so the opt-in opens the gate rather than merely not closing it\n  R18/R22 assertions evaluated: 15, upheld: 15\n  total assertions evaluated: 60, upheld: 60\n  P4 upheld across the groups selected: a repository being examined chose nothing that ran.\n",
+      "status": "pass"
+    },
+    {
+      "id": "publish-gate-decides",
+      "why": "R17 has two halves and only one is built; a check that quietly asserted the built half would let the missing one stay invisible",
+      "severity": "advise",
+      "blocking": false,
+      "mode": "batch",
+      "command": [
+        "./plugins/productizer/skills/spec/scripts/check-untrusted-execution.sh",
+        "--assert",
+        "r17-decision"
+      ],
+      "trigger_scope": "always",
+      "triggered": true,
+      "triggered_by": [
+        "always"
+      ],
+      "files_in_scope": 9,
+      "enabled": true,
+      "tool": {
+        "command": [
+          "./plugins/productizer/skills/spec/scripts/check-untrusted-execution.sh",
+          "--version"
+        ],
+        "version": "check-untrusted-execution 1.0",
+        "exit_code": 0
+      },
+      "exit_code": 1,
+      "duration_seconds": 1,
+      "coverage": {
+        "from": "stdout_paths",
+        "required": {
+          "min_covered": 1,
+          "must_cover": "none",
+          "min_rules": 0
+        },
+        "observed": {
+          "covered": 2,
+          "covered_items": [
+            "plugins/productizer/skills/spec/fixtures/untrusted-execution/cases.yaml",
+            "plugins/productizer/skills/spec/templates/publish-gate.sh"
+          ],
+          "rules_loaded": null,
+          "files_in_scope": 9,
+          "not_examined": []
+        },
+        "satisfied": true,
+        "reasons": []
+      },
+      "timed_out": false,
+      "output_tail": "plugins/productizer/skills/spec/fixtures/untrusted-execution/cases.yaml\nplugins/productizer/skills/spec/templates/publish-gate.sh\n  R17, second half - until a person decides.\n  premise held: the gate blocks `gh release create v9.9.9 --notes-file notes.md`, and the probes below are run against that same block.\n  searched the refusal text for: an environment variable to set; a flag to pass; a file to create; a field in the payload.\n  FINDING: did not hold - the refusal names a route by which a person's decision reaches the gate - it names none, and the only remaining route is retyping the command, which the gate's own closing paragraph argues against\n  FINDING: did not hold - a person's decision can be expressed to the gate: one of the 14 consent signals the fixture lists lifts the block - none of them does. The gate implements the blocking half of R17 and no deciding half at all\n  R17 assertions evaluated: 2, upheld: 0\n  total assertions evaluated: 2, upheld: 0\n  see the findings above. Each names the obligation it is about, not the mechanism that was supposed to meet it.\n",
+      "status": "fail",
+      "detail": "the check reported findings."
     }
   ]
 }

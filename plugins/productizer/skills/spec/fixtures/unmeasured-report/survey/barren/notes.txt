@@ -1,0 +1,8 @@
+A directory with a file in it and nothing a survey can read as behaviour: no
+manifest, no entry point, no route, no config key, no test name, no error path,
+and no prose about itself either. Both evidence tiers come back under their
+floor here, which is the state the survey has to refuse to draft from.
+
+It is copied out of the repository before it is surveyed. Surveyed in place it
+would inherit this repository's change history as weak evidence and stop being
+barren, which would silently retire the refusal this fixture exists to reach.

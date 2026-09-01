@@ -1,0 +1,6 @@
+Ordinary text holding nothing the hygiene check refuses: no filesystem path, no
+hostname, no key material, nothing shaped like a credential.
+
+It is the honest inverse. A check that reported every file as unmeasured would
+pass every assertion about the unreadable one, so the readable one has to come
+back clean and silent.

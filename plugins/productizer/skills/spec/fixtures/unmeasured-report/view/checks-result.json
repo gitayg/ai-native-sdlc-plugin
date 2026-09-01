@@ -1,0 +1,25 @@
+{
+  "verdict": "pass",
+  "checks": [
+    {
+      "id": "alpha",
+      "status": "pass",
+      "trigger_scope": "always",
+      "coverage": {
+        "from": "stdout_paths",
+        "satisfied": true,
+        "observed": { "covered": 2, "files_in_scope": 2, "rules_loaded": null }
+      }
+    },
+    {
+      "id": "beta",
+      "status": "pass",
+      "trigger_scope": "always",
+      "coverage": {
+        "from": "stdout_paths",
+        "satisfied": true,
+        "observed": { "covered": 1, "files_in_scope": 1, "rules_loaded": null }
+      }
+    }
+  ]
+}

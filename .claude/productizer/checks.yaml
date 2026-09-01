@@ -205,6 +205,12 @@ checks:
       fail: [1]        # too many specs, none, or not where the config says
       refused: [2]     # a repo out of reach, or a config that cannot be read
     coverage:
+      spec_units:
+        - id: R1
+          verdict: Covered
+          evidence: >-
+            Counts living specs across `product.repos` and refuses when a repo is unreachable, on
+            the ground that an unreachable repo makes the number UNKNOWN rather than one.
       # The check's own count of repos it actually reached. A run that reached
       # none prints 0 here and fails coverage as well as exiting 2 - a spec
       # count nobody could compute is not a spec count of zero.
@@ -248,6 +254,13 @@ checks:
       fail: [1]        # a concern with no ruling, a ruling nothing cites, or a ruling still wearing the template
       refused: [2]     # the rulings directory or one of its files could not be read
     coverage:
+      spec_units:
+        - id: R23
+          verdict: Partial
+          reason: >-
+            Asserts that a raised concern has a real, reachable ruling to answer; a contradiction
+            stopped with nothing written to the spec at all leaves it nothing to find, and the
+            `stop` half of R23 is asserted by no declared check.
       # Files the check actually opened, one per line. The spec is always one of
       # them, so a run that opened nothing is a bug rather than an empty repo.
       from: stdout_paths
@@ -327,6 +340,13 @@ checks:
       fail: [1]        # the committed guide is out of date with the spec
       refused: [2, 3]  # no markers to write between, or a spec that could not be read
     coverage:
+      spec_units:
+        - id: R9
+          verdict: Partial
+          reason: >-
+            Asserts only the marker-delimited requirements section is current with the active
+            requirements; the rest of GUIDE.md - the majority of the file - can contradict them and
+            still pass.
       # The script's own count of active requirements it rendered. A run that
       # rendered none never prints this line - it exits 3 - so a zero here is
       # impossible rather than merely unlikely.
@@ -368,6 +388,13 @@ checks:
       fail: [1]        # a repository file moved, or the page declared something it may not
       refused: [2]     # no work tree, no builder, or a page that could not be generated
     coverage:
+      spec_units:
+        - id: R4
+          verdict: Partial
+          reason: >-
+            Asserts the generator writes no repository file, but asserts the page's self-publishing
+            half only against the literal source pattern `claude.use("<string>")`, so a capability
+            reached by another spelling or granted in the publish call is unasserted.
       # One bare path per repository file hashed. `must_cover: none` and NOT
       # all_triggering, deliberately: this examines the whole tree rather than
       # the change, so a commit that DELETES a file would name a path that no
@@ -413,6 +440,13 @@ checks:
       fail: [1]        # an absent tool is no longer reported the way R13 requires
       refused: [2]     # no fixture, no runner, or the fixture's tool turned out to be installed
     coverage:
+      spec_units:
+        - id: R13
+          verdict: Partial
+          reason: >-
+            Falsifies the missing-tool report only for a bare-name `requires:` resolved via PATH;
+            the executable-path branch - which most of this repo's `requires:` entries use - can
+            regress to a silent skip with all six assertions still holding.
       # The three files it opened: the runner under test and the two fixture
       # files. A run that printed fewer opened fewer, and did not run the case.
       from: stdout_paths
@@ -460,6 +494,13 @@ checks:
       fail: [1]        # an active requirement with no row, named by id and line
       refused: [2]     # a spec that could not be read or could not be parsed
     coverage:
+      spec_units:
+        - id: R8
+          verdict: Partial
+          reason: >-
+            Asserts that every active requirement has an acceptance-criteria row, not that the id
+            allocated was the next unused one; R99 allocated while the counter reads R29 passes
+            cleanly.
       # Every requirement PARSED, not the subset that produced findings.
       # "0 missing rows" is only a claim about a spec somebody actually parsed.
       from: stdout_count
@@ -516,6 +557,13 @@ checks:
       fail: [1]        # a requirement attributed to an import with no marking
       refused: [2]     # an unparseable spec, or a git history that could not be walked
     coverage:
+      spec_units:
+        - id: R10
+          verdict: Partial
+          reason: >-
+            Catches an import that marked some drafted requirements but not all; an import that
+            marked none and named no Stage 0c is invisible, because every detection cohort anchors
+            on an existing marker.
       # Every requirement PARSED. Deliberately NOT the attribution count, which
       # is legitimately 0 on a repo that was never imported and would make every
       # honest run read as hollow.
@@ -623,6 +671,13 @@ checks:
       fail: [1]        # text altered, marker removed, or a pointer to nothing
       refused: [2]     # a shallow clone, an untracked spec, a spec with no requirements
     coverage:
+      spec_units:
+        - id: R3
+          verdict: Partial
+          reason: >-
+            Asserts that a superseded requirement still present in the spec carries its original
+            text and marker; does not assert that it is still present at all - deleting the entry
+            outright passes. Measured: the count drops from 3 to 2 and the run stays green.
       from: stdout_paths
       pattern: '^(\S+)$'
       min_covered: 2
@@ -670,6 +725,14 @@ checks:
       fail: [1]        # a spec change depending on an unruled contradiction
       refused: [2]     # a ruling that cannot be scoped, or a window out of reach
     coverage:
+      spec_units:
+        - id: R12
+          verdict: Partial
+          reason: >-
+            Refuses a spec change that edits, supersedes or points forward at the contested
+            requirement, but recognises the incoming behaviour only by shared EARS trigger, forward
+            pointer or verbatim sentence - the same behaviour merged under a different trigger is
+            let through.
       from: stdout_paths
       pattern: '^(\S+)$'
       min_covered: 1
@@ -898,3 +961,227 @@ checks:
     limitations:
       - The fixture costs about six wall seconds, three of which are the runner's own TERM-then-KILL grace period and cannot be shortened from the config.
       - It asserts the SHAPE - no coverage key on a no-verdict row. It does not assert that the other evidence on that row (files_in_scope, exit_code, timed_out, output_tail) is still there, though all four survive today.
+
+  # --- declared scope, and the hollow refusal ------------------------------
+  #
+  # R5 and R15. The hollow behaviour lived in run-checks.sh and had been
+  # DEMONSTRATED, never tested - nothing stopped a refactor turning the refusal
+  # back into a pass while every run stayed green. Falsified: patch the hollow
+  # branch to record `pass` and four of the ten assertions go red, including
+  # the one that matters most - that it changes the VERDICT, not just the
+  # label. A status written into a file that does not change the verdict is a
+  # skip wearing a different name.
+  - id: declared-scope
+    why: a check that exits zero having examined less than it declared is the largest hollow pass available, and the refusal that stops it had never been tested
+    when:
+      always: true
+    severity: block
+    requires:
+      - ./plugins/productizer/skills/spec/scripts/check-declared-scope.sh
+      - python3
+    version_command: [./plugins/productizer/skills/spec/scripts/check-declared-scope.sh, --version]
+    mode: batch
+    command: [./plugins/productizer/skills/spec/scripts/check-declared-scope.sh]
+    timeout_seconds: 120
+    exit_codes:
+      pass: [0]
+      fail: [1]
+      refused: [2]
+    coverage:
+      spec_units:
+        - id: R5
+          verdict: Covered
+          evidence: >-
+            A check declaring no coverage requirement is refused at config load; driven
+            through the real runner over a committed fixture.
+        - id: R15
+          verdict: Covered
+          evidence: >-
+            A fixture check exiting 0 having examined less than it declared is reported
+            hollow AND refuses the stage; the inverse still passes. Falsified by patching
+            the hollow branch to record a pass - four of ten assertions went red.
+      from: stdout_paths
+      pattern: '^(\S+)$'
+      must_cover: none
+      min_covered: 3
+
+  # --- the spec's structural invariants -------------------------------------
+  #
+  # R2 and R8. R2 is a claim about HISTORY, so this reads git history and
+  # refuses a shallow clone rather than passing over one.
+  #
+  # It also closes a hole the audit found in `superseded-text`: deleting a
+  # superseded requirement outright passed there, because that check iterates
+  # over what is present and a vanished requirement is not in the loop. This
+  # one compares against every reachable spec version, so a disappearance is a
+  # finding. Falsified both ways - delete an active id and R2.2 goes red at
+  # 27 of 28; set the counter below a used id and R8.1 goes red while R8.2
+  # still holds.
+  - id: spec-integrity
+    why: every id in every plan, test, review and PR title points at this file, so an id that changes meaning silently invalidates all of them
+    when:
+      always: true
+    severity: block
+    requires:
+      - ./plugins/productizer/skills/spec/scripts/check-spec-integrity.sh
+      - git
+      - python3
+    version_command: [./plugins/productizer/skills/spec/scripts/check-spec-integrity.sh, --version]
+    mode: batch
+    command: [./plugins/productizer/skills/spec/scripts/check-spec-integrity.sh]
+    timeout_seconds: 180
+    exit_codes:
+      pass: [0]
+      fail: [1]
+      refused: [2]     # unreadable spec, no history, or a shallow clone
+    coverage:
+      spec_units:
+        - id: R2
+          verdict: Covered
+          evidence: >-
+            Every id defined in any reachable spec version is still defined today, under its
+            own number, meaning what it meant. Falsified by deleting an active id and by
+            moving a sentence to a different id.
+        - id: R8
+          verdict: Partial
+          reason: >-
+            Asserts the allocation half - the counter is above every id ever used, superseded
+            included, and every addition is named in the change log. The acceptance-row half
+            is asserted by `acceptance-rows`, and neither check asserts both, so no single
+            check covers R8 end to end.
+      from: stdout_paths
+      pattern: '^(\S+)$'
+      must_cover: none
+      min_covered: 3
+    limitations:
+      - It also asserts R1 within the spec home, but does not CLAIM R1 - `spec-home` claims that, and it is the one that counts across `product.repos`. Two checks claiming one requirement is two places to disagree, not double coverage.
+      - A shallow clone is refused rather than passed, so CI must fetch full history for this to measure anything.
+
+  # --- the unmeasured value, on the line a person reads ---------------------
+  #
+  # R11, R20 and R25. R25's pair R26 is asserted against what gets RECORDED;
+  # this asserts what gets REPORTED, and the two are separable - a run can
+  # print UNMEASURED while writing 0, which was constructed in this repo.
+  # Falsified: make the survey draft from a barren repo and R20.1 goes red;
+  # stop the runner printing the word and R25.1 goes red.
+  - id: unmeasured-report
+    why: an unmeasured value that prints as a number is indistinguishable from a real one a month later, and nobody can tell which they are looking at
+    when:
+      always: true
+    severity: block
+    requires:
+      - ./plugins/productizer/skills/spec/scripts/check-unmeasured-report.sh
+      - python3
+    version_command: [./plugins/productizer/skills/spec/scripts/check-unmeasured-report.sh, --version]
+    mode: batch
+    command: [./plugins/productizer/skills/spec/scripts/check-unmeasured-report.sh]
+    timeout_seconds: 180
+    exit_codes:
+      pass: [0]
+      fail: [1]
+      refused: [2]
+    coverage:
+      spec_units:
+        - id: R11
+          verdict: Covered
+          evidence: >-
+            A figure whose source cannot be read is drawn as a marker and never as a number,
+            and a real measurement still renders its number.
+        - id: R20
+          verdict: Covered
+          evidence: >-
+            A barren repository reaches the refusing verdict and an evidenced one does not.
+            Falsified by making the survey draft anyway - R20.1 went red.
+        - id: R25
+          verdict: Covered
+          evidence: >-
+            Each tool says the word on the line a person reads, asserted across the runner,
+            the hygiene check and the status report, with the inverse asserted too.
+            Falsified by stopping the runner printing it - R25.1 went red.
+      from: stdout_paths
+      pattern: '^(\S+)$'
+      must_cover: none
+      min_covered: 5
+
+  # --- a repository never chooses what runs ---------------------------------
+  #
+  # P4, via R18 and R22, plus the half of R17 that exists. Split from the
+  # decision half deliberately: that half FAILS, and a real failure must not
+  # void the claims of three requirements that are genuinely asserted.
+  - id: untrusted-execution
+    why: this is the plugin's central security claim, and R18's acceptance row named the implementation rather than the obligation, so it could never fail
+    when:
+      always: true
+    severity: block
+    requires:
+      - ./plugins/productizer/skills/spec/scripts/check-untrusted-execution.sh
+      - python3
+    version_command: [./plugins/productizer/skills/spec/scripts/check-untrusted-execution.sh, --version]
+    mode: batch
+    command: [./plugins/productizer/skills/spec/scripts/check-untrusted-execution.sh, --assert, 'r17-block,r18,r22']
+    timeout_seconds: 180
+    exit_codes:
+      pass: [0]
+      fail: [1]
+      refused: [2]
+    coverage:
+      spec_units:
+        - id: R17
+          verdict: Partial
+          reason: >-
+            Asserts only that a publishing command is BLOCKED - 30 refused rows and 14 allowed
+            ones, so a gate that blocks everything fails too. The "until a person decides" half
+            has no implementation to assert against; see the `publish-gate-decides` check and
+            backlog item B30.
+        - id: R18
+          verdict: Covered
+          evidence: >-
+            A shell or interpreter carrying an inline program is refused in every argv position,
+            including the three bypasses previously reproduced, while a legitimate command runs.
+        - id: R22
+          verdict: Covered
+          evidence: >-
+            A repo-local tool does not run with `allow_repo_local_tools` false and does run with
+            it true; both directions asserted, because a gate that never opens is not a gate.
+      from: stdout_paths
+      pattern: '^(\S+)$'
+      must_cover: none
+      min_covered: 2
+
+  # --- the half of R17 that does not exist ----------------------------------
+  #
+  # THIS CHECK IS EXPECTED TO FAIL, and it is advisory so that it reports the
+  # gap on every run without blocking work on a defect nobody has fixed yet.
+  #
+  # R17 says the gate shall block a publishing command UNTIL A PERSON DECIDES.
+  # The gate implements blocking and implements no deciding: 14 consent signals
+  # were tried and none lifts the block. So the only route left is retyping the
+  # command, which the gate's own closing paragraph argues against - it
+  # describes the failure it causes. Tracked as B30.
+  #
+  # It carries NO coverage claim. A claim from a failing check is void anyway,
+  # and claiming Covered for an obligation with no implementation is the exact
+  # defect R18's acceptance row already had.
+  - id: publish-gate-decides
+    why: R17 has two halves and only one is built; a check that quietly asserted the built half would let the missing one stay invisible
+    when:
+      always: true
+    severity: advise
+    requires:
+      - ./plugins/productizer/skills/spec/scripts/check-untrusted-execution.sh
+      - python3
+    version_command: [./plugins/productizer/skills/spec/scripts/check-untrusted-execution.sh, --version]
+    mode: batch
+    command: [./plugins/productizer/skills/spec/scripts/check-untrusted-execution.sh, --assert, r17-decision]
+    timeout_seconds: 120
+    exit_codes:
+      pass: [0]        # B30 fixed: a person can express a decision to the gate
+      fail: [1]        # expected today
+      refused: [2]
+    coverage:
+      from: stdout_paths
+      pattern: '^(\S+)$'
+      must_cover: none
+      min_covered: 1
+    limitations:
+      - It is RED on purpose and will stay red until B30 is closed. If it ever goes green without B30 being fixed, something has weakened the assertion rather than the gate having gained an approval path.
