@@ -1525,13 +1525,28 @@ for c in plan["checks"]:
             rules_detail = "the rule enumeration exited %s, so no ruleset was confirmed loaded" % (r_exit or "?")
 
     missing_files = []
+    deleted_files = []
     if cov["must_cover"] == "all_triggering":
         have = set(covered_list)
         # Both sides must be normalised. `have` holds norm()ed paths from the
         # tool; c["files"] is whatever the caller passed in. An absolute changed
         # list against a relative-normalised covered set never matches, and every
         # check reports hollow however much it examined.
-        missing_files = [f for f in c["files"] if norm(f) not in have]
+        #
+        # A path DELETED in this change is a separate case from one skipped. It
+        # is in the diff and gone from the tree, so no tool can open it, and
+        # demanding coverage for it makes every deletion a hollow pass - an
+        # accusation manufactured by the runner rather than a gap found in the
+        # check. It is dropped from the requirement and COUNTED, never dropped
+        # quietly: a rule that silently shrinks what it demands is the same
+        # failure as a check that silently shrinks what it examined.
+        for f in c["files"]:
+            if norm(f) in have:
+                continue
+            if not os.path.exists(os.path.join(plan["root"], norm(f))):
+                deleted_files.append(norm(f))
+            else:
+                missing_files.append(f)
 
     reasons = []
     if covered < cov["min_covered"]:
@@ -1551,7 +1566,8 @@ for c in plan["checks"]:
                                           "min_rules": cov["min_rules"]},
         "observed": {"covered": covered, "covered_items": covered_list[:200],
                      "rules_loaded": rules, "files_in_scope": len(c["files"]),
-                     "not_examined": missing_files[:200]},
+                     "not_examined": missing_files[:200],
+                     "deleted_not_required": deleted_files[:200]},
         "satisfied": not reasons, "reasons": reasons,
     }
     row["timed_out"] = timed_out
@@ -1824,6 +1840,9 @@ for r in results:
         cov_txt = "  covered %d" % cv["observed"]["covered"]
         if cv["required"]["must_cover"] == "all_triggering":
             cov_txt += "/%d files" % cv["observed"]["files_in_scope"]
+            _gone = len(cv["observed"].get("deleted_not_required", []))
+            if _gone:
+                cov_txt += " (%d deleted by this change, not required)" % _gone
         if cv["observed"]["rules_loaded"] is not None:
             cov_txt += ", %d rules" % cv["observed"]["rules_loaded"]
     # R38 - RENDERED AS FAILED AND WAIVED, NEVER AS PASSED. The word FAIL stays
