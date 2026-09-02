@@ -112,6 +112,12 @@ UNITS = {
     "h": ("time", 3600000.0), "hr": ("time", 3600000.0), "hrs": ("time", 3600000.0),
     "hour": ("time", 3600000.0), "hours": ("time", 3600000.0),
     "d": ("time", 86400000.0), "day": ("time", 86400000.0), "days": ("time", 86400000.0),
+    # A week is exactly seven days, so it converts without a convention.
+    # MONTH AND YEAR ARE DELIBERATELY ABSENT: a month is 28 to 31 days, and
+    # picking one would let this file decide a contradiction by rounding.
+    # An unconvertible unit must stay unparsed and be escalated, not guessed.
+    "w": ("time", 604800000.0), "week": ("time", 604800000.0),
+    "weeks": ("time", 604800000.0),
     "byte": ("size", 1.0), "bytes": ("size", 1.0),
     "kb": ("size", 1e3), "mb": ("size", 1e6), "gb": ("size", 1e9), "tb": ("size", 1e12),
     "%": ("percent", 1.0), "percent": ("percent", 1.0),
@@ -132,11 +138,29 @@ COMPARATORS = [
 
 CMP_WORDS = set(itertools.chain.from_iterable(c[0].split() for c in COMPARATORS))
 
+WORD_NUMBERS = {
+    "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7,
+    "eight": 8, "nine": 9, "ten": 10, "eleven": 11, "twelve": 12,
+}
+
+
+def _number(raw: str) -> float | None:
+    """A quantity written as digits or as a word. Returns None for neither, so
+    the caller drops the match rather than inventing a value for it."""
+    raw = raw.strip().lower()
+    if raw in WORD_NUMBERS:
+        return float(WORD_NUMBERS[raw])
+    try:
+        return float(raw)
+    except ValueError:
+        return None
+
+
 BOUND_RE = re.compile(
     r"\b(?P<cmp>" + "|".join(re.escape(c[0]) for c in COMPARATORS) + r")\s+"
-    r"(?P<num>\d+(?:\.\d+)?)\s*"
+    r"(?P<num>\d+(?:\.\d+)?|" + "|".join(WORD_NUMBERS) + r")\s*"
     r"(?P<unit>ms|milliseconds?|seconds?|secs?|minutes?|mins?|hours?|hrs?|days?|"
-    r"%|percent|bytes?|kb|mb|gb|tb|[smhd])?\b",
+    r"weeks?|%|percent|bytes?|kb|mb|gb|tb|[smhdw])?\b",
     re.I,
 )
 
@@ -211,8 +235,19 @@ def bounds(text: str) -> dict:
     for m in BOUND_RE.finditer(text):
         kind, incl = CMP_LOOKUP[m.group("cmp").lower()]
         raw_unit = (m.group("unit") or "").lower()
+        # An empty unit is a dimensionless count, which is correct. A unit the
+        # regex matched but UNITS cannot convert would ALSO land on "count" and
+        # silently become a quantity comparable with unrelated ones - that is how
+        # "6 weeks" read as a count of 6 and could never conflict with a bound in
+        # days. The two spellings are kept in step by a selftest assertion, and
+        # anything unconvertible is dropped rather than given a false dimension.
+        if raw_unit and raw_unit not in UNITS:
+            continue
         dim, scale = UNITS.get(raw_unit, ("count", 1.0))
-        value = float(m.group("num")) * scale
+        magnitude = _number(m.group("num"))
+        if magnitude is None:
+            continue
+        value = magnitude * scale
         iv = found.get(dim, Interval())
         if kind == "hi":
             iv = iv.meet(Interval(hi=value, hi_incl=incl))
@@ -534,6 +569,10 @@ CASES = [
      "R41: While dunning is active, the billing service shall retain the subscription.",
      "R42: When the cart is abandoned, the billing service shall delete the subscription.",
      "guards share no vocabulary yet may both hold — escalate, never call it consistent"),
+    ("W1", CONTRADICTION,
+     "R43: When a subject requests erasure, the records service shall retain the subject records for at least six weeks.",
+     "R44: When a subject requests erasure, the records service shall retain the subject records for no more than 30 days.",
+     "mixed units and a spelled number — six weeks against 30 days is arithmetic"),
 ]
 
 
