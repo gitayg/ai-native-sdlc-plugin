@@ -1,0 +1,45 @@
+# Fixture: a waiver with no expiry. Expect MALFORMED naming `Expires`, and the check blocks.
+#
+# R37 - WHEN A PERSON OVERRIDES A FAILING CHECK, THE LIFECYCLE SHALL RECORD THE
+# OVERRIDE IN A FILE NAMING THE CHECK, THE AUTHORITY AND THE REASON.
+# R38 - WHILE A FAILING CHECK IS OVERRIDDEN, THE LIFECYCLE SHALL RENDER IT AS
+# FAILED AND WAIVED, AND NEVER AS PASSED.
+#
+# Self-contained: the only tool is grep, `spec_coverage` is off so no spec has
+# to exist beside it, and `allow_repo_local_tools` stays off - the waiver
+# behaviour must be observable without the repo-local opt-in.
+version: 1
+
+policy:
+  empty_run: refuse
+  spec_coverage: "off"
+  waivers: waivers/no-expires
+
+defaults:
+  timeout_seconds: 30
+  mode: per_file
+  severity: block
+
+checks:
+  - id: finding
+    why: the file it scans does not hold the needle, so this check always reports a real, measured finding - the only thing a waiver may override
+    when:
+      paths: ["fixture/finding.txt"]
+    severity: block
+    requires: [grep]
+    version_command: [grep, --version]
+    mode: per_file
+    command: [grep, -q, WAIVER-FIXTURE-NEEDLE, "{file}"]
+    exit_codes:
+      pass: [0]
+      fail: [1]
+      refused: [2]
+    coverage:
+      from: per_file_exit
+      # Both outcomes mean the file was opened. Only 0 would make a
+      # finding read as a file nobody examined, and the check would
+      # come back `hollow` - which is not waivable, so the case would
+      # silently stop being the case it was written to be.
+      examined_when_exit_in: [0, 1]
+      must_cover: all_triggering
+      min_covered: 1

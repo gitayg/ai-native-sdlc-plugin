@@ -1547,3 +1547,84 @@ checks:
       - It asserts the wiring, not the firing. A6 proves settings.json names this hook and that the named file is the one driven; nothing proves the Artifact tool invokes it, which would take a real publish.
       - The matcher must be spelled exactly `Artifact`. A harness that also honours a regex spelling such as `Artifact|Bash` would be correctly wired and reported here as a finding - loud rather than silent, since the finding names the matcher it did find.
       - The capability taxonomy is duplicated between this hook and check-view-readonly.sh. A name classified in one and not the other lets the two disagree about what a view may declare, and nothing detects that today.
+
+  # --- a waiver changes the verdict, never the measurement ------------------
+  #
+  # R37 and R38, from intent #7. A ruling already records that a person
+  # overruled a failing check; what the CHECK shows afterwards was never
+  # decided. Intake split it because the rendering and the FORMAT that records
+  # the waiver are two obligations.
+  #
+  # P1 DECIDES THE DESIGN. An overridden check WAS measured, so P1 does not
+  # forbid a waiver - but a failure rendered green because somebody said so is a
+  # judgment wearing a measurement's clothes. So `status` stays `fail`, the
+  # findings stay, coverage stays, and only the BLOCKING and the RENDERING move.
+  # A waived check that comes out `pass` anywhere is the defect this exists to
+  # prevent, and the check asserts that per case.
+  #
+  # P4 DECIDES THE DEFAULT. Waivers live in the repository, and a clone that can
+  # waive its own blocking checks has arrived with its gates disarmed. So
+  # `policy.waivers` is absent by default and the directory is never opened
+  # without it - the same shape as `allow_repo_local_tools`. Measured: the same
+  # waiver file on disk, one config line apart, is exit 0 waived and exit 3
+  # unwaived. A waiver also expires, selects nothing (its `Check:` is only ever
+  # compared to declared ids), and its authority is a label rather than a
+  # credential - untrusted text, never executed or resolved.
+  #
+  # AND A WAIVER DOES NOT WAIVE THE SPEC. The waived check is still `fail`, so
+  # its coverage claims stay voided and the requirement returns to `Missing`;
+  # under `spec_coverage: require` the run still refuses - on the denominator,
+  # not on the check. That is deliberate: a person may accept a failing check,
+  # not un-assert a requirement.
+  - id: waiver-rendering
+    why: a waiver implemented as "set the status to pass" satisfies every casual reading of R38 and produces the hollow green this stage exists to refuse; and a runner honouring waivers without an opt-in lets a cloned repo arrive with its gates disarmed
+    when:
+      always: true
+    severity: block
+    requires:
+      - ./plugins/productizer/skills/spec/scripts/check-waiver-rendering.sh
+      - python3
+    version_command: [./plugins/productizer/skills/spec/scripts/check-waiver-rendering.sh, --version]
+    mode: batch
+    command: [./plugins/productizer/skills/spec/scripts/check-waiver-rendering.sh]
+    timeout_seconds: 180
+    exit_codes:
+      pass: [0]
+      fail: [1]        # a waiver is no longer treated the way R37 and R38 require
+      refused: [2]     # no fixture, no runner, or a premise that did not hold
+    coverage:
+      spec_units:
+        - id: R37
+          verdict: Covered
+          evidence: >-
+            Drives a committed fixture through the real run-checks.sh, ten runs, one verdict each.
+            A waiver missing `Check`, `Authority`, `Reason` or `Expires` is reported malformed
+            NAMING THE ABSENT FIELD and is not honoured - one case per field, so a regression names
+            which field stopped being required. A waiver naming a check the config does not declare
+            is `unknown_check`, and the unrecognised id is asserted NOT to be quoted back, because
+            it is text from the repository. Two waivers over one check are `duplicate` and neither
+            is honoured. Falsified: dropping `Reason` from the required fields takes that case from
+            8 of 8 to 1 of 8; removing the duplicate guard silently honours the first waiver.
+        - id: R38
+          verdict: Covered
+          evidence: >-
+            Asserts per case that the waived check's recorded status is `fail` and NOT `pass`, that
+            its line reads FAIL and waived rather than PASS, that the waiver sits BESIDE the
+            unchanged failure in the result, and that the run exits 0 rather than 3. The unwaived
+            twin - same failing check, same waiver file still on disk, one config line apart - is
+            asserted to exit 3 and render plain FAIL, which is P4's default-off half. Expired,
+            malformed, unknown and passing-check waivers each soften nothing. Falsified: making the
+            honoured branch also write `status = pass` takes the waived case from 8 of 8 to a
+            failure; giving `policy.waivers` a default breaks the unwaived case; removing the
+            expiry comparison breaks the expired one.
+      from: stdout_paths
+      pattern: '^(\S+)$'
+      must_cover: none
+      min_covered: 24
+    limitations:
+      - The `unreadable` waiver state and the unlistable-directory warning have no fixture; both need an I/O failure that does not survive a checkout.
+      - Only the `pass` leg of `not_applicable` is driven. The cannot-run statuses, `hollow`, `disabled`, `not_triggered` and `advise` share one branch that was read rather than measured.
+      - >-
+          Every fixture switches spec coverage off, so the interaction where a waived `fail` still
+          voids its own coverage claims and refuses under `require` is documented but not driven.
+      - Someone who can land a commit in a repo that has already opted in can waive that repo's own check until the expiry - the same power as editing checks.yaml, visible in the diff and bounded by a date.

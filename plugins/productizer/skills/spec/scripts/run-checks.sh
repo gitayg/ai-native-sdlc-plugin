@@ -84,6 +84,59 @@
 #     silently stops working usually changes version first, and a version that
 #     cannot be obtained fails the check.
 #
+# WAIVERS - A PERSON OVERRIDING A FAILING CHECK.
+#
+# `policy.waivers: <dir>` names a directory of waiver files (see
+# `templates/waiver.md`). Each one records ONE failing check, the authority who
+# overrode it, the reason, and the date it expires.
+#
+#   A WAIVER NEVER CHANGES THE MEASUREMENT. The check's `status` stays `fail`,
+#   its findings stay in the result, and its coverage claims stay voided. What
+#   a waiver changes is whether the run BLOCKS and how the line READS:
+#   `FAIL - WAIVED BY <authority>`, never `PASS`. P1 is the whole reason: an
+#   overridden check WAS measured, so recording the override is legitimate -
+#   but a failure rendered green because somebody said so is a judgment
+#   wearing a measurement's clothes.
+#
+#   ONLY A `fail` IS WAIVABLE. `missing_tool`, `timeout`, `no_version`,
+#   `refused`, `unmapped_exit` and `hollow` are ABSENCES of measurement, and a
+#   person cannot decide an absence away. A waiver naming one of those - or a
+#   check that passed, or a disabled one, or one this change did not trigger -
+#   is reported `not_applicable` and softens nothing.
+#
+#   P4 - A REPOSITORY BEING EXAMINED NEVER CHOOSES WHAT RUNS. Waiver files live
+#   in the repository under examination, so a cloned repo that could waive its
+#   own blocking checks would arrive with them already disarmed. Four bounds,
+#   and the first is the load-bearing one:
+#
+#     1. OFF BY DEFAULT. With no `policy.waivers` key the directory is never
+#        read, so a clone carrying `waivers/` waives nothing. Turning it on is
+#        one reviewed line in `checks.yaml` - the same shape and the same
+#        reasoning as `policy.allow_repo_local_tools`, and like every other
+#        `policy` key it is honoured only from the committed config, never from
+#        a `checks.local.yaml`.
+#     2. IT SELECTS NOTHING. A waiver names no executable, no path and no argv.
+#        Its `Check:` value is only ever compared against the ids the committed
+#        config declares; one that matches nothing grants nothing and is
+#        reported `unknown_check`. A waiver cannot widen what runs, only narrow
+#        what blocks - by exactly one already-measured failure.
+#     3. IT EXPIRES. `Expires:` is required. An unbounded waiver is a permanent
+#        hole that outlives the person who wrote it and the finding it was
+#        written for; an expired one stops softening and the check blocks again.
+#     4. THE AUTHORITY IS A LABEL, NOT A CREDENTIAL. It is untrusted text a
+#        stranger can write: it is collapsed to one printable line, truncated,
+#        and rendered - never executed, never resolved as a path, never treated
+#        as an instruction. It names WHO TO ASK. What actually authorises the
+#        override is the reviewed commit that added the file, which is why the
+#        result reports the waiver's LOCATION. The `Reason:` text is never
+#        echoed anywhere: only whether one is recorded.
+#
+#   The residue is stated rather than hidden: someone who can land a commit in
+#   a repo that has already opted in can waive that repo's own failing check
+#   for the life of the expiry. That is the same power as editing `checks.yaml`
+#   itself, it is visible in the diff, in the run's own output and in the
+#   result file, and it is bounded by a date.
+#
 # WHAT IT DOES NOT DO.
 #
 #   - It does not judge whether the declared checks are the right ones. A
@@ -92,6 +145,12 @@
 #   - It does not sandbox the tools it runs. Everything in `checks.yaml`
 #     executes with this script's privileges, which is why the config is
 #     argv-only and reviewed like code.
+#   - A waiver does not restore what a failure voided. The waived check is
+#     still `fail`, so every `spec_units` claim it made is still voided and the
+#     requirement goes back to `Missing`. Under `policy.spec_coverage: require`
+#     the run therefore still refuses - on the DENOMINATOR, not on the check.
+#     That is deliberate: a waiver is a decision about one finding, not a
+#     statement that the requirement is verified.
 #   - Killing a check on timeout kills its process group. A tool that daemonises
 #     out of that group survives.
 
@@ -419,6 +478,29 @@ if OUTPUT is not None:
         bad("policy.output %r resolves to %s, outside the repository at %s. This "
             "stage writes one result file, inside the repo it is checking."
             % (OUTPUT, _res, _root))
+
+# WHERE A PERSON'S OVERRIDE OF A FAILING CHECK IS RECORDED.
+#
+# Absent by default, and that default is the P4 bound: with no key here the
+# directory is never opened, so a cloned repository that ships its own
+# `waivers/` waives nothing on the machine that cloned it. Enabling it is one
+# line in the committed config, in the diff someone approved - and, like every
+# `policy` key, it cannot be turned on from a `checks.local.yaml`.
+WAIVER_DIR = policy.get("waivers")
+if WAIVER_DIR is not None:
+    if not isinstance(WAIVER_DIR, str) or not WAIVER_DIR.strip():
+        bad("policy.waivers must be a non-empty string naming a directory inside the "
+            "repository, not %r" % (WAIVER_DIR,))
+    if os.path.isabs(WAIVER_DIR):
+        bad("policy.waivers %r is absolute. Waivers are read relative to the repository "
+            "being checked; an absolute path lets a committed file choose which directory "
+            "on the puller's machine gets to switch this repo's gates off." % WAIVER_DIR)
+    _wres = os.path.realpath(os.path.join(ROOT, WAIVER_DIR))
+    _wroot = os.path.realpath(ROOT)
+    if _wres != _wroot and not _wres.startswith(_wroot + os.sep):
+        bad("policy.waivers %r resolves to %s, outside the repository at %s. An override of "
+            "this repo's checks is recorded inside this repo, where it is reviewed with it."
+            % (WAIVER_DIR, _wres, _wroot))
 
 # The spec is the denominator. `require` always measures against it; `auto`
 # measures as soon as any check names a requirement, so a repo that has not
@@ -964,6 +1046,124 @@ if SPEC_MODE == "auto" and _claim_count == 0:
         "covered. Declare `coverage.spec_units` on the checks that verify something, or set "
         "`policy.spec_coverage: off` if this repo deliberately does not." % SPEC_PATH), None
 
+# --- waivers: read, classified, and honoured by nothing yet ----------------
+#
+# Everything decidable without a run is decided here: whether the file records
+# the four things R37 requires, whether the date is a date and still in the
+# future, whether the id names a check this config declares, and whether two
+# waivers claim the same check. Whether the named check actually FAILED is not
+# knowable until it has run, so `candidate` is as far as this gets; the verdict
+# script turns a candidate into `honoured` or `not_applicable`.
+#
+# NOTHING HERE IS QUOTED BACK. The location is reported; `Reason:` is recorded
+# only as present or absent; a `Check:` that matches no declared id is not
+# echoed, because a value nobody recognises is a stranger's text. `Authority:`
+# is rendered, because R38 says the line names it - collapsed to one printable
+# line and truncated first.
+
+WAIVER_FIELD_RE = re.compile(r"^([A-Za-z][A-Za-z-]*):[ \t]*(.*)$")
+WAIVER_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+WAIVER_REQUIRED = ("Check", "Authority", "Reason", "Expires")
+# `templates/ruling.md` already writes an unset field as an em dash, and this
+# block is read by the same kind of reader. A dash is unset, not a value: a
+# waiver whose authority is "-" names nobody.
+WAIVER_UNSET = ("\u2014", "\u2013", "-", "?", "TBD", "tbd")
+
+
+def waiver_label(v):
+    """One line of untrusted repository text, safe to render and nothing else."""
+    v = "".join(ch if ch.isprintable() else " " for ch in v)
+    return " ".join(v.split())[:60]
+
+
+import datetime
+WAIVER_TODAY = datetime.date.today().isoformat()
+
+waivers = []
+if WAIVER_DIR is not None:
+    _wabs = os.path.join(ROOT, WAIVER_DIR)
+    _names = []
+    try:
+        _names = sorted(n for n in os.listdir(_wabs) if n.endswith(".md"))
+    except OSError as exc:
+        # An absent or unreadable directory is NOT an error and NOT zero
+        # waivers silently: it is said, on stderr, so a misspelt policy.waivers
+        # does not read as "nobody has waived anything".
+        sys.stderr.write("run-checks: WARNING: policy.waivers names %s, which could not be listed "
+                         "(%s). No waiver was read; nothing is waived.\n"
+                         % (WAIVER_DIR, exc.strerror or exc))
+    for _n in _names:
+        loc = "%s/%s" % (WAIVER_DIR.rstrip("/"), _n)
+        rec = {"file": loc, "check": None, "authority": None, "expires": None,
+               "reason_recorded": False, "state": None, "detail": None}
+        fields = {}
+        try:
+            with open(os.path.join(_wabs, _n), errors="replace") as fh:
+                for ln in fh:
+                    m = WAIVER_FIELD_RE.match(ln.rstrip("\n"))
+                    # First occurrence wins. A second `Authority:` further down
+                    # the file would otherwise silently replace the one a
+                    # reviewer read at the top.
+                    if m and m.group(1) in WAIVER_REQUIRED and m.group(1) not in fields:
+                        fields[m.group(1)] = m.group(2).strip()
+        except OSError as exc:
+            rec["state"] = "unreadable"
+            rec["detail"] = ("could not be read (%s). A waiver nobody could read is not a waiver; "
+                             "nothing was softened by it." % (exc.strerror or exc))
+            waivers.append(rec)
+            continue
+
+        absent = [k for k in WAIVER_REQUIRED
+                  if not fields.get(k) or fields[k] in WAIVER_UNSET]
+        rec["reason_recorded"] = "Reason" not in absent
+        rec["authority"] = waiver_label(fields.get("Authority", "")) if "Authority" not in absent else None
+        if absent:
+            rec["state"] = "malformed"
+            rec["detail"] = ("records no %s. R37 requires a waiver to name the check, the authority "
+                             "and the reason, and this runner also requires an expiry; a waiver "
+                             "missing any of them is not honoured."
+                             % ", ".join("`%s`" % k for k in absent))
+            waivers.append(rec)
+            continue
+        if not WAIVER_DATE_RE.match(fields["Expires"]):
+            rec["state"] = "malformed"
+            rec["detail"] = ("its `Expires` field is not a YYYY-MM-DD date, so the bound on this "
+                             "waiver could not be read. Not honoured.")
+            waivers.append(rec)
+            continue
+        rec["expires"] = fields["Expires"]
+        if fields["Check"] not in ids:
+            rec["state"] = "unknown_check"
+            rec["detail"] = ("names a check this configuration does not declare. Reported by "
+                             "location rather than by quoting the name: it is text from the "
+                             "repository, and it matched nothing, so it waives nothing.")
+            waivers.append(rec)
+            continue
+        rec["check"] = fields["Check"]
+        if rec["expires"] < WAIVER_TODAY:
+            rec["state"] = "expired"
+            rec["detail"] = ("expired on %s (today is %s), so it no longer softens anything and "
+                             "`%s` blocks again if it fails. A waiver is bounded on purpose."
+                             % (rec["expires"], WAIVER_TODAY, rec["check"]))
+            waivers.append(rec)
+            continue
+        rec["state"] = "candidate"
+        waivers.append(rec)
+
+    # TWO WAIVERS FOR ONE CHECK IS NOT AN OVERRIDE, it is two people each
+    # believing they were the one who decided. Neither is honoured.
+    _per_check = {}
+    for _w in waivers:
+        if _w["state"] == "candidate":
+            _per_check.setdefault(_w["check"], []).append(_w)
+    for _cid, _group in _per_check.items():
+        if len(_group) > 1:
+            for _w in _group:
+                _w["state"] = "duplicate"
+                _w["detail"] = ("one of %d waivers naming `%s`. Two authorities over one check is "
+                                "not an override; none of them is honoured."
+                                % (len(_group), _cid))
+
 os.makedirs(os.path.join(WORK, "run"), exist_ok=True)
 with open(os.path.join(WORK, "plan.json"), "w") as fh:
     json.dump({"config": CONFIG, "config_source": CONFIG_SOURCE,
@@ -971,6 +1171,8 @@ with open(os.path.join(WORK, "plan.json"), "w") as fh:
                "policy": {"empty_run": empty_run,
                "output": OUTPUT}, "files": files, "tags": tags,
                "local_overrides_ignored": ignored_local,
+               "waivers": {"declared": WAIVER_DIR is not None, "dir": WAIVER_DIR,
+                           "today": WAIVER_TODAY, "entries": waivers},
                "spec_coverage": {"mode": SPEC_MODE, "spec": SPEC_PATH, "status": SPEC_STATUS,
                                  "detail": SPEC_DETAIL, "enforced": SPEC_ENFORCED,
                                  "units": SPEC_UNITS, "claims": SPEC_CLAIMS},
@@ -1419,6 +1621,50 @@ for c in plan["checks"]:
 
     results.append(row)
 
+# --- waivers: a person overriding a failing check -------------------------
+#
+# R38: WHILE A FAILING CHECK IS OVERRIDDEN, RENDER IT AS FAILED AND WAIVED, AND
+# NEVER AS PASSED. So nothing here touches `status`, `exit_code`, `coverage` or
+# `output_tail`. The waiver is attached BESIDE the unchanged failure and the row
+# is moved out of the blocking set - that is the entire effect.
+#
+# ONLY A `fail` THAT WAS ACTUALLY BLOCKING IS WAIVABLE. Every other status is an
+# absence of measurement (`timeout`, `missing_tool`, `hollow`, ...) or a verdict
+# with nothing to override (`pass`, `disabled`, `not_triggered`), and an
+# `advise` check's findings already do not block. Each of those is reported
+# `not_applicable`, naming the status, so a waiver that has quietly stopped
+# applying is visible instead of decorative.
+
+wv = plan.get("waivers") or {"declared": False, "dir": None, "today": None, "entries": []}
+rows_by_id = {r["id"]: r for r in results}
+waived = []
+
+for w in wv["entries"]:
+    if w["state"] != "candidate":
+        continue
+    row = rows_by_id[w["check"]]
+    if row["status"] == "fail" and row in blocking_failures:
+        blocking_failures.remove(row)
+        waived.append(row)
+        w["state"] = "honoured"
+        w["detail"] = ("`%s` failed and this waiver moves it out of the blocking set until %s. "
+                       "The measurement did not move: the check is still recorded `fail`."
+                       % (w["check"], w["expires"]))
+        # Beside the failure, never on top of it. `authority` is repository text
+        # rendered as a label; `file` is what a reader opens to see who decided
+        # and why, and the reason is deliberately not copied here.
+        row["waiver"] = {"file": w["file"], "authority": w["authority"],
+                         "expires": w["expires"], "reason_recorded": w["reason_recorded"]}
+        row["detail"] = (row.get("detail", "")
+                         + " WAIVED BY %s until %s (%s): this check does not block, and it did not "
+                           "pass - it is still `fail`, and its findings above are unchanged."
+                         % (w["authority"], w["expires"], w["file"])).strip()
+    else:
+        w["state"] = "not_applicable"
+        w["detail"] = ("names `%s`, whose status is `%s`. Only a blocking check that ran and "
+                       "FAILED can be waived: a person can override a finding, never the absence "
+                       "of one." % (w["check"], row["status"]))
+
 # --- spec coverage: the denominator the check did not choose --------------
 #
 # Every active requirement gets a row, the covered ones included, because a
@@ -1539,12 +1785,20 @@ doc = {
     "counts": {"declared": len(plan["checks"]), "triggered": triggered,
                "passed": sum(1 for r in results if r["status"] == "pass"),
                "blocking_failures": len(blocking_failures),
+               # What blocked, and what would have. A waived row is out of
+               # `blocking_failures` because it no longer decides the verdict,
+               # and it is counted here so it is not out of sight as well.
+               "waived": len(waived),
                "advisory_failures": len(advisory_failures),
                "disabled": sum(1 for r in results if r["status"] == "disabled"),
                "not_triggered": sum(1 for r in results if r["status"] == "not_triggered"),
                "spec_units_unsatisfied": (len(spec_unsatisfied)
                                           if sc["status"] == "measured" else None)},
     "spec_coverage": spec_report,
+    # Every waiver read, honoured or not. A waiver that stopped applying is the
+    # one worth seeing: it is the difference between "nobody waived this" and
+    # "somebody meant to and it expired".
+    "waivers": wv,
     "local_overrides_ignored": plan["local_overrides_ignored"],
     "checks": results,
 }
@@ -1572,8 +1826,15 @@ for r in results:
             cov_txt += "/%d files" % cv["observed"]["files_in_scope"]
         if cv["observed"]["rules_loaded"] is not None:
             cov_txt += ", %d rules" % cv["observed"]["rules_loaded"]
+    # R38 - RENDERED AS FAILED AND WAIVED, NEVER AS PASSED. The word FAIL stays
+    # in the status column and the authority is appended to it, so the line
+    # cannot be skimmed as a pass and cannot be read without seeing who decided.
+    # It overflows the column on purpose: a waiver is not a quiet state.
+    _label = r["status"].upper()
+    if r.get("waiver"):
+        _label = "FAIL \u00b7 WAIVED BY %s" % r["waiver"]["authority"]
     e.write("  %-9s %-18s %-6s exit %-4s %s%s\n"
-            % (r["status"].upper(), r["id"], r["severity"],
+            % (_label, r["id"], r["severity"],
                r.get("exit_code", "-"),
                ((r.get("tool") or {}).get("version") or "version unknown")[:44], cov_txt))
     if r.get("detail"):
@@ -1592,6 +1853,18 @@ if sc["status"] == "measured":
             e.write("             -> %s\n" % r["note"])
 else:
     e.write("spec coverage: UNMEASURED (%s). %s\n" % (sc["status"], sc["detail"]))
+
+# Said whenever the policy is on, including when it read nothing: "0 waivers"
+# from a directory that was opened is a measurement, and it is not the same
+# statement as a repo that never opted in.
+if wv["declared"]:
+    _honoured = [w for w in wv["entries"] if w["state"] == "honoured"]
+    e.write("waivers: %d file(s) read from %s, %d honoured (today is %s)\n"
+            % (len(wv["entries"]), wv["dir"], len(_honoured), wv["today"]))
+    for w in wv["entries"]:
+        e.write("  %-14s %s\n" % (w["state"].upper(), w["file"]))
+        if w["detail"]:
+            e.write("             -> %s\n" % w["detail"])
 
 if plan["local_overrides_ignored"]:
     e.write("ignored %d local override(s) of team-level settings: %s. Team-level settings are "
@@ -1624,6 +1897,16 @@ elif not refuse_empty and not spec_refused:
     if empty:
         e.write("PASS: no declared check was triggered, so nothing was examined. "
                 "`policy.empty_run: pass` is what made that acceptable.\n")
+    elif waived:
+        # NOT "every blocking check passed". Something failed and a person let
+        # it through; a summary line that does not say so is the hollow green
+        # this whole stage exists to refuse.
+        e.write("PASS: %d blocking check(s) FAILED and are waived by a person, not by a "
+                "measurement - each is still recorded `fail` above%s. Everything else ran and "
+                "covered what it declared.\n"
+                % (len(waived),
+                   ", and %d advisory check(s) did not pass" % len(advisory_failures)
+                   if advisory_failures else ""))
     elif advisory_failures:
         e.write("PASS: every blocking check ran and covered what it declared. "
                 "%d advisory check(s) did not — read them above.\n" % len(advisory_failures))

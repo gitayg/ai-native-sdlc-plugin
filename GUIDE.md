@@ -386,8 +386,8 @@ Edit the spec; this section follows.
      plugins/productizer/skills/spec/scripts/build-guide.sh. Everything between
      these two markers is rewritten on every release - edit the spec, not this. -->
 
-**Thirty requirements are active**, and they are the whole of what has been
-agreed.
+**Thirty-two requirements are active**, and they are the whole of what has
+been agreed.
 
 Six more are superseded and none withdrawn, and neither kind is listed here.
 The spec keeps both forever with their text intact, so a citation written two
@@ -407,7 +407,7 @@ happening:
 - **R5** — Every check shall declare what it must have examined for its pass
   to count.
 
-**When something arrives.** Nine things happen on a discrete trigger:
+**When something arrives.** Eleven things happen on a discrete trigger:
 
 - **R6** — When an intent arrives, the lifecycle shall classify it against the
   whole living spec as exactly one of extend, refine, duplicate or contradict.
@@ -427,6 +427,11 @@ happening:
   unused id.
 - **R36** — When a requirement is added, the lifecycle shall record it in the
   acceptance criteria table.
+- **R37** — When a person overrides a failing check, the lifecycle shall
+  record the override in a file naming the check, the authority and the
+  reason.
+- **R38** — While a failing check is overridden, the lifecycle shall render it
+  as failed and waived, and never as passed.
 
 **For as long as a state lasts.** Two requirements are true for the duration
 of a state, not at a moment inside it:

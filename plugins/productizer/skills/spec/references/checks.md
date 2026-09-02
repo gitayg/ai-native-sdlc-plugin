@@ -255,7 +255,7 @@ where it sits in a diff somebody approved.
 | Setting | Honoured from | Why |
 |---|---|---|
 | `timeout_seconds`, per check and in `defaults` | committed **or** local | how long a slow laptop may take is nobody else's business |
-| every `policy` key — `empty_run`, `output`, `spec`, `spec_coverage`, `allow_repo_local_tools` | committed only | each one decides what the whole run means |
+| every `policy` key — `empty_run`, `output`, `spec`, `spec_coverage`, `allow_repo_local_tools`, `waivers` | committed only | each one decides what the whole run means |
 | `severity` | committed only | whether a finding blocks a merge is not a per-developer choice |
 | `enabled`, `when`, `command`, `requires`, `mode`, `exit_codes`, `coverage`, `version_command` | committed only | all of them change what is examined |
 
@@ -716,6 +716,137 @@ One more, which the runner reports but cannot fix: a check whose exit code says
 turn that red into a hollow green, so the runner says both in the same line
 rather than waiting for the next run to surprise someone.
 
+
+## Waivers: a person overriding a failing check
+
+Sometimes a real finding is accepted — a known issue with a ticket, a
+third-party dependency nobody can patch this week. R37 and R38 say what happens
+then, and between them they say the interesting half:
+
+- **R37** — the override is recorded in a file naming the check, the authority
+  and the reason.
+- **R38** — while it is overridden, the check is rendered as **failed and
+  waived**, and never as passed.
+
+### A waiver never changes the measurement
+
+`status` stays `fail`. The findings stay in the result. The coverage numbers
+stay. What a waiver changes is exactly two things: whether the run **blocks**,
+and how the line **reads**.
+
+```
+  FAIL · WAIVED BY A. Maintainer finding   block  exit 1   grep 2.6.0  covered 1/1 files
+             -> the check reported findings. WAIVED BY A. Maintainer until 2999-01-01
+                (waivers/valid/W1-finding.md): this check does not block, and it did not
+                pass - it is still `fail`, and its findings above are unchanged.
+waivers: 1 file(s) read from waivers/valid, 1 honoured (today is 2026-09-02)
+  HONOURED       waivers/valid/W1-finding.md
+PASS: 1 blocking check(s) FAILED and are waived by a person, not by a measurement -
+each is still recorded `fail` above. Everything else ran and covered what it declared.
+EXIT=0
+```
+
+P1 is the whole reason. An overridden check **was** measured, so recording the
+override is honest — but a failure rendered green because somebody said so is a
+judgment wearing a measurement's clothes, and a month later it reads exactly
+like a check that passed. A waiver implemented as "set the status to pass"
+satisfies every casual reading of R38 and produces precisely the hollow green
+this stage exists to refuse.
+
+### It is off until someone says otherwise, and that is P4
+
+Waiver files live in the repository being examined. A repository that could
+waive its own blocking checks would arrive on your machine with them already
+disarmed — which is P4, *a repository being examined never chooses what runs*,
+failing at the gate rather than at the tool.
+
+So the directory is read only when `checks.yaml` says to read it:
+
+```yaml
+policy:
+  waivers: .claude/productizer/waivers
+```
+
+With no such key nothing is opened, so a clone carrying a `waivers/` directory
+waives nothing. Turning it on is one line in the committed config — the same
+shape and the same reasoning as `policy.allow_repo_local_tools` — and like
+every `policy` key it cannot be turned on from a `checks.local.yaml`.
+
+Three further bounds, none of which is the load-bearing one but each of which
+closes a way the first could be walked around:
+
+- **A waiver selects nothing.** No executable, no path, no argv. Its `Check:`
+  value is only ever compared against the ids the committed config declares. It
+  can narrow what blocks by exactly one already-measured failure; it can never
+  widen what runs.
+- **It expires.** `Expires:` is required. An unbounded waiver outlives the
+  person who wrote it and the finding it was written for.
+- **The authority is a label, not a credential.** It is untrusted repository
+  text: collapsed to one printable line, truncated, rendered — never executed,
+  never resolved as a path, never read as an instruction. It names who to ask.
+  What authorises the override is the reviewed commit that added the file,
+  which is why the run reports the waiver's **location**. `Reason:` is never
+  echoed anywhere; only whether one is recorded.
+
+The residue is stated rather than hidden: someone who can land a commit in a
+repo that has already opted in can waive that repo's own failing check until
+the expiry. That is the same power as editing `checks.yaml`, it is visible in
+the diff and in every run's output, and it is bounded by a date.
+
+### What cannot be waived, and how each one reads
+
+Every waiver file is reported, honoured or not — a waiver that has quietly
+stopped applying is the one worth seeing, because it is the difference between
+"nobody waived this" and "somebody meant to, and it lapsed".
+
+| Situation | Reported as | Why |
+|---|---|---|
+| the check failed and the waiver is well-formed and live | `honoured` | the only case that softens anything |
+| `Check`, `Authority`, `Reason` or `Expires` is absent | `malformed`, naming the field | R37 requires all three; the runner adds the fourth |
+| `Expires` has passed | `expired`, with the date | the check blocks again |
+| `Check` names nothing this config declares | `unknown_check` | it matched nothing, so it waives nothing. The unrecognised id is **not** quoted back — it is a stranger's text |
+| the check passed, is disabled, was not triggered, or is `advise` | `not_applicable`, naming the status | there is no finding to override |
+| the check could not run — `missing_tool`, `timeout`, `no_version`, `refused`, `unmapped_exit` — or came back `hollow` | `not_applicable`, naming the status | these are **absences** of measurement, and a person cannot decide an absence away. This is the same line `advise` is already held to |
+| two waivers name one check | `duplicate` | two authorities over one check is not an override; neither is honoured |
+
+`templates/waiver.md` is the file format.
+
+### A waiver does not waive the spec
+
+The waived check is still `fail`, so every `coverage.spec_units` claim it made
+is still voided and the requirement goes back to `Missing`. Under
+`policy.spec_coverage: require` the run therefore still refuses — on the
+**denominator**, not on the check.
+
+That is deliberate and it is not a rough edge to be smoothed. A waiver is a
+decision about one finding. It is not a statement that the requirement is
+verified, and the coverage report is the one place that must never say
+otherwise.
+
+### Testing this class of bug
+
+`scripts/check-waiver-rendering.sh` drives `fixtures/waiver-rendering/` through
+the real runner, ten cases, one run and one verdict each — never one run
+holding ten checks, because a single run refuses if *any* check refuses and a
+regressed case would ride a neighbour's refusal to a green assertion. Eight
+assertions per case, counted one by one and reported per case, so a tally says
+which behaviour regressed rather than only that something did.
+
+The pair that matters is `waived` and `unwaived`: the same failing check over
+the same file with the same waiver file present on disk, one line of config
+apart. A check asserting only the waived direction stays green against a runner
+that honours every waiver it finds; one asserting only the unwaived direction
+stays green against a runner that has stopped honouring waivers at all.
+
+Falsified against the defect it exists for. With the honoured branch changed to
+also write `status = "pass"`, the `waived` case drops to 7 of 8 and the run
+exits 1; with `policy.waivers` given a default, `unwaived` drops to 1 of 8; with
+the expiry comparison removed, `expired` drops to 1 of 8; with `Reason` dropped
+from the required fields, `no-reason` drops to 1 of 8; with the duplicate guard
+removed, `duplicate` drops to 1 of 8 — and the run then honours the first of the
+two waivers and marks the second `not_applicable`, silently. Each break was
+reverted and the suite returned to 8/8 on all ten.
+
 ## Suppressed stderr
 
 `2>/dev/null` is scanner theatre one level down, inside the tools themselves.
@@ -917,6 +1048,11 @@ unreachable.
 - **It does not sandbox the tools it runs.** Everything in `checks.yaml`
   executes with the runner's privileges. That is why the config is argv-only,
   reviewed like code, and denied to the agent.
+- **It does not decide whether a waiver was deserved.** It enforces the shape —
+  four recorded fields, a live expiry, a declared check, an actual failure to
+  override — and it renders the result where nobody can miss it. Whether the
+  named authority should have signed it is a human's call, read in the diff
+  that added the file.
 - **It does not replace hooks.** A hook is deterministic and fires on every tool
   call; this stage runs once per change. Protected paths and formatting stay in
   hooks (`templates/hooks-settings.json`). Heavy scanners belong here.

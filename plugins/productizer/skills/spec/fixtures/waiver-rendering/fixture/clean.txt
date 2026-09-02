@@ -1,0 +1,3 @@
+This file contains WAIVER-FIXTURE-NEEDLE, so the check that scans it exits 0.
+It exists so a waiver can be pointed at a check that is currently PASSING, and
+the runner has to say that there is nothing there to override.

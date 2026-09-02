@@ -9,7 +9,7 @@ site generators, doc builds and packaging all skip that directory, so the spec
 is never rendered as a page or shipped in a release.
 
 Next requirement id
-: `R37` — allocate from here, then increment. This is the highest id the spec
+: `R39` — allocate from here, then increment. This is the highest id the spec
 has ever used, not a count of the rows on screen. Ids are never reused and
 never renumbered, and stay unique across the whole repo even if this spec is
 later split into several files.
@@ -110,6 +110,8 @@ file stays skimmable at two hundred. One row per requirement, in id order.
 - **R34** — If an intent contradicts an active requirement, then the lifecycle shall ask which wins.
 - **R35** — When a requirement is added, the lifecycle shall allocate the next unused id.
 - **R36** — When a requirement is added, the lifecycle shall record it in the acceptance criteria table.
+- **R37** — When a person overrides a failing check, the lifecycle shall record the override in a file naming the check, the authority and the reason.
+- **R38** — While a failing check is overridden, the lifecycle shall render it as failed and waived, and never as passed.
 
 ### State-driven
 
@@ -196,6 +198,8 @@ until a human rules on it.
 | R34 | `ruling-requested` check — a raised concern must cite a ruling that exists, is cited back, and is filled in enough to answer. Falsified by removing a raised ruling and watching it go red. Known gap, inherited from R23: a contradiction stopped with nothing written to the spec leaves it nothing to find |
 | R35 | `spec-integrity` check — the `Next requirement id` counter is strictly above every id ever used, superseded and withdrawn included, and every addition is named in the change log. Falsified by setting the counter below a used id, which drops R8.1 to 4 of 28 while R8.2 still holds |
 | R36 | `acceptance-rows` check — every active requirement has a row in this table. Falsified by adding an active requirement with no row. Known gap, inherited from R8: it asserts a row EXISTS, never that the row is true |
+| R37 | `waiver-rendering` check — a waiver file that omits the check, the authority or the reason is a finding, and a waiver naming a check that does not exist is a finding. Falsified per field |
+| R38 | `waiver-rendering` check — a waived failing check is rendered `FAIL - WAIVED BY <authority>` and its status stays `fail`; the run reports it as waived rather than passed, and P1 is why: the measurement does not move because a person decided something about it |
 | R8 | `acceptance-rows` check — asserts every active requirement has a row here. Superseded, withdrawn and inferred requirements are exempt, the last per `references/import.md:70`. Measured 2026-08-30: 25 active, 25 rows. |
 | R9 | `guide-current` check over `build-guide.sh --check` — regenerates the guide's requirements section into memory and reports drift without writing. Falsified by weakening a requirement's wording inside the markers; missing markers are refused rather than guessed at. |
 | R10 | `import-marking` check — fails a requirement attributed to an import that carries no inferred marking. Attribution is structural, from a marked sibling's change-log row or introducing commit; the naive signal (the word *import* in a message) was built first and measured as unusable. **Declared limitation:** an import that marked nothing and named no stage is invisible, and the run says so. |
@@ -219,6 +223,7 @@ someone edits one and not the other.
 | Date | Issue | Branch / PR | Added | Refined | Superseded / withdrawn | Summary |
 |---|---|---|---|---|---|---|
 | <YYYY-MM-DD> | <#123 / PROJ-123> | `<branch>` / <pr> | R41–R43 | R12 | R7 → R41 | <what changed and why> |
+| 2026-09-02 | [#7](https://github.com/gitayg/productizer/issues/7) | `feature/7-waiver-rendering` / PR | R37–R38 | — | — | B13. A ruling records that a person overruled a failing check; what the CHECK shows afterwards was never decided. Intake split it because the rendering and the FORMAT that records the waiver are two obligations - a ruling file records the decision and no file format records the waiver, which is why this sat blocked by design rather than by effort. P1 constrains the answer: an overridden check WAS measured, so P1 does not forbid this, but a failure rendered green because somebody said so is a judgment wearing a measurement's clothes. So the status stays `fail` and only the rendering and the blocking change. |
 | 2026-09-01 | — | — | R33–R36 | — | R8 → R35, R36; R23 → R33, R34 | B31. Each carried two `shall` clauses under one id. The runner takes the best SINGLE claim per requirement, never a union, so a requirement whose halves are asserted by two different checks reads `Partial` forever - which is what both did. Split so every obligation has its own id and its own claim, the same remedy applied to R14, R16 and R21. Originals retained verbatim, marked superseded. |
 | 2026-08-29 | — | — | R23–R28 | — | R14 → R23, R24; R16 → R25, R26; R21 → R27, R28 | Each of the three carried two `shall` clauses under one id. Split so every obligation has its own id and neither half can be half-tested. Originals retained verbatim, marked superseded. |
 | 2026-08-30 | [#2](https://github.com/gitayg/productizer/issues/2) | `feature/2-argv-any-position` / PR | R29 | — | — | R18 is narrower than P4, the principle it is listed as enforcing: it names a shell or an interpreter with an inline program, and says nothing about the other argv positions. Three bypasses were reproduced against it. Classified `extend` at Stage 1 and kept as extend by ruling: R18 stays active and true. **Recorded against that choice:** R29 subsumes R18, so a test satisfying R18 proves nothing about R29 - the same shape as the defect that split R14, R16 and R21, and the reason supersede was the alternative considered. |

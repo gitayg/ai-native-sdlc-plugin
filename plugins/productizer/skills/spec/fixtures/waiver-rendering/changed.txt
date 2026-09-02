@@ -1,0 +1,2 @@
+fixture/finding.txt
+fixture/clean.txt
