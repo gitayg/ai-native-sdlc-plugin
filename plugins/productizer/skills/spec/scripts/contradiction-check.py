@@ -355,8 +355,17 @@ def compare(a: Requirement, b: Requirement) -> Verdict:
         return Verdict(CONSISTENT, f"different subjects: '{a.system}' and '{b.system}'", a, b)
 
     rel, why = guard_relation(a, b)
-    if rel in (GUARD_DISJOINT, GUARD_UNRELATED):
+    if rel == GUARD_DISJOINT:
         return Verdict(CONSISTENT, f"guards cannot both apply — {why}", a, b)
+    # GUARD_UNRELATED is NOT an exclusivity proof and must not be read as one.
+    # DISJOINT is earned: one guard negates the other, or their ranges on the
+    # same quantity do not meet. UNRELATED only says the two guards share no
+    # vocabulary - and "while dunning is active" against "when the cart is
+    # abandoned" share none while describing the same moment. Treating a lexical
+    # gap as logical exclusion let the checker answer CONSISTENT about a pair it
+    # had not examined, which is the silent miss this whole file exists to
+    # refuse. It now carries the same weight as UNKNOWN: not a reason to stop
+    # looking, and not enough to convict on either.
 
     # Numeric class: same measured quantity, incompatible bounds.
     ra, rb = bounds(a.response), bounds(b.response)
@@ -367,7 +376,7 @@ def compare(a: Requirement, b: Requirement) -> Verdict:
         if not same_quantity:
             continue
         if ra[dim].meet(rb[dim]).empty():
-            if rel == GUARD_UNKNOWN:
+            if rel in (GUARD_UNKNOWN, GUARD_UNRELATED):
                 return Verdict(UNDECIDED, f"bounds {ra[dim]} and {rb[dim]} are incompatible "
                                           f"but {why}", a, b)
             return Verdict(CONTRADICTION,
@@ -385,7 +394,7 @@ def compare(a: Requirement, b: Requirement) -> Verdict:
     # Exclusion class: responses that cannot both be performed.
     reason = exclusive_responses(a.response, b.response)
     if reason:
-        if rel == GUARD_UNKNOWN:
+        if rel in (GUARD_UNKNOWN, GUARD_UNRELATED):
             return Verdict(UNDECIDED, f"{reason}, but {why}", a, b)
         return Verdict(CONTRADICTION, f"{reason} ({why})", a, b)
 
@@ -521,6 +530,10 @@ CASES = [
      "R39: If a token is expired, then the auth service shall deny the request.",
      "R40: If a token is valid, then the auth service shall allow the request.",
      "lexicon fires but the guards are not resolvable — must escalate, not halt"),
+    ("U2", UNDECIDED,
+     "R41: While dunning is active, the billing service shall retain the subscription.",
+     "R42: When the cart is abandoned, the billing service shall delete the subscription.",
+     "guards share no vocabulary yet may both hold — escalate, never call it consistent"),
 ]
 
 
