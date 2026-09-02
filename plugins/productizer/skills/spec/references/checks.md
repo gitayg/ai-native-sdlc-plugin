@@ -615,13 +615,38 @@ thirty-three, printed by a different part of the pipeline.
 | Value | Behaviour |
 |---|---|
 | `auto` (default) | measure as soon as any check declares `spec_units`; while none does, say `not_declared` out loud and do not refuse |
-| `require` | always measure; a spec that cannot be read refuses the run |
+| `require` | always measure; a spec that cannot be read refuses the run, and so does any requirement no check names |
 | `report` | always measure, never refuse. The line reads *declared but not enforced* |
 | `"off"` | committed, visible opt-out. Quote it — YAML reads a bare `off` as the boolean false |
 
 `auto` exists so that adding this file to a repo mid-adoption does not turn
 every run red on day one. What it does not do is report silence as success:
 with nothing declared the line reads *unmeasured, not covered*.
+
+**What `require` refuses on, and why it is not "everything Covered".**
+
+`require` used to refuse on `Partial` as well as `Missing`, which made it
+unreachable rather than strict. Some obligations cannot be fully proven from
+inside a repository at all. In this one: catching a guide sentence that
+contradicts a requirement without naming its id needs reading rather than
+matching, and `models.checks` forbids a model in this path; whether a downloaded
+file lands only on the viewer's device is a fact about the publishing service;
+the gate's refusal path needs a forbidden publish actually attempted; a
+classification of `duplicate` or `contradict` merges nothing and so writes
+nothing to find; and a requirement about an unreachable spec home cannot fire in
+a repository whose spec home is reachable. Demanding `Covered` for those demands
+a proof that does not exist, and a gate that cannot be satisfied is one somebody
+switches off.
+
+So the bar is **nothing may be silently unproven**. `Missing` refuses — no check
+names the requirement. A `Partial` is accepted, and what earns it that is the
+`reason`: the loader refuses to load a `Partial` without one, so every partial
+claim has already said which part is unasserted, in the run's own output, where
+a reader can disagree with it.
+
+That guards the failure this stage actually has. A check claiming more than it
+proves, or vanishing, lands as `Missing` or as a claim voided by a check that
+did not run — and both still refuse.
 
 **`auto` has no middle, which is why `report` exists.** Enforcement under `auto`
 is all-or-nothing: the FIRST check to declare a `spec_units` claim turns it on

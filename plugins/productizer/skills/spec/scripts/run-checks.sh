@@ -844,6 +844,18 @@ for idx, chk in enumerate(checks):
                 bad("%s claims `n/a` with no `reason`. An n/a removes a requirement from the "
                     "denominator, so it states why in a line a reviewer can disagree with. "
                     "\"Hard to test\" is not n/a." % cw)
+        elif vd == "Partial":
+            # A PARTIAL MUST SAY WHAT IT DOES NOT PROVE, and this is not a style
+            # rule. Under `require`, a Partial is ACCEPTED - the run does not
+            # refuse on it - and the entire basis for accepting it is that the
+            # gap is written down where a reader can see it. A Partial with no
+            # reason is not a declared gap; it is an undeclared one wearing a
+            # verdict, which is exactly what `require` exists to stop.
+            if not isinstance(reason, str) or not reason.strip():
+                bad("%s claims `Partial` with no `reason`. Under `policy.spec_coverage: require` a "
+                    "Partial does not refuse the run, and what earns it that is the sentence saying "
+                    "which part is unasserted. Without one it is an undeclared gap with a verdict "
+                    "on it. Say what this check does NOT prove." % cw)
         elif reason is not None and (not isinstance(reason, str) or not reason.strip()):
             bad("%s.reason must be a non-empty string when given" % cw)
         evidence = cl.get("evidence")
@@ -1467,7 +1479,27 @@ if sc["status"] == "measured":
     counts = {"Covered": 0, "Partial": 0, "Missing": 0, "n/a": 0}
     for r in unit_rows:
         counts[r["verdict"]] += 1
-    spec_unsatisfied = [r for r in unit_rows if r["verdict"] in ("Partial", "Missing")]
+    # WHAT `require` REFUSES ON, AND WHY IT IS NOT "EVERYTHING SHORT OF COVERED".
+    #
+    # This used to be `Partial or Missing`, which made the setting unreachable
+    # rather than strict. Some obligations cannot be fully proven from inside a
+    # repository at all: one needs a model in the check path, which
+    # `models.checks` forbids; one is a fact about the publishing service; one
+    # names a situation this repository has never been in. Demanding Covered for
+    # those is demanding a proof that does not exist, and a gate that can never
+    # be satisfied is a gate somebody switches off.
+    #
+    # So the bar is: NOTHING MAY BE SILENTLY UNPROVEN. `Missing` refuses - no
+    # check names the requirement at all. A `Partial` is accepted only because
+    # the config loader above refuses to load one without a `reason`, so every
+    # Partial has already stated which part is unasserted, in the run's own
+    # output where a reader can disagree with it.
+    #
+    # The failure this actually guards against is the one that has bitten this
+    # repository repeatedly: a check quietly claiming more than it proves, or
+    # disappearing entirely. Both land as `Missing` or as a claim voided by a
+    # check that did not run, and both still refuse.
+    spec_unsatisfied = [r for r in unit_rows if r["verdict"] == "Missing"]
     spec_report.update({"units_total": len(unit_rows), "counts": counts, "units": unit_rows,
                         "satisfied": not spec_unsatisfied})
 

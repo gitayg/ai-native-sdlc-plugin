@@ -9,19 +9,27 @@ policy:
   # trusted cannot run its own tooling.
   allow_repo_local_tools: true
   output: .claude/productizer/checks-result.json
-  # MEASURE THE SPEC, DO NOT REFUSE ON IT YET. `auto` has no middle: the first
-  # coverage claim anyone declares turns enforcement on for the WHOLE spec, so
-  # recording the first four honest claims took this repo from green to refusing
-  # every run - punishing exactly the act it is meant to encourage.
+  # ENFORCED. Every active requirement must be named by some check, and the run
+  # refuses if one is not.
   #
-  # This is not a way to stop counting. The denominator still comes from the
-  # spec, every uncovered requirement is still named in the output, and the line
-  # reads "declared but not enforced" so nobody mistakes the run for clean
-  # coverage. It is a committed, visible statement that the mapping is
-  # unfinished. Turning this to `require` is the last step of B28, and it is
-  # deliberately the LAST step: flipping it before the other 21 requirements are
-  # mapped refuses every run and teaches everyone to ignore the stage.
-  spec_coverage: report
+  # `require` no longer means "everything Covered", and that change is what made
+  # it reachable. Five obligations here cannot be fully proven from inside a
+  # repository: one needs a model in the check path, which the `models.checks`
+  # block forbids outright; one is a fact about the publishing service; one
+  # needs a forbidden publish actually attempted; one covers a classification
+  # that merges nothing and so writes nothing; one names a situation this
+  # repository has never been in. Demanding Covered for those demanded a proof
+  # that does not exist, and a gate that cannot be satisfied is one somebody
+  # switches off.
+  #
+  # The bar is now: NOTHING MAY BE SILENTLY UNPROVEN. `Missing` refuses. A
+  # `Partial` is accepted only because the loader refuses to load one without a
+  # `reason`, so every Partial has already said which part is unasserted, in the
+  # output, where a reader can disagree with it. That guards the failure this
+  # repository keeps having - a check claiming more than it proves, or vanishing
+  # - because both land as Missing or as a claim voided by a check that did not
+  # run, and both still refuse.
+  spec_coverage: require
 
 defaults:
   timeout_seconds: 180
