@@ -395,6 +395,7 @@ spans several repos, and what breaks when it is split:
 | Importing a repo that has no spec | `references/import.md` |
 | Declared checks, coverage, hollow passes | `references/checks.md` |
 | Deterministic contradiction detection | `references/solver.md` |
+| Which control obligations the artifacts evidence | `references/compliance-map.md` |
 | Spec-versus-code drift | `references/drift.md` |
 | Where a spec lives across repos | `references/spec-stores.md` |
 | Resident state at session start | `references/session-start.md` |

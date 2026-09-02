@@ -6,6 +6,17 @@ be tested, so Stage 4's question — *do the tests actually assert the criteria*
 stays a matter of opinion. EARS makes it checkable, because every requirement
 already names its trigger, its precondition and an observable response.
 
+EARS is not ours. It was published by Alistair Mavin, Philip Wilkinson, Adrian
+Harwood and Mark Novak as *Easy Approach to Requirements Syntax (EARS)* at the
+17th IEEE International Requirements Engineering Conference (RE'09), and was
+developed at Rolls-Royce to write engine-control requirements against
+airworthiness regulation. That origin is the reason to use it rather than
+invent a house syntax: the patterns have been applied to requirements where
+being wrong is not a defect report, and they are already understood by people
+who have never heard of this tool. The canonical description is at
+<https://alistairmavin.com/ears/>. Where this document and Mavin's differ,
+his is the standard and this one is the bug.
+
 ## The five patterns
 
 **Ubiquitous** — always active, no precondition.
@@ -312,6 +323,36 @@ One inconsistency is worth knowing before you run it: rule 1 above says one
 and **R21**. That is why `EARS_MULTIPLE_SHALL` is WARN rather than ERROR — the
 spec is green by default and fails `--strict` until the three are split or the
 rule is amended. Reporting it clean would make rule 1 decorative.
+
+## All five, and why that is not what "EARS support" usually means
+
+Five patterns is the whole grammar, and dropping any of them is not a
+simplification — it removes the requirements that pattern was the only way to
+express. Without **While**, a requirement that holds for the duration of a state
+gets rewritten as an event and loses the state. Without **Where**, an
+optional-feature requirement becomes an unconditional one, which is a different
+and stronger claim than anyone agreed to. Without the `If`/`when` split, a
+defended failure path and a designed happy path become the same sentence shape,
+and the spec stops recording which is which.
+
+This matters because the surrounding ecosystem is not shipping five. Surveying
+the spec-driven tools in September 2026, the most-starred EARS-adjacent MCP
+server drops **While** and **Where** entirely, conflates event-driven with
+unwanted-behaviour, and never uses the word EARS anywhere in its documentation.
+What propagates under the name is frequently an unattributed three-line subset.
+A request to add EARS validation to one of the largest spec-driven frameworks
+was closed with no maintainer response.
+
+So "supports EARS" is not a capability claim worth trusting on its own, and it
+is not one this document asks anyone to take on trust either. The check is
+mechanical: `scripts/validate-spec.py` compiles a pattern for each of the six
+forms — complex, state-driven, event-driven, unwanted-behaviour,
+optional-feature and ubiquitous — and a requirement matching none of them is
+reported by id. It additionally enforces one `shall` per requirement, a named
+system before the `shall`, and the `If <trigger>, then the <system> shall
+<response>.` form specifically. Run it against a spec and read the output; that
+is a shorter route to the truth than reading anyone's feature list, including
+this one.
 
 ## What EARS does not do
 
