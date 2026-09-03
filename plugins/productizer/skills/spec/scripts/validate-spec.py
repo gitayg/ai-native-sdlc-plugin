@@ -1091,6 +1091,7 @@ Next requirement id
 - **R1** — The widget shall hold exactly one living spec.
 - **R1** — The widget shall do something else entirely.
 - **R7** — The widget shall be fast.
+- **R8** — The widget shall answer in a second or two.
 - **R2** — The widget handles input.
 - **RX** — The widget shall parse.
 
@@ -1274,7 +1275,7 @@ def self_test():
     expect("broken-spec", doc, [
         "ID_REUSED", "ID_MALFORMED", "ID_AT_OR_ABOVE_COUNTER",
         "ID_OUT_OF_ORDER", "EARS_NO_SHALL", "EARS_UNQUANTIFIED",
-        "EARS_MULTIPLE_SHALL", "SUPERSEDE_SELF",
+        "EARS_VAGUE_QUANTITY", "EARS_MULTIPLE_SHALL", "SUPERSEDE_SELF",
     ])
 
     doc = run("valid-constitution.md", VALID_CONSTITUTION)
