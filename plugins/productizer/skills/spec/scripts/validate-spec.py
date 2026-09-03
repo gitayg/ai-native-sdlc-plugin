@@ -131,6 +131,22 @@ UNQUANTIFIED = [
 UNQUANTIFIED_RE = re.compile(
     r"\b(" + "|".join(re.escape(w) for w in UNQUANTIFIED) + r")\b", re.I)
 
+# The same deferral wearing a number's clothes. `quickly` is caught above and
+# `a second or two` was not, though neither can be asserted by a test - and
+# `roughly 500 ms` is the worst of them, because it reads as measured. A hedge
+# is only matched WHERE IT QUALIFIES A QUANTITY: "about" before a digit is a
+# tolerance nobody stated, "about" before a noun is ordinary prose and is left
+# alone, which is why the digit is required rather than the word being listed.
+VAGUE_QUANTITY_RE = re.compile(
+    r"\b("
+    r"an?\s+(?:millisecond|second|minute|hour|day|week|month|year)s?\s+or\s+two"
+    r"|(?:a\s+few|a\s+couple\s+of|a\s+handful\s+of|several)\s+"
+    r"(?:ms|milliseconds?|seconds?|minutes?|hours?|days?|weeks?|months?|years?"
+    r"|bytes?|kb|mb|gb|requests?|items?|records?|times?)"
+    r"|(?:roughly|approximately|about|around|circa|~)\s*\d+"
+    r"|\d+\s*ish"
+    r")\b", re.I)
+
 # Sections whose R-citations must resolve. Deliberately excludes
 # "How to read this file" and "Requirement index" — see format-spec.md.
 CITED_SECTIONS = {
@@ -547,6 +563,12 @@ def check_spec_ears(doc):
             doc.add(requirement.line, WARN, "EARS_UNQUANTIFIED",
                     "%s uses the unquantified term `%s`; give a number or "
                     "drop it" % (requirement.ident, found.group(1)))
+        vague = VAGUE_QUANTITY_RE.search(text)
+        if vague:
+            doc.add(requirement.line, WARN, "EARS_VAGUE_QUANTITY",
+                    "%s says `%s`, which states a quantity without settling "
+                    "it; a bound a test can assert has one number and no "
+                    "hedge" % (requirement.ident, vague.group(1).strip()))
 
 
 def check_spec_status(doc):

@@ -316,6 +316,33 @@ def negation_of(a: str, b: str) -> bool:
     return (ta - neg) == (tb - neg)
 
 
+# Identifiers as they appear in a wire contract - snake_case or dotted. The
+# ordinary tokeniser strips punctuation, so `amount_cents` reaches it as
+# "amount" plus "cents" and two different field names look like overlapping
+# prose. Field names are the one place in a requirement where a single
+# character's difference is the whole meaning, so they are read whole.
+IDENT_RE = re.compile(r"\b[a-z][a-z0-9]*(?:[_.][a-z0-9]+)+\b", re.I)
+
+
+def identifier_drift(a: str, b: str) -> str | None:
+    """Two responses naming the same artefact but a different field for it.
+
+    Deliberately NOT a contradiction. Renaming a field in place breaks every
+    consumer, and adding a second field breaks nobody, and the two are the same
+    sentence from here - only a person knows which was meant. So this reports
+    and escalates rather than convicting, which is what UNDECIDED is for."""
+    ia = {m.group(0).lower() for m in IDENT_RE.finditer(a)}
+    ib = {m.group(0).lower() for m in IDENT_RE.finditer(b)}
+    if not ia or not ib:
+        return None
+    shared, only_a, only_b = ia & ib, ia - ib, ib - ia
+    if not shared or len(only_a) != 1 or len(only_b) != 1:
+        return None
+    return (f"same {sorted(shared)[0]} carrying a different field: "
+            f"'{only_a.pop()}' against '{only_b.pop()}' - a rename breaks every "
+            f"consumer and an addition breaks none, and only a person knows which")
+
+
 def exclusive_responses(a: str, b: str) -> str | None:
     """Return a reason string when the two responses cannot both be performed."""
     if negation_of(a, b):
@@ -443,6 +470,11 @@ def compare(a: Requirement, b: Requirement) -> Verdict:
         if rel in (GUARD_UNKNOWN, GUARD_UNRELATED):
             return Verdict(UNDECIDED, f"{reason}, but {why}", a, b)
         return Verdict(CONTRADICTION, f"{reason} ({why})", a, b)
+
+    if rel in (GUARD_EQUAL, GUARD_OVERLAP):
+        drift = identifier_drift(a.response, b.response)
+        if drift:
+            return Verdict(UNDECIDED, drift, a, b)
 
     if tokens(a.response) == tokens(b.response) and rel == GUARD_EQUAL:
         return Verdict(CONSISTENT, "duplicate: same guard, same response", a, b)
