@@ -343,6 +343,36 @@ def identifier_drift(a: str, b: str) -> str | None:
             f"consumer and an addition breaks none, and only a person knows which")
 
 
+# One requirement closing a scope, another opening or carving out of it.
+# "resolve a principal for EVERY request" against "serve the caller WITHOUT an
+# identity lookup"; "report ONLY that tenant's records" against "the median
+# ACROSS ALL customers". Neither pair shares an antonym or a bound, so every
+# other branch here reads them as unrelated prose.
+CLOSED_SCOPE = re.compile(r"\b(only|every|each)\b", re.I)
+OPEN_SCOPE = re.compile(r"\b(all|any|other|without|across)\b", re.I)
+
+
+def scope_tension(a: str, b: str) -> str | None:
+    """One response closes a scope and the other widens or exempts from it.
+
+    Reports and escalates, never convicts. A carve-out from a universal is
+    sometimes exactly the intended exception and sometimes the thing that
+    breaks it, and the two are the same sentence from here - `Where a route is
+    public` is a legitimate exception to `every request`, and `without an
+    identity lookup` may not be. That is a ruling, not an arithmetic result."""
+    ca, cb = CLOSED_SCOPE.search(a), CLOSED_SCOPE.search(b)
+    oa, ob = OPEN_SCOPE.search(a), OPEN_SCOPE.search(b)
+    if ca and ob:
+        closed, opened = ca.group(1).lower(), ob.group(1).lower()
+    elif cb and oa:
+        closed, opened = cb.group(1).lower(), oa.group(1).lower()
+    else:
+        return None
+    return (f"one response closes a scope with '{closed}' and the other opens "
+            f"or exempts from it with '{opened}' - an intended exception and a "
+            f"broken universal read the same from here")
+
+
 def exclusive_responses(a: str, b: str) -> str | None:
     """Return a reason string when the two responses cannot both be performed."""
     if negation_of(a, b):
@@ -478,6 +508,11 @@ def compare(a: Requirement, b: Requirement) -> Verdict:
 
     if tokens(a.response) == tokens(b.response) and rel == GUARD_EQUAL:
         return Verdict(CONSISTENT, "duplicate: same guard, same response", a, b)
+
+    if rel in (GUARD_EQUAL, GUARD_OVERLAP):
+        tension = scope_tension(a.response, b.response)
+        if tension:
+            return Verdict(UNDECIDED, tension, a, b)
 
     return Verdict(CONSISTENT, "no incompatibility inside the decidable fragment", a, b)
 
