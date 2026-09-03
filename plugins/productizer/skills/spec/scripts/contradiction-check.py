@@ -439,6 +439,31 @@ def budget_conflict(a: str, b: str) -> str | None:
     return None
 
 
+# Stopping an activity against performing it. "stop charging them at the end of
+# the current cycle" and "issue a final charge at the next cycle" name the same
+# activity and cannot both hold, but they share no antonym pair - `stop` opposes
+# `start`, and nothing in the lexicon opposes `issue`. The opposition is not
+# between two verbs; it is between a verb and its own cessation.
+CEASE_RE = re.compile(r"\b(?:stop|stops|cease|ceases|halt|halts|discontinue|discontinues)\s+(\w+)", re.I)
+
+
+def ceased_activity(a: str, b: str) -> str | None:
+    """One response stops an activity the other performs.
+
+    Requires exactly one side to be a cessation. When BOTH stop the same thing
+    they agree, which is the shape of the corpus's vocabulary-drift duplicate,
+    and reading a conflict off it would be the plainest false positive here."""
+    for x, y in ((a, b), (b, a)):
+        m = CEASE_RE.search(x)
+        if not m or CEASE_RE.search(y):
+            continue
+        activity = m.group(1).lower()[:5]
+        if any(t.startswith(activity) for t in stems(y)):
+            return (f"one response stops '{m.group(1)}' and the other performs "
+                    f"it - a cessation and its activity, not two opposed verbs")
+    return None
+
+
 def exclusive_responses(a: str, b: str) -> str | None:
     """Return a reason string when the two responses cannot both be performed."""
     if negation_of(a, b):
@@ -453,6 +478,10 @@ def exclusive_responses(a: str, b: str) -> str | None:
             if y in sa and y in sb:
                 continue
             return f"mutually exclusive responses: '{x}' against '{y}'"
+    ceasing = ceased_activity(a, b)
+    if ceasing:
+        return ceasing
+
     ma, mb = ASSIGN_RE.search(a), ASSIGN_RE.search(b)
     if ma and mb and ma.group("attr").strip().lower() == mb.group("attr").strip().lower():
         if ma.group("val").lower() != mb.group("val").lower():
@@ -481,6 +510,11 @@ def exclusive_responses(a: str, b: str) -> str | None:
 SYNONYM_GROUPS = [
     {"cancel", "terminate", "close", "end"},
     {"subscription", "plan", "account", "membership"},
+    # The party the event happens to, named differently on either side of the
+    # same sentence. Verified before adding: the one must-not-halt case this
+    # newly matches, N07, still resolves CONSISTENT, because its two responses
+    # are identical and matching guards give the response test nothing to find.
+    {"customer", "subscriber", "member"},
 ]
 
 
@@ -787,6 +821,14 @@ CASES = [
      "R51: When a customer cancels their subscription, the billing service shall stop charging them at the end of the cycle.",
      "R52: When a subscriber terminates their plan, the billing service shall stop charging them at the end of the cycle.",
      "the same synonyms over the SAME response — matching guards must not invent a conflict"),
+    ("Z1", CONTRADICTION,
+     "R53: When a customer cancels their subscription, the billing service shall stop charging them at the end of the cycle.",
+     "R54: When a subscriber terminates their plan, the billing service shall issue a final charge at the next cycle.",
+     "a cessation against its own activity, under guards that match only via synonyms"),
+    ("Z2", CONSISTENT,
+     "R55: When a batch completes, the widget shall stop polling the queue.",
+     "R56: When a batch completes, the widget shall cease polling the queue.",
+     "BOTH responses stop the same activity — agreement, not conflict"),
 ]
 
 
