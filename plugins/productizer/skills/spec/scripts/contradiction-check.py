@@ -286,6 +286,10 @@ EXCLUSIVE_PAIRS = [
     # commonest of them and the one that reaches four cases on its own.
     ("remove", "retain"), ("remove", "preserve"), ("expunge", "move"),
     ("decline", "honour"), ("suspend", "keep"), ("abandon", "retry"),
+    # Direct antonyms of continuation and of serving a request, both missing
+    # while their near-neighbours were present: ("start", "stop") and
+    # ("continue", "abort") were carried, ("continue", "stop") was not.
+    ("continue", "stop"), ("deny", "serve"),
 ]
 
 # Verb forms are matched on stems so "deletes"/"deleted"/"deleting" all hit.
