@@ -151,7 +151,7 @@ checks:
   # on the offending line instead. Same rule, same minimum, next to the code.
     limitations:
       - It is a second opinion on numeric bounds and mutually exclusive responses. Its CONSISTENT means not decided, never cleared.
-      - Recall was 0.70 on the corpus written first and 0.12 on a harder one, so the figure tracked the corpus rather than the checker.
+      - Recall tracks the corpus more than the checker, so both figures are carried together and dated. 2026-09-03, after the disposition lexicon landed: 0.82 on the corpus written first, 0.38 on the harder 26-case one. Before it: 0.73 and 0.12. Precision is 1.00 on the first and 0.83 on the harder one, where a single false positive stands - N09, an extend that complies with a principle.
 
   - id: stderr-suppression
     why: an error and a genuine no-match look identical once stderr is discarded, and this repo has already shipped three defects that hid in exactly that gap
