@@ -279,6 +279,13 @@ EXCLUSIVE_PAIRS = [
     ("reject", "queue"), ("reject", "retry"), ("reject", "defer"),
     ("deny", "queue"), ("discard", "queue"), ("discard", "retry"),
     ("drop", "queue"), ("drop", "retry"),
+    # Six dispositions the 26-case corpus opposes that this lexicon did not
+    # carry. They were not guessed: `evals/solver-probe.py --break lexicon` held
+    # them as MISSING_PAIRS and measured what adding them was worth, so the gap
+    # was quantified before it was closed. Erasure against retention is the
+    # commonest of them and the one that reaches four cases on its own.
+    ("remove", "retain"), ("remove", "preserve"), ("expunge", "move"),
+    ("decline", "honour"), ("suspend", "keep"), ("abandon", "retry"),
 ]
 
 # Verb forms are matched on stems so "deletes"/"deleted"/"deleting" all hit.

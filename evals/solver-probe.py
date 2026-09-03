@@ -155,7 +155,21 @@ def run(cc, brk: str | None) -> int:
     if brk == "guards":
         cc.guard_relation = lambda a, b: (cc.GUARD_EQUAL, "BROKEN: guard relation disabled")
     elif brk == "lexicon":
-        cc.EXCLUSIVE_PAIRS = list(cc.EXCLUSIVE_PAIRS) + MISSING_PAIRS
+        # Only the pairs the shipped lexicon does NOT already carry. Once they
+        # land in contradiction-check.py this list is a duplicate, the ablation
+        # adds nothing, and it would report a zero delta that reads exactly like
+        # "the lexicon does not matter" - a control asserting over an empty set,
+        # which has bitten this repository twice. So it is computed, and an
+        # empty result is announced rather than run silently.
+        have = {tuple(sorted(pair)) for pair in cc.EXCLUSIVE_PAIRS}
+        add = [p for p in MISSING_PAIRS if tuple(sorted(p)) not in have]
+        if not add:
+            print("--break lexicon adds nothing: every pair it holds is already in\n"
+                  "the shipped lexicon, so this run is identical to the un-ablated one.\n"
+                  "The gap it was written to measure is closed. Re-point MISSING_PAIRS\n"
+                  "at dispositions the corpus opposes and the lexicon still lacks\n"
+                  "before reading any delta from it.\n")
+        cc.EXCLUSIVE_PAIRS = list(cc.EXCLUSIVE_PAIRS) + add
 
     rows = []
     for slug, should_halt, sa, sb in PAIRS:
