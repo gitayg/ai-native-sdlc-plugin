@@ -469,6 +469,46 @@ def exclusive_responses(a: str, b: str) -> str | None:
 # Guard relation
 # --------------------------------------------------------------------------
 
+# One lifecycle event written two ways. "cancels their subscription", "closes
+# their account" and "terminates their plan" are the same moment in a billing
+# system, and the token overlap between them is zero - so the guard test read
+# them as unrelated and every response test below was skipped.
+#
+# A CLOSED SET, not a similarity score. A threshold over general vocabulary is
+# what starts matching guards that merely sound alike, and this file already has
+# one measured refusal on record for exactly that. Each group here is a set of
+# words that name one event in one domain; anything outside them is unchanged.
+SYNONYM_GROUPS = [
+    {"cancel", "terminate", "close", "end"},
+    {"subscription", "plan", "account", "membership"},
+]
+
+
+def canonical(token_set: set) -> set:
+    """Collapse each synonym group to its first member, leaving the rest alone.
+
+    Tokens arrive inflected - `cancels`, `closes` - while the groups are written
+    in the singular, so a bare membership test collapses nothing. The trailing
+    `s` and `es` are trimmed for the LOOKUP only; the group's own spelling is
+    what gets substituted."""
+    out = set()
+    for token in token_set:
+        # Every plausible singular, not one guessed rule: stripping "es" from
+        # "closes" yields "clos", and stripping "s" yields "close". Both are
+        # offered to the lookup and the group's own spelling is what matches.
+        forms = {token}
+        if token.endswith("s") and len(token) > 3:
+            forms.add(token[:-1])
+        if token.endswith("es") and len(token) > 4:
+            forms.add(token[:-2])
+        for group in SYNONYM_GROUPS:
+            if forms & group:
+                token = sorted(group)[0]
+                break
+        out.add(token)
+    return out
+
+
 GUARD_EQUAL, GUARD_OVERLAP, GUARD_DISJOINT = "EQUAL", "OVERLAP", "DISJOINT"
 GUARD_UNRELATED, GUARD_UNKNOWN = "UNRELATED", "UNKNOWN"
 
@@ -500,6 +540,14 @@ def guard_relation(a: Requirement, b: Requirement) -> tuple:
     j = jaccard(ta, tb)
     if j >= 0.6:
         return GUARD_OVERLAP, f"guards agree on {j:.0%} of their terms"
+
+    # Try again with lifecycle synonyms collapsed. Reported as a DIFFERENT
+    # reason, so a guard that matched only after rewriting says so on the row
+    # rather than reading like a plain agreement.
+    cj = jaccard(canonical(ta), canonical(tb))
+    if cj >= 0.6:
+        return GUARD_OVERLAP, (f"guards agree on {cj:.0%} of their terms once "
+                               f"lifecycle synonyms are collapsed")
     if j <= 0.15:
         return GUARD_UNRELATED, f"guards share {j:.0%} of their terms"
     return GUARD_UNKNOWN, f"guards share {j:.0%} of their terms, neither clearly the same nor clearly apart"
@@ -731,6 +779,14 @@ CASES = [
      "R47: The api gateway shall be available for at least 99.9 percent of each calendar month.",
      "R48: The api gateway shall be unavailable for no more than 90 minutes of each calendar month.",
      "a share of a window against a duration, conflicting at every month length"),
+    ("Y1", CONTRADICTION,
+     "R49: When a customer cancels their subscription, the billing service shall stop charging them at the end of the cycle.",
+     "R50: When a customer closes their account, the billing service shall continue charging them until the minimum term is served.",
+     "one lifecycle event written two ways — guards must match before the responses are read"),
+    ("Y2", CONSISTENT,
+     "R51: When a customer cancels their subscription, the billing service shall stop charging them at the end of the cycle.",
+     "R52: When a subscriber terminates their plan, the billing service shall stop charging them at the end of the cycle.",
+     "the same synonyms over the SAME response — matching guards must not invent a conflict"),
 ]
 
 
