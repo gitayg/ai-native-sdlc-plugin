@@ -373,10 +373,78 @@ def scope_tension(a: str, b: str) -> str | None:
             f"broken universal read the same from here")
 
 
+# Opposed verbs acting on DIFFERENT parties are not opposed at all. "exclude any
+# figure derived from ANOTHER tenant's records" and "include a month-over-month
+# trend for THAT TENANT'S OWN figures" are both true at once, and reading
+# include/exclude off them without asking what each acts on is how the corpus's
+# only false positive was produced.
+#
+# An earlier attempt gated this branch on how much vocabulary the two responses
+# shared, and the measurement refused it: the false positive sat at 0.09 overlap
+# with a true positive at 0.09 and three more at 0.00, so no threshold separated
+# them. That ruled out a THRESHOLD, not this - the difference is a referent, and
+# it is named in the text rather than inferred from a count. Measured over every
+# pair where the antonym branch fires: this fires on the false positive and on
+# none of the ten true positives.
+OTHER_PARTY = re.compile(r"\banother\b|\ball (?:customers|tenants|users|accounts)\b", re.I)
+OWN_PARTY = re.compile(r"\bown\b|\bthat (?:tenant|customer|user|account)'s\b", re.I)
+
+
+def different_referents(a: str, b: str) -> bool:
+    """True when one response is scoped to another party and the other to its own."""
+    return bool((OTHER_PARTY.search(a) and OWN_PARTY.search(b))
+                or (OTHER_PARTY.search(b) and OWN_PARTY.search(a)))
+
+
+# A budget stated as a share of a window against the same budget stated as a
+# duration: "available for at least 99.9 percent of each calendar month" against
+# "unavailable for no more than 90 minutes of each calendar month".
+#
+# THE WINDOW IS AMBIGUOUS AND IS NOT GUESSED AT. A calendar month is 28 to 31
+# days, and UNITS deliberately refuses to convert one for exactly that reason.
+# Here it does not need to: the allowance is computed at BOTH ends of the range
+# and reported only when the stated duration exceeds even the most generous of
+# them. A conflict that holds for every month length is arithmetic; one that
+# holds only for February is a guess, and this returns nothing for it.
+WINDOW_DAYS = {"day": (1, 1), "week": (7, 7), "month": (28, 31), "year": (365, 366)}
+SHARE_RE = re.compile(r"\b(?:at least|no less than)\s+([\d.]+)\s*(?:%|percent)", re.I)
+WINDOW_RE = re.compile(r"\b(?:each|every|per)\s+(?:calendar\s+)?(day|week|month|year)\b", re.I)
+
+
+def budget_conflict(a: str, b: str) -> str | None:
+    """A share-of-window allowance against a duration allowance of its complement."""
+    for x, y in ((a, b), (b, a)):
+        share, xwin = SHARE_RE.search(x), WINDOW_RE.search(x)
+        ywin = WINDOW_RE.search(y)
+        if not (share and xwin and ywin):
+            continue
+        if xwin.group(1).lower() != ywin.group(1).lower():
+            continue
+        # The two must speak about a thing and its negation - available against
+        # unavailable - or they are two unrelated budgets over one window.
+        xs, ys = stems(x), stems(y)
+        if not any(("un" + t) in ys or ("non" + t) in ys for t in xs):
+            continue
+        allowance = bounds(y).get("time")
+        if allowance is None or allowance.hi == math.inf:
+            continue
+        lo_days, hi_days = WINDOW_DAYS[xwin.group(1).lower()]
+        spare = (100.0 - float(share.group(1))) / 100.0
+        most_generous = spare * hi_days * 86400000.0
+        if allowance.hi > most_generous:
+            return (f"{share.group(1)}% of a {xwin.group(1)} leaves at most "
+                    f"{most_generous / 60000.0:.1f} minutes even at its longest, "
+                    f"and the other requirement allows {allowance.hi / 60000.0:.0f} - "
+                    f"they conflict for every {xwin.group(1)} length")
+    return None
+
+
 def exclusive_responses(a: str, b: str) -> str | None:
     """Return a reason string when the two responses cannot both be performed."""
     if negation_of(a, b):
         return "one response is the negation of the other"
+    if different_referents(a, b):
+        return None
     sa, sb = stems(a), stems(b)
     for x, y in EXCLUSIVE_PAIRS:
         if (x in sa and y in sb) or (y in sa and x in sb):
@@ -495,6 +563,10 @@ def compare(a: Requirement, b: Requirement) -> Verdict:
                                        f"{rb[dim]} inside {ra[dim]}", a, b)
 
     # Exclusion class: responses that cannot both be performed.
+    budget = budget_conflict(a.response, b.response)
+    if budget and rel in (GUARD_EQUAL, GUARD_OVERLAP):
+        return Verdict(CONTRADICTION, budget, a, b)
+
     reason = exclusive_responses(a.response, b.response)
     if reason:
         if rel in (GUARD_UNKNOWN, GUARD_UNRELATED):
@@ -651,6 +723,14 @@ CASES = [
      "R43: When a subject requests erasure, the records service shall retain the subject records for at least six weeks.",
      "R44: When a subject requests erasure, the records service shall retain the subject records for no more than 30 days.",
      "mixed units and a spelled number — six weeks against 30 days is arithmetic"),
+    ("X1", CONSISTENT,
+     "R45: When a tenant administrator requests a usage report, the records service shall exclude any figure derived from another tenant's records.",
+     "R46: When a tenant administrator requests a usage report, the records service shall include a month-over-month trend for that tenant's own figures.",
+     "opposed verbs on DIFFERENT parties — must not halt"),
+    ("B1", CONTRADICTION,
+     "R47: The api gateway shall be available for at least 99.9 percent of each calendar month.",
+     "R48: The api gateway shall be unavailable for no more than 90 minutes of each calendar month.",
+     "a share of a window against a duration, conflicting at every month length"),
 ]
 
 

@@ -40,3 +40,11 @@ evals/results/
 # records what one machine published, not a property of the tree you cloned,
 # and a committed copy would let a fresh clone claim a firing nobody observed.
 .claude/productizer/artifact-gate-log.jsonl
+
+# CPython bytecode. Nothing here imports these scripts as modules in normal use,
+# but anything that does - a probe, a test harness, an editor's language server -
+# writes a __pycache__ beside the script it loaded. It is build output of a file
+# already in the tree, so committing it adds a second copy that goes stale the
+# moment the first one changes.
+__pycache__/
+*.py[cod]
