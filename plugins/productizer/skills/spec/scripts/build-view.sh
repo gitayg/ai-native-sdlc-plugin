@@ -143,7 +143,7 @@ if git -C "$ROOT" rev-parse --git-dir >/dev/null 2>&1; then
   # A repo with no commit has no HEAD, and `git diff` failing there produces an
   # empty file that is indistinguishable from a clean tree - so the SUCCESS is
   # recorded separately, and the panel draws unknown rather than a zero.
-  if git -C "$ROOT" diff --name-status --no-renames HEAD >"$TMP/delta" 2>/dev/null; then
+  if git -C "$ROOT" diff --name-status --no-renames HEAD >"$TMP/delta" 2>/dev/null; then  # stderr-ok: this diff IS the probe for a repo with no commit, where HEAD does not resolve; the exit status is the whole answer and the success is recorded separately in delta-ok, so a failure here draws unknown rather than a zero. git fatal is the expected negative case, not an error.
     : >"$TMP/delta-ok"
   fi
   git -C "$ROOT" ls-files --others --exclude-standard >"$TMP/delta-new" 2>/dev/null || :
