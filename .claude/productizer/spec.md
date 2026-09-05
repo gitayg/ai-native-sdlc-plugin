@@ -15,7 +15,7 @@ never renumbered, and stay unique across the whole repo even if this spec is
 later split into several files.
 
 Requirements
-: 28 active, 4 superseded, 0 withdrawn.
+: 32 active, 6 superseded, 0 withdrawn.
 
 Audit trail
 : `git log -p .claude/productizer/spec.md`. Each commit is one change, joined to the

@@ -163,6 +163,28 @@ one of those citations silently. BMAD holds the same rule in nearly the same
 words, so this is table stakes done properly rather than a differentiator — but
 most tools renumber per feature, which breaks every citation you ever wrote.
 
+## The solver has a floor, and CI holds it there
+
+Under the classification sits a deterministic second opinion, and
+`evals/solver-probe.py` measures it against the 26 cases written to the classes
+it is expected to find hard. CI now gates that measurement against a baseline
+**measured 2026-09-05**: 8 caught, 1 missed, 0 false positives, 10 stayed
+quiet.
+
+Both halves of that are needed, and only one of them is expressible as a
+declared check. `checks.yaml` coverage has `min_covered`, which is a floor;
+half of this gate is a **ceiling** — false positives at most zero. A gate that
+can only assert its floor stays green through a solver that has started halting
+on non-conflicts, and a checker that halts on non-conflicts gets switched off,
+after which nothing is checked at all.
+
+The probe always exits `0`, so the step parses the counts rather than reading a
+status. **A count whose line is absent from the output is NOT MEASURED and
+fails the step** — never read as a zero, which would turn a probe that printed
+nothing into a perfect score. `undecided` is deliberately unbounded: a case
+moving from undecided to caught is the improvement the corpus exists to
+provoke, and a bound there would block it.
+
 ## Where all the intents live
 
 There is no folder of intents to manage. Under the `issues` model an intent is a
@@ -292,6 +314,29 @@ If the local list is named and unreadable the check exits 2, never 0. A
 configured private list that quietly fell back to generic-only would report
 clean while checking none of the names you cared about.
 
+### A rewritten sentence flags everything that cites it
+
+Permanent ids are why a citation survives, and they are also how one goes
+quietly wrong. `R5` means whatever R5 says today: rewrite its sentence and
+every acceptance row, every coverage claim and every downstream requirement
+naming `R5` keeps pointing at it, keeps resolving, and now describes something
+nobody re-read.
+
+The `suspect-links` check — `check-suspect-links.sh` — finds exactly that
+shape: a requirement whose sentence changed **in place**, its id and its status
+both unchanged, and every tracked file still citing that id whose own line did
+not move in the same change. A supersede or a withdrawal is not its business;
+those leave a forward pointer a reader can follow, and `check-superseded-text.sh`
+owns them. Collapsing the two would turn one supersede into three false flags.
+
+It is declared `advise`, not `block`, and that is the honest setting. **It
+cannot tell a semantic rewrite from a typo fix** — `recieve` to `receive` and
+`shall` to `shall not` are one measurement to it — and it prints that limit on
+every run, clean or not. A gate that holds a merge on a distinction it cannot
+make is a gate people route around, and a routed-around gate measures nothing.
+Exit `2` still blocks whatever the severity says: a flag you can disagree with
+is cheap, and not knowing is not.
+
 ### A contradiction now writes the question down
 
 Classifying an intent as *contradict* stops the work, and a stop nobody was
@@ -307,6 +352,52 @@ because only the third one is zero. The `ruling-requested` check fails when a
 concern is open with no ruling behind it, when a pending ruling is cited by
 nothing, and when a pending ruling is still wearing the template. A ruling that
 still reads like the template is a file, not an ask.
+
+## One page you read before you touch the spec
+
+The checks above are all here and they are all separate, and nobody runs five
+scripts before editing a requirement — so a defect only one of them reports
+sits in that one script's output and becomes furniture. This repo's own header
+said `28 active, 4 superseded` while the file held 32 and 6, reported the whole
+time by a tool nobody was running.
+
+`spec-doctor.sh` runs them and lays the answers out together: grammar and id
+permanence, the declared counts against the counted ones, superseded chains,
+acceptance rows, and rulings waiting on a person. It computes nothing a tool
+already computes, and **it changes nothing**, so you can run it twice and
+compare.
+
+```bash
+plugins/productizer/skills/spec/scripts/spec-doctor.sh
+```
+
+Three exit codes, and the third is the point: `0` every section ran and found
+nothing, `1` every section ran and there are findings, `2` a section **could
+not run** — a missing tool, an unreadable spec, a tool that refused.
+Could-not-measure outranks findings deliberately, so a page with a hole in it
+never exits `1` and claims to have looked. Both are printed and both are
+counted on the summary line; only the ranking is opinionated.
+
+A warning is a finding here. `validate-spec.py` exits `0` on warnings because
+it gates CI and a pre-existing warning must not block a merge. The doctor is
+not a gate — it is the page you read before you touch the file — and a warning
+nobody is told about is the failure it exists to end.
+
+### The header can disagree with the file, and now that is an error
+
+`validate-spec.py --counts` prints what the spec's header declares beside what
+the file actually counts, plus the header line those counts derive:
+
+```
+COUNT     .claude/productizer/spec.md  active  28  32
+DECLARED  .claude/productizer/spec.md  17  28 active, 6 superseded, 0 withdrawn.
+DERIVED   .claude/productizer/spec.md  17  32 active, 6 superseded, 0 withdrawn.
+```
+
+`DERIVED` is the line to paste when the two disagree. `--counts` reports and
+exits `0` whatever it finds; the gating happens on an ordinary run, where
+`COUNT_MISMATCH` is now an **ERROR** rather than a warning, and a stale header
+fails the file instead of decorating it.
 
 ## Docs and go-to-market, per release
 
@@ -332,6 +423,96 @@ is a hook (`publish-gate.sh`), not a convention: it blocks `gh release create`,
 `npm publish`, a tag push, a mail API and a site deploy, and allows everything
 the agent needs for its own work. A rule the agent is only asked to remember is
 a rule it eventually reasons past.
+
+### The pull-request comment renders; it never posts
+
+`pr-spec-comment.sh` writes the markdown for *what this change did to the
+spec* — the requirement delta, whether anything was classified `contradict`,
+the recorded check verdicts, the solver probe's counts — **to stdout, and
+nowhere else**.
+
+```bash
+plugins/productizer/skills/spec/scripts/pr-spec-comment.sh --base origin/main
+```
+
+`--post`, `--publish`, `--gh`, `--comment` and `--pr` are each **refused with
+exit `2` and not one byte on stdout**, and each refusal says why: posting to a
+pull request is a publish, every publish here goes through `publish-gate.sh`,
+and a script that posted by itself would route around that gate inside the
+repository that ships it. The report's own footer names the command a person
+may choose to run, and the checklist that command needs first.
+
+Nothing unmeasured is rendered as zero. *The change adds no requirement*, *the
+base ref does not resolve*, *the diff was over the cap so it was not read* and
+*the spec is not readable* all end in an empty id list, and they are four
+different facts. Each gets its own sentence, and the ones that are an absence
+of measurement rather than a measured absence exit **`5` — rendered, but
+partial** — so a caller knows the report has a hole without reading it. Exit
+`3` means it never started: not a git work tree, no such directory, or
+`spec-diff.sh` unusable.
+
+The delta itself comes from `spec-diff.sh`, and the base commit that tool
+resolves is the base every other section is measured against. One resolution of
+one ref anchors the whole report, rather than the repo holding two answers to
+one question.
+
+## Handing the record to somebody outside
+
+`emit-attestation.sh` turns the living spec, the acceptance rows and the
+recorded check results into a **CycloneDX 1.6 Attestations** document —
+requirements as `definitions.standards`, one claim per requirement, check runs
+as evidence:
+
+```bash
+plugins/productizer/skills/spec/scripts/emit-attestation.sh --out attestation.cdx.json
+```
+
+What matters is what it refuses to write. A requirement whose conformance was
+never measured gets a **rationale and no score**, never a zero and never an
+invented number: on this repository 20 of 32 mapped requirements carry a score
+and 12 carry only the reason there is none. Evidence is emitted with **no
+author** rather than a model's name in `evidence.author`, which CycloneDX types
+as a person. The facts the schema has no field for — how many commits carry a
+`Productizer-Req` trailer, how many carry `Assisted-by` — go into the
+document's root `properties` rather than being bent into a field that means
+something else.
+
+Exit `0` emitted and fully measured, `1` emitted with findings, `2` could not
+measure and **nothing was emitted**. It prints its own list of what it could
+not say, including that with no rulings directory the document attests no human
+ruling — which is unknown, not zero.
+
+## What a commit says about who wrote it
+
+`req-trailer.sh --add` records which requirements a commit served.
+`--assisted-by` adds the authorship half, following the rule the Linux kernel
+publishes in `Documentation/process/coding-assistants.rst`:
+
+```bash
+req-trailer.sh --add R14,R22 --file .git/COMMIT_EDITMSG \
+  --assisted-by --tools "coccinelle sparse"
+```
+
+appends
+
+```
+Productizer-Req: R14,R22
+Assisted-by: LLM coccinelle sparse
+```
+
+**`Signed-off-by` is never written, and neither is `Co-authored-by`.** Only a
+human can certify the DCO, and `Co-authored-by` takes a name and an address
+that git and every forge resolve to a *person* — a person-shaped claim a model
+cannot hold. Basic development tools are refused rather than listed: `--tools
+"git make"` exits `2`, writes nothing, and quotes the rule back at you. Only
+the specialised analysis tools belong on that line.
+
+`--authorship` reads it back, over a message (`--file`) or a commit (`--rev`),
+and exits `3` on a finding. It states its own limit on every run: the agent
+check is a word list of fourteen names, so a clean run shows that **no named
+agent signed off**, never that a human did — and a message with no
+`Assisted-by` is not a message written without assistance, it is one that did
+not say.
 
 ## Choosing the model per stage
 

@@ -146,6 +146,134 @@ jobs:
           set -euo pipefail
           python3 plugins/productizer/skills/spec/scripts/contradiction-check.py --selftest
 
+      # THE 26-CASE PROBE, GATED. The step above runs the solver against the
+      # corpus its own author wrote. `evals/solver-probe.py` runs it against
+      # `evals/cases/`, the 26 cases written to the classes
+      # `references/solver.md` names as undecidable - the harder and more
+      # honest number, and the one nothing off a maintainer's machine had ever
+      # measured. Nine solver changes landed against that corpus with no gate
+      # under any of them, so a lost case or a new false positive was invisible
+      # until somebody thought to run the probe by hand.
+      #
+      # A WORKFLOW STEP AND NOT A `checks.yaml` CHECK. Two reasons, the second
+      # decisive.
+      #
+      #   1. `run-checks.sh` is change-set driven: a check is selected by
+      #      `when.paths` against the files this change touched, and is reported
+      #      `not_triggered` on every other commit. The probe reads no file from
+      #      the change at all - it re-measures a fixed corpus. `when.always:
+      #      true` would make it run, as `solver-corpus` already does, but it
+      #      would be a whole-corpus measurement wearing a per-file check's
+      #      clothes, and its `files_in_scope` would be a fiction.
+      #
+      #   2. `checks.yaml` coverage has only `min_covered`, and `min_covered` is
+      #      a FLOOR - run-checks.sh validates it as "a non-negative integer"
+      #      and enforces it as `if covered < cov["min_covered"]`. There is no
+      #      ceiling anywhere in that vocabulary. Half of this gate IS a
+      #      ceiling: false positives at most 0, silent misses at most 1. And
+      #      the false-positive ceiling is precisely what the `solver-corpus`
+      #      check's own `why` says must hold - "a contradiction checker that
+      #      halts on a non-conflict gets switched off, and then nothing is
+      #      checked". Expressed as a check there, that half would simply be
+      #      absent, and the gate would stay green through the exact regression
+      #      it exists to catch. A gate that can only assert its floor is half a
+      #      gate.
+      #
+      # THE PROBE ALWAYS EXITS 0. It prints a table and a summary and returns 0
+      # whatever the numbers say; it returns 2 only when the checker file is
+      # missing entirely. So `run:` cannot gate on its status - the counts are
+      # parsed and compared instead. A count whose line is not in the output is
+      # NOT MEASURED and fails the step. It is never read as a zero, which would
+      # turn a probe that printed nothing into a perfect score.
+      #
+      # BASELINE - MEASURED 2026-09-05, at 4b4eb51, by running exactly the
+      # command below against this corpus:
+      #
+      #     true positives  (caught)          : 8
+      #     false negatives (missed silently) : 1    <- P03, the unquantified
+      #     false positives (halted wrongly)  : 0       adjective, which the
+      #     true negatives  (stayed quiet)    : 10      solver SHOULD miss
+      #     undecided       (escalated)       : 7
+      #     precision : 1.00   recall : 0.89   (n=9 must-halt cases)
+      #
+      # The bounds below ARE those five numbers, not round ones chosen near
+      # them. Moving a bound is a diff, and a diff that moves one must carry a
+      # fresh measurement and a fresh date, or the comment above stops being
+      # true and the gate stops protecting anything anybody measured.
+      #
+      # `undecided` is deliberately NOT bounded. It is 26 minus the other four,
+      # so bounding those bounds it; and a case moving from undecided to caught
+      # is the improvement this corpus was built to provoke. Bounding it would
+      # block the improvement.
+      - name: Solver — 26-case probe, against the 2026-09-05 baseline
+        if: ${{ !cancelled() }}
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/solver-probe.txt"
+          python3 evals/solver-probe.py | tee "$out"
+          python3 - "$out" <<'PY'
+          import re
+          import sys
+
+          # Measured 2026-09-05 at 4b4eb51. FLOOR = at least this many.
+          # CEIL = at most this many. Both halves are needed: a floor alone
+          # cannot see a solver that starts halting on non-conflicts.
+          FLOOR = {"true positives": 8, "true negatives": 10}
+          CEIL = {"false negatives": 1, "false positives": 0}
+          PAT = {
+              "true positives": r"true positives\s*\(caught\)\s*:\s*(\d+)",
+              "false negatives": r"false negatives\s*\(missed silently\)\s*:\s*(\d+)",
+              "false positives": r"false positives\s*\(halted wrongly\)\s*:\s*(\d+)",
+              "true negatives": r"true negatives\s*\(stayed quiet\)\s*:\s*(\d+)",
+          }
+
+          with open(sys.argv[1], encoding="utf-8") as fh:
+              text = fh.read()
+
+          got = {}
+          unmeasured = []
+          for name, pat in PAT.items():
+              m = re.search(pat, text)
+              if m is None:
+                  unmeasured.append(name)
+              else:
+                  got[name] = int(m.group(1))
+
+          if unmeasured:
+              for name in unmeasured:
+                  print("::error::solver probe: '%s' NOT MEASURED - its summary "
+                        "line is absent from the probe's output. That is not a "
+                        "zero and is not read as one." % name)
+              print("::error::the probe ran and exited 0 but did not report %d of "
+                    "the %d counts this gate is defined over, so nothing was "
+                    "compared. Refusing rather than passing on an unread number."
+                    % (len(unmeasured), len(PAT)))
+              raise SystemExit(1)
+
+          failures = []
+          for name, floor in FLOOR.items():
+              if got[name] < floor:
+                  failures.append("%s: %d, BELOW the measured baseline of %d"
+                                  % (name, got[name], floor))
+          for name, ceil in CEIL.items():
+              if got[name] > ceil:
+                  failures.append("%s: %d, ABOVE the measured baseline of %d"
+                                  % (name, got[name], ceil))
+
+          this_run = ", ".join("%s %d" % (n, got[n]) for n in PAT)
+          if failures:
+              for line in failures:
+                  print("::error::solver probe regressed - %s" % line)
+              print("::error::baseline measured 2026-09-05 at 4b4eb51: true "
+                    "positives 8, false negatives 1, false positives 0, true "
+                    "negatives 10. This run: %s. Either the solver lost ground, "
+                    "or the corpus moved and the bounds in this workflow need "
+                    "re-measuring and re-dating in a diff." % this_run)
+              raise SystemExit(1)
+
+          print("solver probe at or above the 2026-09-05 baseline: %s" % this_run)
+          PY
+
       # Stage 5, last because it is the slowest: shellcheck runs per changed
       # file. Exit 3 is REFUSED (a blocking check failed, was hollow, timed
       # out, or its tool is missing); exit 2 is bad usage; exit 1 is a crash,

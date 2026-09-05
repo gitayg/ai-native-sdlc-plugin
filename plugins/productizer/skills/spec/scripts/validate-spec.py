@@ -11,9 +11,12 @@ lifecycle and neither survives being stated only in prose:
      requirement keeps its original text verbatim.
 
 Severities
-    ERROR  the document cannot be parsed, or a permanence invariant is broken.
-           Downstream citations (plans, tests, PR titles, review findings) stop
-           resolving, or resolve to the wrong requirement.
+    ERROR  the document cannot be parsed, a permanence invariant is broken, or
+           the header states a number about the file that disagrees with the
+           file. Downstream citations (plans, tests, PR titles, review
+           findings) stop resolving, or resolve to the wrong requirement; and a
+           header count that nobody re-counted is a measurement nobody took,
+           which is constitution P1 and not a matter of taste.
     WARN   the document parses and the ids hold, but the contract is violated
            in a way a later reader or tool silently mangles or half-tests.
 
@@ -29,6 +32,7 @@ Exit codes
 Usage
     validate-spec.py [--strict] [--quiet] [--kind spec|constitution|backlog] FILE...
     validate-spec.py --baseline OLD_SPEC.md NEW_SPEC.md
+    validate-spec.py --counts SPEC.md
     validate-spec.py --self-test
 
 Deterministic: no wall clock, no environment, no network is read, and problems
@@ -88,6 +92,9 @@ P_ACTIVE_RE = re.compile(r"^Active\s*\.?\s*(?P<rest>.*)$")
 PLACEHOLDER_RE = re.compile(r"<[^<>]*>")
 DEFLIST_VALUE_RE = re.compile(r"^:\s*(?P<value>.*)$")
 BACKTICK_RE = re.compile(r"`([^`]*)`")
+
+COUNT_WORDS = ("active", "superseded", "withdrawn")
+DECLARED_COUNT_RE = re.compile(r"(\d+)\s+(active|superseded|withdrawn)", re.I)
 
 CITATION_RE = re.compile(r"\bR([1-9][0-9]*)\b")
 CITATION_RANGE_RE = re.compile(r"\bR([1-9][0-9]*)\s*[–—-]\s*R?([1-9][0-9]*)\b")
@@ -610,27 +617,56 @@ def check_spec_status(doc):
                     "sentence" % (requirement.ident, target))
 
 
-def check_spec_counts(doc):
+def spec_counts(doc):
+    """What the header declares, and what the requirements actually come to.
+
+    Returns `(lineno, value, declared, counted)`. `declared` is empty when the
+    header carries no counts or still carries a `<placeholder>`; `counted` is
+    always all three words, because a status that is absent is zero of it and
+    that zero WAS counted.
+
+    The check and `--counts` both read this. Two callers counting the same
+    file separately is how a report and a header end up disagreeing while each
+    is self-consistent.
+    """
+    counted = {"active": 0, "superseded": 0, "withdrawn": 0}
+    for requirement in doc.requirements:
+        if requirement.status in counted:
+            counted[requirement.status] += 1
     entry = doc.fields.get("Requirements")
     if entry is None:
-        return
+        return 0, "", {}, counted
     lineno, value = entry
     if has_placeholder(value):
-        return
+        return lineno, value, {}, counted
     declared = {}
-    for number, word in re.findall(r"(\d+)\s+(active|superseded|withdrawn)",
-                                   value, re.I):
+    for number, word in DECLARED_COUNT_RE.findall(value):
         declared[word.lower()] = int(number)
+    return lineno, value, declared, counted
+
+
+def derived_count_value(value, counted):
+    """`value` with every declared number replaced by the number counted.
+
+    The surrounding prose and punctuation are kept, so a caller correcting the
+    header substitutes a line this script derived rather than one a person
+    typed from memory - which is the defect this check exists to catch.
+    """
+    def swap(match):
+        return "%d %s" % (counted[match.group(2).lower()], match.group(2))
+    return DECLARED_COUNT_RE.sub(swap, value)
+
+
+def check_spec_counts(doc):
+    lineno, _value, declared, counted = spec_counts(doc)
     if not declared:
         return
-    actual = {"active": 0, "superseded": 0, "withdrawn": 0}
-    for requirement in doc.requirements:
-        actual[requirement.status] += 1
     for word in sorted(declared):
-        if declared[word] != actual[word]:
-            doc.add(lineno, WARN, "COUNT_MISMATCH",
-                    "header declares %d %s, the file holds %d"
-                    % (declared[word], word, actual[word]))
+        if declared[word] != counted[word]:
+            doc.add(lineno, ERROR, "COUNT_MISMATCH",
+                    "header declares %d %s, the file holds %d; the header "
+                    "states a number about this file that nobody re-counted"
+                    % (declared[word], word, counted[word]))
 
 
 def check_spec_citations(doc):
@@ -1165,6 +1201,9 @@ Next backlog id
 | B9 | Above the counter | `todo` | — | maintainer | — |
 """
 
+STALE_COUNT_SPEC = VALID_SPEC.replace("2 active, 1 superseded",
+                                      "5 active, 9 superseded")
+
 RENUMBERED_SPEC = """# Widget — living spec
 
 Next requirement id
@@ -1378,18 +1417,104 @@ def self_test():
         failures.append("empty-principle-heading: should not parse")
     expect("empty-principle-heading", doc, ["PRINCIPLE_MALFORMED"])
 
+    # A header count that disagrees with the file is an ERROR, not a WARN, and
+    # the corrected line is DERIVED rather than typed. Both halves are asserted
+    # because both are the promotion: a severity nobody pins drifts back, and a
+    # corrected number nobody derived is the same defect wearing new digits.
+    doc = run("stale-counts.md", STALE_COUNT_SPEC)
+    expect("stale-counts", doc, ["COUNT_MISMATCH"])
+    for problem in doc.problems:
+        if problem.code == "COUNT_MISMATCH" and problem.severity != ERROR:
+            failures.append("stale-counts: COUNT_MISMATCH is %s, expected %s"
+                            % (problem.severity, ERROR))
+    lineno, value, declared, counted = spec_counts(doc)
+    if declared != {"active": 5, "superseded": 9, "withdrawn": 0}:
+        failures.append("stale-counts: read the header as %s" % declared)
+    if counted != {"active": 2, "superseded": 1, "withdrawn": 0}:
+        failures.append("stale-counts: counted %s, expected 2/1/0" % counted)
+    corrected = derived_count_value(value, counted)
+    if corrected != "2 active, 1 superseded, 0 withdrawn.":
+        failures.append("stale-counts: derived %r" % corrected)
+    if lineno != 6:
+        failures.append("stale-counts: header at line %d, expected 6" % lineno)
+
+    # The other half of the falsification: substituting the derived line clears
+    # it. A check only ever seen red proves nothing about the green.
+    doc = run("corrected-counts.md",
+              STALE_COUNT_SPEC.replace("5 active, 9 superseded, 0 withdrawn.",
+                                       corrected))
+    forbid("corrected-counts", doc, ERROR)
+    forbid("corrected-counts", doc, WARN)
+
     if failures:
         for failure in failures:
             sys.stdout.write("SELF-TEST FAIL: " + failure + "\n")
         sys.stdout.write("self-test FAILED: %d problem(s)\n" % len(failures))
         return EXIT_SELFTEST
-    sys.stdout.write("self-test passed: 20 fixtures, 0 failures\n")
+    sys.stdout.write("self-test passed: 21 fixtures, 0 failures\n")
     return EXIT_CLEAN
 
 
 # --------------------------------------------------------------------------
 # CLI
 # --------------------------------------------------------------------------
+
+def report_counts(paths, kind, out):
+    """Print the header's declared totals beside the totals counted from the file.
+
+    Three tab-separated record kinds, one file at a time:
+
+        COUNT     <path> <word> <declared or `-`> <counted>
+        DECLARED  <path> <line> <the header value as it stands>
+        DERIVED   <path> <line> <the header value with the counted numbers>
+
+    A spec whose header declares nothing is NOT MEASURED rather than clean:
+    nothing was compared, and a run that compared nothing must not exit 0.
+    """
+    unmeasured = []
+    mismatched = 0
+    for path in paths:
+        try:
+            text = read_text(path)
+        except OSError as exc:
+            out.write("%s:1: %s IO: %s\n" % (path, ERROR, exc))
+            unmeasured.append(path)
+            continue
+        doc = load_document(path, text, kind=kind)
+        if doc.kind != "spec":
+            out.write("%s:1: %s KIND_NOT_SPEC: counts are declared by a spec; "
+                      "this file is a %s\n" % (path, ERROR, doc.kind))
+            unmeasured.append(path)
+            continue
+        if not doc.requirements:
+            out.write("%s:1: %s NO_REQUIREMENTS: no `- **R<n>** —` bullets to "
+                      "count\n" % (path, ERROR))
+            unmeasured.append(path)
+            continue
+        lineno, value, declared, counted = spec_counts(doc)
+        for word in COUNT_WORDS:
+            shown = str(declared[word]) if word in declared else "-"
+            out.write("COUNT\t%s\t%s\t%s\t%d\n"
+                      % (path, word, shown, counted[word]))
+            if word in declared and declared[word] != counted[word]:
+                mismatched += 1
+        if not declared:
+            out.write("%s:%d: %s COUNTS_NOT_DECLARED: the header declares no "
+                      "counts, so none were compared\n" % (path, lineno, ERROR))
+            unmeasured.append(path)
+            continue
+        out.write("DECLARED\t%s\t%d\t%s\n" % (path, lineno, value))
+        out.write("DERIVED\t%s\t%d\t%s\n"
+                  % (path, lineno, derived_count_value(value, counted)))
+
+    if unmeasured:
+        out.write("NOT MEASURED: %s. No counts are reported for %s -- a file "
+                  "whose counts were not compared has not passed.\n"
+                  % (", ".join(sorted(set(unmeasured))),
+                     "it" if len(set(unmeasured)) == 1 else "them"))
+        return EXIT_UNMEASURED
+    return EXIT_FAILED if mismatched else EXIT_CLEAN
+
 
 def main(argv):
     parser = argparse.ArgumentParser(
@@ -1406,6 +1531,10 @@ def main(argv):
     parser.add_argument("--baseline", metavar="PATH",
                         help="an earlier copy of the same spec; enables the "
                              "renumber, deletion and text-retention checks")
+    parser.add_argument("--counts", action="store_true",
+                        help="print the header's declared requirement totals "
+                             "beside the totals counted from the file, and "
+                             "the header line the counts derive")
     parser.add_argument("--self-test", "--selftest", dest="self_test",
                         action="store_true",
                         help="run the built-in fixtures and exit")
@@ -1422,6 +1551,13 @@ def main(argv):
         sys.stderr.write("validate-spec.py: --baseline takes exactly one "
                          "file to compare against\n")
         return EXIT_USAGE
+    if args.counts:
+        if args.baseline:
+            sys.stderr.write("validate-spec.py: --counts and --baseline "
+                             "answer different questions; run them "
+                             "separately\n")
+            return EXIT_USAGE
+        return report_counts(args.files, args.kind, out)
 
     documents = []
     unmeasured = []

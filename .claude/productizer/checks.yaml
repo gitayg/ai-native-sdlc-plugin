@@ -120,6 +120,32 @@ checks:
             at precision 1.00 over the committed corpus, run on every commit rather than only when
             its own source changes.
 
+  # --- and the probe that is NOT a check here -------------------------------
+  #
+  # `evals/solver-probe.py` measures the same solver over the 26-case corpus,
+  # the harder number the `solver-corpus` limitations above already quote. It
+  # is gated, but NOT from this file, and the omission is deliberate rather
+  # than an oversight - so it is written down here, where a reader looking for
+  # it will look.
+  #
+  # It is a step in `.github/workflows/checks.yml`, "Solver - 26-case probe",
+  # against a baseline measured 2026-09-05. Two reasons:
+  #
+  #   1. Every check in this file is selected by `when` against the files a
+  #      change touched. The probe reads no file from the change; it
+  #      re-measures a fixed corpus. `when.always: true` would run it, as it
+  #      runs `solver-corpus`, but its `files_in_scope` would be a fiction.
+  #
+  #   2. Decisive: `coverage.min_covered` is a FLOOR and this vocabulary has no
+  #      ceiling. Half the probe's gate is a ceiling - false positives at most
+  #      0, silent misses at most 1 - and the false-positive ceiling is exactly
+  #      what `solver-corpus`'s own `why` above says must hold. Written as a
+  #      check here, that half would be absent and the gate would stay green
+  #      through the one regression it exists to catch.
+  #
+  # If a ceiling ever lands in the coverage vocabulary, this decision is worth
+  # revisiting, and the workflow step should move here.
+
   # --- suppressed stderr ---------------------------------------------------
   #
   # Discarding stderr makes an ERROR and a genuine NO-MATCH identical, and once
@@ -1628,3 +1654,71 @@ checks:
           Every fixture switches spec coverage off, so the interaction where a waived `fail` still
           voids its own coverage claims and refuses under `require` is documented but not driven.
       - Someone who can land a commit in a repo that has already opted in can waive that repo's own check until the expiry - the same power as editing checks.yaml, visible in the diff and bounded by a date.
+
+  # --- a requirement sentence rewritten under live citations ------------------
+  #
+  # The gap the incumbents close and this repository did not. Permanent ids
+  # (R2) are why a citation survives; they are also why it can go quietly
+  # wrong. Rewrite an ACTIVE requirement's sentence in place and its id still
+  # resolves, its status is unchanged, its acceptance-criteria row still names
+  # a check written against the old wording, and that check's coverage claim
+  # still reads Covered. Nothing errors and nothing is red.
+  #
+  # DOORS marks every linked object suspect on change. OpenFastTrace puts a
+  # revision inside the id so bumping it voids the links - unavailable here,
+  # because that is a renumbering with a nicer name and R2 forbids it. This
+  # takes DOORS' half: the id stays permanent, and the change raises a flag.
+  # `Productizer-Req:` trailers record which requirement a commit served, which
+  # is provenance; provenance invalidates nothing.
+  #
+  # NOT superseded-text's job, and the two must not be collapsed. A supersede
+  # or a withdrawal leaves a forward pointer and a retained sentence, so the
+  # citation still leads somewhere a reader can follow. A rewrite in place
+  # leaves nothing at all. The check reports the two counts separately and
+  # falsifying proved the branch load-bearing: removing it turns a supersede
+  # into three false suspect findings.
+  #
+  # `advise`, AND THAT IS THE HONEST SETTING. It cannot tell a typo fix from an
+  # inversion - `recieve` to `receive` and `shall` to `shall not` are one
+  # measurement - and it says so on every run. A gate that holds the merge on a
+  # distinction it cannot make is one people route around, and a routed-around
+  # gate measures nothing. Exit 2 still blocks whatever the severity says,
+  # which is the right asymmetry: a flag you can disagree with is cheap, and
+  # not knowing is not.
+  #
+  # NO `spec_units`, deliberately. Nothing in the spec demands suspect links
+  # yet, and claiming an id this check does not assert would take coverage
+  # away from the check that does. It is a mechanism the spec has not asked
+  # for; when it does, the claim goes here.
+  #
+  # min_covered: 2 - the spec now AND the spec at the base. One covered path
+  # means one version was read and the other was not, which is the run that
+  # compares nothing while exiting 0.
+  - id: suspect-links
+    why: a requirement's sentence can be rewritten in place with its id and status untouched, and every acceptance row, coverage claim and downstream citation keeps resolving to wording nobody re-read
+    when:
+      always: true
+    severity: advise
+    requires:
+      - ./plugins/productizer/skills/spec/scripts/check-suspect-links.sh
+      - ./plugins/productizer/skills/spec/scripts/spec-requirements.sh
+      - git
+    version_command: [./plugins/productizer/skills/spec/scripts/check-suspect-links.sh, --version]
+    mode: batch
+    command: [./plugins/productizer/skills/spec/scripts/check-suspect-links.sh]
+    timeout_seconds: 120
+    exit_codes:
+      pass: [0]
+      fail: [1]        # a sentence moved under a citation whose own line did not
+      refused: [2]     # no base, a shallow clone, a spec absent at the base, or a spec with no requirements
+    coverage:
+      from: stdout_paths
+      pattern: '^(\S+)$'
+      min_covered: 2
+    limitations:
+      - It cannot tell a semantic rewrite from a typo fix. It measures that words moved, never what they now mean, and prints that limitation on every run.
+      - An id inside a template or an example is indistinguishable from a citation of it.
+      - It compares against ONE base ref. An active requirement rewritten before that ref reads as the agreed text, and nothing here covers that - superseded-text covers the same blindness for superseded ids only.
+      - Fixture and eval trees are excluded because they carry their own specs with their own numbering. Measured on this repo, 81 tracked files match R3 and 19 are outside those trees.
+      - Clearing is per line, so a coverage claim's `- id: Rn` line never moves and the claim stays flagged when only the evidence beside it is rewritten. The finding says the file was edited, which is the triage signal, not a clearance.
+      - A citation that names no id - a paragraph quoting the sentence - is invisible.

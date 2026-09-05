@@ -48,3 +48,10 @@ evals/results/
 # moment the first one changes.
 __pycache__/
 *.py[cod]
+
+# A/B harness working files - same reason as evals/results/: captured stdout and
+# run rows are machine-local measurements, not source.
+.claude/productizer/ab-out/
+.claude/productizer/ab-runs.tsv
+.claude/productizer/ab-task.tsv
+.claude/productizer/pipeline.html

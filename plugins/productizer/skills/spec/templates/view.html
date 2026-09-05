@@ -516,7 +516,159 @@ a.stat.lk:hover .stat-go,a.kc.lk:hover .kc-go{color:var(--accent);opacity:1}
 /* The arrival, for a jump that crossed a tab. Brief, and gone. */
 :target{scroll-margin-top:14px}
 .bn:target,.rel:target,.bk:target,.chkrow.r:target,.stat:target{
-  box-shadow:0 0 0 2px var(--accent)}@@STALECSS@@
+  box-shadow:0 0 0 2px var(--accent)}
+
+
+/* ---------- visualizer ----------------------------------------------------
+   A drawing, not a second dashboard. Every colour below resolves to one of the
+   tokens declared at the top of this sheet - there is not one literal colour
+   in this block, so a palette change up there moves this too, and a light
+   ground would need nothing here changed.
+
+   POSITION IS NOT OWNED HERE. The generator writes left/top/width/height
+   inline on .vz-node, .vz-lane, .vz-act and .vz-wires because it is the thing
+   that computed the layout. This block sets `position` so those inline values
+   mean something, and then sets none of the four itself: a rule here that won
+   over one of them would move a node off the wire drawn to it, silently.
+
+   DELTA AND COVERAGE ARE TWO AXES ON ONE ELEMENT. A node can be added AND
+   only partly covered at the same time, so they cannot both be "the colour of
+   the border". Delta takes hue - ok / warn / crit / muted, the four this page
+   has meant by added / modified / removed / unchanged since its first tab.
+   Coverage takes a rail down the left edge, drawn in the one hue delta never
+   uses, and spends DENSITY rather than colour on its four values: solid,
+   half, dotted, dashed. Amber for `partial` was the obvious choice and is
+   exactly the mistake - amber already means `modified` here, and a node that
+   is modified and partially covered would then say amber twice for two
+   unrelated reasons, which is the same fabricated-signal error as drawing an
+   unknown as a zero. */
+.vz{display:flex;flex-direction:column;gap:26px}
+.vz-sec{display:flex;flex-direction:column;gap:9px}
+.vz-sec>h2{margin:0;font-size:15px;font-weight:600;letter-spacing:-.01em;color:var(--text)}
+.vz-note{margin:0;font-size:12px;color:var(--muted);line-height:1.6;max-width:88ch}
+
+/* Wide drawings scroll inside their own board. The page body never scrolls
+   sideways, which is what keeps the four sections readable next to each other. */
+.vz-board{overflow-x:auto;border:1px solid var(--line);border-radius:10px;
+  background:var(--surface);padding:14px}
+.vz-canvas{position:relative}
+
+.vz-lane{position:absolute;z-index:0;background:var(--bg);border:1px solid var(--line);
+  border-radius:8px;padding:8px 11px;overflow:hidden}
+.vz-lname{display:block;font-family:var(--mono);font-size:9.5px;text-transform:uppercase;
+  letter-spacing:.09em;color:var(--muted)}
+.vz-lsub{display:block;font-size:11px;color:var(--muted);opacity:.85;line-height:1.45;margin-top:2px}
+
+.vz-node{position:absolute;z-index:2;display:flex;flex-direction:column;justify-content:center;
+  gap:3px;background-color:var(--raised);border:1px solid var(--line);border-radius:7px;
+  padding:7px 10px;overflow:hidden;text-align:left;
+  transition:border-color .15s,background-color .15s,box-shadow .15s}
+.vz-node:hover{border-color:var(--muted);background-color:var(--surface)}
+/* Nodes carry tabindex, so the ring is not optional. The global
+   :focus-visible rule already draws one; this adds the halo the ring alone
+   cannot give it on a crowded canvas, where a 2px outline sits against a
+   neighbouring node's border and reads as part of it. */
+.vz-node:focus-visible{outline:2px solid var(--accent);outline-offset:2px;
+  box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 17%,transparent)}
+.vz-nlab{font-size:11.5px;font-weight:600;color:var(--text);line-height:1.35;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vz-nsub{font-family:var(--mono);font-size:9.5px;color:var(--muted);line-height:1.4;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vz-ico{display:inline-grid;place-items:center;flex:0 0 auto;color:var(--muted);
+  font-family:var(--mono);font-size:10px;line-height:1}
+.vz-ico svg{width:11px;height:11px;display:block}
+.vz-badge{display:inline-block;font-size:10px;padding:1px 7px;border-radius:999px;
+  background:var(--bg);border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.vz-chip{display:inline-block;font-family:var(--mono);font-size:9.5px;text-transform:uppercase;
+  letter-spacing:.07em;padding:2px 7px;border-radius:4px;border:1px solid var(--line);
+  color:var(--muted);white-space:nowrap}
+
+.vz-cluster{background:var(--surface);border:1px solid var(--line);border-radius:10px;
+  padding:11px 13px;display:flex;flex-direction:column;gap:9px}
+.vz-trig{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
+.vz-tk{flex:0 0 auto;font-family:var(--mono);font-size:9.5px;text-transform:uppercase;
+  letter-spacing:.08em;color:var(--accent);border:1px solid var(--line);border-radius:4px;
+  padding:2px 7px;white-space:nowrap}
+.vz-ttxt{font-size:12.5px;color:var(--text);line-height:1.5;min-width:0}
+.vz-acts{position:relative}
+.vz-act{position:absolute;background-color:var(--raised);border:1px solid var(--line);
+  border-radius:6px;padding:6px 9px;font-size:11.5px;color:var(--text);line-height:1.4;
+  overflow:hidden;transition:border-color .15s,background-color .15s}
+.vz-act:hover{border-color:var(--muted);background-color:var(--surface)}
+
+/* The wires sit under the nodes and take no clicks, so a wire crossing a node
+   never steals the pointer from it. */
+.vz-wires{position:absolute;z-index:1;pointer-events:none;overflow:visible}
+.vz-wire{fill:none;stroke:var(--line);stroke-width:1.5;stroke-linecap:round;
+  stroke-linejoin:round;transition:stroke .15s}
+/* An edge label is read against whatever it crosses, so it carries its own
+   ground: the stroke is painted first and the glyph over it. */
+.vz-wlab{fill:var(--muted);font-family:var(--mono);font-size:9px;letter-spacing:.04em;
+  stroke:var(--bg);stroke-width:3px;stroke-linejoin:round;paint-order:stroke fill}
+
+.vz-row{display:grid;grid-template-columns:minmax(72px,auto) minmax(0,1fr);align-items:baseline;
+  column-gap:12px;background-color:var(--bg);border:1px solid var(--line);border-radius:7px;
+  padding:8px 11px;transition:border-color .15s}
+.vz-row:hover{border-color:var(--muted)}
+.vz-row+.vz-row{margin-top:6px}
+.vz-rid{font-family:var(--mono);font-size:11.5px;color:var(--accent);white-space:nowrap}
+.vz-txt{font-size:12.5px;color:var(--text);line-height:1.55;min-width:0}
+@media (max-width:620px){.vz-row{grid-template-columns:1fr;row-gap:4px}}
+
+/* An absence drawn as an absence, in the same shape the rest of this page
+   already uses for one, so `nothing was there` never arrives looking like
+   `nothing rendered`. */
+.vz-empty{border:1px dashed var(--line);border-radius:10px;padding:20px 22px;
+  background:var(--surface);display:flex;flex-direction:column;gap:9px;align-items:flex-start}
+.vz-empty b{color:var(--text);font-weight:600;font-size:13px}
+.vz-empty p{margin:0;color:var(--muted);font-size:12.5px;line-height:1.6;max-width:74ch}
+.vz-empty .mono{color:var(--text)}
+
+/* Delta: hue. Removed is dashed as well as red, because red alone is the one
+   state a reader with a red deficiency cannot separate from amber. */
+.vz-node.d-add{border-color:var(--ok);background-color:color-mix(in srgb,var(--ok) 8%,var(--raised))}
+.vz-node.d-mod{border-color:var(--warn);background-color:color-mix(in srgb,var(--warn) 8%,var(--raised))}
+.vz-node.d-rem{border-color:var(--crit);border-style:dashed;
+  background-color:color-mix(in srgb,var(--crit) 7%,var(--raised))}
+.vz-node.d-rem .vz-nlab{text-decoration:line-through;
+  text-decoration-color:color-mix(in srgb,var(--crit) 70%,transparent)}
+.vz-node.d-unc{border-color:var(--line)}
+.vz-node.d-unc .vz-nlab{font-weight:500;color:var(--muted)}
+.vz-wire.d-add{stroke:var(--ok)}
+.vz-wire.d-mod{stroke:var(--warn)}
+.vz-wire.d-rem{stroke:var(--crit);stroke-dasharray:4 3}
+.vz-wire.d-unc{stroke:var(--line)}
+.vz-badge.d-add{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 40%,transparent)}
+.vz-badge.d-mod{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 40%,transparent)}
+.vz-badge.d-rem{color:var(--crit);border-color:color-mix(in srgb,var(--crit) 40%,transparent);
+  border-style:dashed}
+.vz-badge.d-unc{color:var(--muted)}
+
+/* Coverage: a rail down the left edge, one hue, four densities. It is drawn
+   as a background IMAGE and delta is drawn as a background COLOUR, which is
+   what lets a node wear both at once without either overwriting the other. */
+.vz-node.c-cov,.vz-node.c-par,.vz-node.c-na,.vz-node.c-sup,
+.vz-row.c-cov,.vz-row.c-par,.vz-row.c-na,.vz-row.c-sup{
+  background-repeat:no-repeat;background-position:left top;background-size:3px 100%}
+.vz-node.c-cov,.vz-node.c-par,.vz-node.c-na,.vz-node.c-sup{padding-left:13px}
+.vz-row.c-cov,.vz-row.c-par,.vz-row.c-na,.vz-row.c-sup{padding-left:14px}
+.vz-node.c-cov,.vz-row.c-cov{background-image:linear-gradient(var(--accent),var(--accent))}
+.vz-node.c-par,.vz-row.c-par{background-image:linear-gradient(var(--accent) 0 50%,
+  color-mix(in srgb,var(--accent) 22%,transparent) 50% 100%)}
+/* `not applicable` is dotted rather than empty: an empty rail is what an
+   element with no coverage class looks like, and the two are not the same
+   claim. */
+.vz-node.c-na,.vz-row.c-na{background-image:linear-gradient(var(--line) 0 3px,transparent 3px 6px);
+  background-size:3px 6px;background-repeat:repeat-y}
+.vz-node.c-sup,.vz-row.c-sup{background-image:linear-gradient(var(--muted) 0 5px,transparent 5px 9px);
+  background-size:3px 9px;background-repeat:repeat-y;opacity:.85}
+.vz-row.c-sup .vz-txt{color:var(--muted)}
+
+/* The sheet-wide reduce rule above already kills these; repeating it costs two
+   lines and survives that rule being edited. */
+@media (prefers-reduced-motion:reduce){
+  .vz-node,.vz-act,.vz-row,.vz-wire{transition:none}}
+@media (max-width:620px){.vz-board{padding:10px}.vz{gap:20px}}@@STALECSS@@
 </style>
 @@BODY@@
 <script>

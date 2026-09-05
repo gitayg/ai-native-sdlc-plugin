@@ -40,10 +40,59 @@
 #
 #   Full convention: references/traceability.md.
 #
+# WHO DID THE WORK: `Assisted-by:`.
+#
+#   The requirement trailer says WHICH agreement a commit served. It says
+#   nothing about who or what wrote it, and on this repository that is not a
+#   detail — most of these commits were written by a model.
+#
+#   The Linux kernel is the only major project that has written the rule down,
+#   so this follows it verbatim rather than inventing a house style
+#   (Documentation/process/coding-assistants.rst, quoted):
+#
+#     "AI agents MUST NOT add Signed-off-by tags. Only humans can legally
+#      certify the Developer Certificate of Origin (DCO)."
+#
+#     "Contributions should include an Assisted-by tag in the following
+#      format::  Assisted-by: LLM [TOOL1] [TOOL2]"
+#
+#     "Basic development tools (git, gcc, make, editors) should not be listed."
+#
+#   Source: https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/Documentation/process/coding-assistants.rst
+#
+#   THREE TRAILERS, AND ONLY ONE OF THEM IS OURS TO WRITE.
+#
+#     Signed-off-by   a legal certification of the DCO. A model cannot hold
+#                     one, so this script never writes one and never offers to.
+#     Co-authored-by  git and every forge resolve it to a PERSON: it takes a
+#                     name and an address, it appears in contributor lists, and
+#                     it makes a person-shaped claim about the commit. Putting
+#                     a model in it is the same false claim as Signed-off-by
+#                     wearing a friendlier word, so this script refuses it too.
+#     Assisted-by     what is actually true, and the only one written here.
+#
+#   `--assisted-by` writes the kernel's exact form, `Assisted-by: LLM`, and
+#   `--tools` appends the specialised analysis tools the kernel's format allows.
+#   The word LLM is the whole identity on purpose: the kernel names no vendor
+#   and no model, and a trailer naming a version that will be retired is a
+#   provenance record with a shelf life.
+#
+#   `--authorship` reads the OTHER direction: given a message, it reports what
+#   the message claims about who wrote it, and refuses two things — a DCO
+#   certification or a co-authorship credit whose identity looks like an agent
+#   rather than a person, and an `Assisted-by` that is not in the kernel's form.
+#   What it CANNOT do is tell whether a commit carrying no authorship trailer
+#   at all was assisted. That is unknowable from the message, so it is exit 4,
+#   never a clean bill of health.
+#
 # MODES.
 #
 #   --add <ids> --file <msg>   merge the trailer into a commit-message file.
 #                              Idempotent: run twice, and the file is unchanged.
+#     [--assisted-by [--tools "<t1> <t2>"]]
+#                              also merge `Assisted-by: LLM [tools]`.
+#   --authorship [--file <msg> | --rev <rev>]
+#                              what the message claims about who wrote it.
 #   --validate [--file <msg> | --rev <rev>]
 #                              every id in the trailer must exist in the spec.
 #                              An unknown id is an error that names it.
@@ -112,7 +161,24 @@ on_exit() {
 trap on_exit EXIT
 
 TRAILER_KEY="Productizer-Req"
+ASSIST_KEY="Assisted-by"
 SPEC_REL=".claude/productizer/spec.md"
+
+# The kernel's own exclusion, quoted above: "Basic development tools (git, gcc,
+# make, editors) should not be listed." Named here so a refusal can say which
+# rule it is enforcing and where the rule came from. `clang` is on the list and
+# `clang-tidy` is deliberately NOT, because the kernel names clang-tidy as an
+# example of a tool that SHOULD be listed.
+BASIC_TOOLS="git gcc g++ cc clang make cmake ninja ld as vi vim emacs nano ed sed awk bash sh zsh"
+
+# Identities that must never appear in a Signed-off-by or a Co-authored-by.
+# THIS IS A WORD LIST OVER FREE TEXT, and it is wrong in both directions: a
+# vendor it does not name walks past it, and a person legitimately called
+# `Roberta Botticelli` would be flagged by a substring rule, which is why every
+# entry is matched on a word boundary. A clean --authorship run therefore does
+# NOT prove a human signed; it proves no NAMED agent did. Said out loud in the
+# report rather than left for the reader to discover.
+AGENT_WORDS="claude anthropic gpt openai copilot cursor codeium codex gemini llm bot devin aider windsurf"
 
 die_usage() { printf 'req-trailer: %s\n' "$1" >&2; exit 2; }
 undetermined() { printf 'req-trailer: CANNOT DETERMINE — %s\n' "$1" >&2; exit 4; }
@@ -122,10 +188,20 @@ usage() {
 req-trailer.sh — requirement-id traceability, both directions.
 
   req-trailer.sh --add R14,R22 --file .git/COMMIT_EDITMSG
+        [--assisted-by [--tools "coccinelle sparse"]]
   req-trailer.sh --validate [--file <msg> | --rev <rev>]
+  req-trailer.sh --authorship [--file <msg> | --rev <rev>]
   req-trailer.sh --query R14 [--limit N]
   req-trailer.sh --orphans
   req-trailer.sh --coverage [--include-ignored]
+
+Authorship options (--add):
+  --assisted-by    also write `Assisted-by: LLM`, the Linux kernel's form.
+                   Signed-off-by and Co-authored-by are never written: only a
+                   human can certify the DCO, and Co-authored-by credits a
+                   person. See the header for the quoted rule.
+  --tools "<list>" specialised analysis tools to append, space separated.
+                   Requires --assisted-by. Basic development tools are refused.
 
 Common options:
   --repo <dir>     repository root (default: current directory)
@@ -140,6 +216,8 @@ USAGE
 
 MODE=""
 IDS_ARG=""
+ASSISTED=0
+TOOLS_ARG=""
 FILE=""
 REV=""
 QUERY_ID=""
@@ -158,6 +236,7 @@ while [ "$#" -gt 0 ]; do
     --add)        set_mode add; [ "$#" -ge 2 ] || die_usage "--add needs one or more ids, e.g. --add R14,R22"; IDS_ARG="$2"; shift 2 ;;
     --add=*)      set_mode add; IDS_ARG="${1#--add=}"; shift ;;
     --validate)   set_mode validate; shift ;;
+    --authorship) set_mode authorship; shift ;;
     --query)      set_mode query; [ "$#" -ge 2 ] || die_usage "--query needs a requirement id, e.g. --query R14"; QUERY_ID="$2"; shift 2 ;;
     --query=*)    set_mode query; QUERY_ID="${1#--query=}"; shift ;;
     --orphans)    set_mode orphans; shift ;;
@@ -173,13 +252,25 @@ while [ "$#" -gt 0 ]; do
     --limit)      [ "$#" -ge 2 ] || die_usage "--limit needs a number"; LIMIT="$2"; shift 2 ;;
     --limit=*)    LIMIT="${1#--limit=}"; shift ;;
     --include-ignored) INCLUDE_IGNORED=1; shift ;;
+    --assisted-by) ASSISTED=1; shift ;;
+    --tools)      [ "$#" -ge 2 ] || die_usage "--tools needs a space-separated list, e.g. --tools \"coccinelle sparse\""; TOOLS_ARG="$2"; shift 2 ;;
+    --tools=*)    TOOLS_ARG="${1#--tools=}"; shift ;;
     -h | --help)  usage; exit 0 ;;
     -*)           die_usage "unknown option: $1" ;;
     *)            die_usage "unexpected argument '$1'. Paths go after --file, revisions after --rev." ;;
   esac
 done
 
-[ -n "$MODE" ] || { usage >&2; die_usage "pick one of --add, --validate, --query, --orphans, --coverage"; }
+[ -n "$MODE" ] || { usage >&2; die_usage "pick one of --add, --validate, --authorship, --query, --orphans, --coverage"; }
+
+# --tools without --assisted-by would silently write nothing, which is the one
+# outcome a provenance tool must never produce quietly.
+if [ -n "$TOOLS_ARG" ] && [ "$ASSISTED" = 0 ]; then
+  die_usage "--tools names the tools that assisted; it needs --assisted-by to have something to attach them to. Nothing was written."
+fi
+if [ "$ASSISTED" = 1 ] && [ "$MODE" != add ]; then
+  die_usage "--assisted-by writes a trailer, so it only means anything with --add. To READ what a message claims, use --authorship."
+fi
 case "$LIMIT" in '' | *[!0-9]*) die_usage "--limit must be a whole number, not '$LIMIT'" ;; esac
 [ "$LIMIT" -gt 0 ] || die_usage "--limit must be at least 1"
 
@@ -322,6 +413,29 @@ if [ "$MODE" = add ]; then
 
   normalise_ids "$IDS_ARG" >"$TMP/want" || exit 3
   [ -s "$TMP/want" ] || die_usage "--add was given no usable requirement id"
+  # EVERY refusal happens before the first byte is written. An earlier version
+  # validated the tool list after the requirement trailer had already gone into
+  # the file, so a refusal said "Nothing was written" over a message it had
+  # just edited. Measured on --tools "git smatch", not reasoned about.
+  : >"$TMP/tools.want"
+  if [ "$ASSISTED" = 1 ] && [ -n "$TOOLS_ARG" ]; then
+    printf '%s' "$TOOLS_ARG" | tr ',;' '  ' | tr -s '[:space:]' '\n' | awk 'NF' >"$TMP/tools.raw"
+    while IFS= read -r t; do
+      [ -n "$t" ] || continue
+      case "$t" in
+        *:* | *[!A-Za-z0-9._+-]*)
+          die_usage "'$t' is not a tool name. A tool token in an ${ASSIST_KEY} trailer is a bare name — coccinelle, sparse, smatch, clang-tidy. Nothing was written." ;;
+      esac
+      lower="$(printf '%s' "$t" | tr '[:upper:]' '[:lower:]')"
+      for b in $BASIC_TOOLS; do
+        if [ "$lower" = "$b" ]; then
+          die_usage "'$t' is a basic development tool. The rule this trailer follows says: \"Basic development tools (git, gcc, make, editors) should not be listed.\" List the specialised analysis tools only. Nothing was written."
+        fi
+      done
+      printf '%s\n' "$t" >>"$TMP/tools.want"
+    done <"$TMP/tools.raw"
+  fi
+
 
   # If the spec is reachable, an id that is not in it never reaches history.
   # A trailer naming an id nobody can resolve is worse than no trailer: it
@@ -370,6 +484,46 @@ if [ "$MODE" = add ]; then
   else
     cat "$TMP/msg.new" >"$FILE"
     printf '%s: %s\n' "$TRAILER_KEY" "$MERGED_VALUE"
+  fi
+
+  # --- Assisted-by ---------------------------------------------------------
+  #
+  # Written second and separately, because the two trailers answer different
+  # questions and one being unavailable must not cost the other. A commit can
+  # carry a requirement id and no assistance claim, or the reverse.
+  if [ "$ASSISTED" = 1 ]; then
+    # Merge with whatever the message already claims, the same way the ids are
+    # merged: two runs are additive, and a second identical run changes nothing.
+    awk '
+      { line = $0; sub(/^[ \t]+/, "", line) }
+      tolower(substr(line, 1, 12)) == "assisted-by:" { print substr(line, 13) }
+    ' "$FILE" >"$TMP/assist.raw"
+
+    : >"$TMP/tools.have"
+    if [ -s "$TMP/assist.raw" ]; then
+      tr -s '[:space:]' '\n' <"$TMP/assist.raw" \
+        | awk 'NF && toupper($1) != "LLM" { print }' >"$TMP/tools.have"
+    fi
+
+    sort -u "$TMP/tools.want" "$TMP/tools.have" >"$TMP/tools.merged"
+    ASSIST_VALUE="LLM"
+    if [ -s "$TMP/tools.merged" ]; then
+      ASSIST_VALUE="LLM $(paste -sd' ' - <"$TMP/tools.merged")"
+    fi
+
+    git interpret-trailers \
+        --if-exists replace --if-missing add \
+        --trailer "${ASSIST_KEY}: ${ASSIST_VALUE}" \
+        "$FILE" >"$TMP/msg.assist" 2>"$TMP/ita.err" \
+      || die_usage "git interpret-trailers failed writing ${ASSIST_KEY}: $(tr '\n' ' ' <"$TMP/ita.err")"
+
+    if cmp -s "$FILE" "$TMP/msg.assist"; then
+      printf '%s: %s already present and unchanged (%s)\n' "$ASSIST_KEY" "$ASSIST_VALUE" "$FILE"
+    else
+      cat "$TMP/msg.assist" >"$FILE"
+      printf '%s: %s\n' "$ASSIST_KEY" "$ASSIST_VALUE"
+    fi
+    printf 'No Signed-off-by and no Co-authored-by was written, and neither ever is: only a human can certify the DCO, and Co-authored-by credits a person.\n'
   fi
   exit 0
 fi
@@ -445,6 +599,117 @@ There is nothing to validate. An absent trailer is not a valid one — it is an 
   fi
   printf 'req-trailer: %s — %s cited id(s) all exist in %s (%s active, %s superseded, %s withdrawn on file).\n' \
     "$SOURCE" "$N_CITED" "${SPEC#"$ROOT"/}" "$N_ACTIVE" "$N_SUPER" "$N_WITHDRAWN"
+  exit 0
+fi
+
+# ===========================================================================
+# --authorship
+#
+# The other direction from --add: given a message, what does it CLAIM about
+# who wrote it, and is any of that claim one a model cannot hold?
+# ===========================================================================
+if [ "$MODE" = authorship ]; then
+  [ -z "$FILE" ] || [ -z "$REV" ] || die_usage "--authorship reads one message: --file or --rev, not both"
+
+  if [ -n "$FILE" ]; then
+    [ -f "$FILE" ] || die_usage "no such commit-message file: $FILE"
+    SOURCE="$FILE"
+    cp "$FILE" "$TMP/msg"
+  else
+    [ -n "$REV" ] || REV=HEAD
+    SOURCE="commit $REV"
+    git -C "$ROOT" log -1 --format=%B "$REV" >"$TMP/msg" 2>"$TMP/rev.err" \
+      || die_usage "cannot read $REV: $(tr '\n' ' ' <"$TMP/rev.err")"
+  fi
+
+  awk '
+    { line = $0; sub(/^[ \t]+/, "", line) }
+    tolower(substr(line, 1,  12)) == "assisted-by:"    { print substr(line, 13)  > A }
+    tolower(substr(line, 1,  14)) == "signed-off-by:"  { print substr(line, 15)  > S }
+    tolower(substr(line, 1,  15)) == "co-authored-by:" { print substr(line, 16)  > C }
+  ' A="$TMP/a.raw" S="$TMP/s.raw" C="$TMP/c.raw" "$TMP/msg"
+  for f in a s c; do [ -f "$TMP/$f.raw" ] || : >"$TMP/$f.raw"; done
+
+  N_ASSIST=$(awk 'END { print NR + 0 }' "$TMP/a.raw")
+  N_SOB=$(awk 'END { print NR + 0 }' "$TMP/s.raw")
+  N_COA=$(awk 'END { print NR + 0 }' "$TMP/c.raw")
+
+  if [ "$N_ASSIST" -eq 0 ] && [ "$N_SOB" -eq 0 ] && [ "$N_COA" -eq 0 ]; then
+    undetermined "$SOURCE carries no ${ASSIST_KEY}, Signed-off-by or Co-authored-by trailer.
+The message makes NO claim about who wrote this change, so who wrote it is UNKNOWN. It is not evidence that a human wrote it, and it is not evidence that a model did.
+Nothing in a commit message can settle this after the fact — the record has to be written at the time. \`req-trailer.sh --add --assisted-by\` writes it."
+  fi
+
+  # Does a value name an agent? Word-boundaried, so `Roberta` is not `bot`.
+  names_agent() {
+    local v="$1" w
+    for w in $AGENT_WORDS; do
+      if LC_ALL=C grep -Eqi -e "(^|[^A-Za-z0-9])${w}([^A-Za-z0-9]|\$)" <<<"$v"; then
+        printf '%s\n' "$w"
+        return 0
+      fi
+    done
+    return 1
+  }
+
+  fail=0
+
+  # 1. A DCO certification, or a co-authorship credit, naming an agent.
+  #    "AI agents MUST NOT add Signed-off-by tags. Only humans can legally
+  #     certify the Developer Certificate of Origin (DCO)."
+  while IFS= read -r v; do
+    [ -n "$v" ] || continue
+    if w="$(names_agent "$v")"; then
+      fail=1
+      printf 'req-trailer: %s carries a Signed-off-by naming %s, which reads as an agent. Only a human can certify the Developer Certificate of Origin, so this line claims something no model can hold. Use %s instead.\n' \
+        "$SOURCE" "$w" "$ASSIST_KEY" >&2
+    fi
+  done <"$TMP/s.raw"
+
+  while IFS= read -r v; do
+    [ -n "$v" ] || continue
+    if w="$(names_agent "$v")"; then
+      fail=1
+      printf 'req-trailer: %s carries a Co-authored-by naming %s, which reads as an agent. Co-authored-by takes a name and an address and is resolved to a PERSON by git and by every forge, so it makes a person-shaped claim a model cannot hold. Use %s instead.\n' \
+        "$SOURCE" "$w" "$ASSIST_KEY" >&2
+    fi
+  done <"$TMP/c.raw"
+
+  # 2. The form of the Assisted-by value itself.
+  while IFS= read -r v; do
+    trimmed="$(printf '%s' "$v" | tr -s '[:space:]' ' ' | sed -e 's/^ //' -e 's/ $//')"
+    if [ -z "$trimmed" ]; then
+      fail=1
+      printf 'req-trailer: %s carries an empty %s trailer. A trailer with no value records nothing while looking like a record.\n' "$SOURCE" "$ASSIST_KEY" >&2
+      continue
+    fi
+    first="${trimmed%% *}"
+    if [ "$(printf '%s' "$first" | tr '[:lower:]' '[:upper:]')" != "LLM" ]; then
+      fail=1
+      printf "req-trailer: %s has '%s: %s'. The form is 'LLM [TOOL1] [TOOL2]' — the first token is the literal word LLM, and the rest are specialised analysis tools.\n" \
+        "$SOURCE" "$ASSIST_KEY" "$trimmed" >&2
+      continue
+    fi
+    rest="${trimmed#"$first"}"
+    for t in $rest; do
+      lower="$(printf '%s' "$t" | tr '[:upper:]' '[:lower:]')"
+      for b in $BASIC_TOOLS; do
+        if [ "$lower" = "$b" ]; then
+          fail=1
+          printf 'req-trailer: %s lists %s in its %s trailer. Basic development tools (git, gcc, make, editors) should not be listed; the tag is for the specialised analysis tools.\n' \
+            "$SOURCE" "$t" "$ASSIST_KEY" >&2
+        fi
+      done
+    done
+  done <"$TMP/a.raw"
+
+  printf 'Authorship claimed by %s: %s %s trailer(s), %s Signed-off-by, %s Co-authored-by.\n' \
+    "$SOURCE" "$N_ASSIST" "$ASSIST_KEY" "$N_SOB" "$N_COA"
+  printf 'The rule: https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/Documentation/process/coding-assistants.rst\n'
+  printf 'WHAT THIS DID NOT MEASURE. The agent check is a word list over free text — %s names. A vendor it does not name walks straight past it, so a clean run shows that no NAMED agent signed off, never that a human did. And a message with no %s trailer is not a message written without assistance; it is a message that did not say.\n' \
+    "$(printf '%s' "$AGENT_WORDS" | wc -w | tr -d ' ')" "$ASSIST_KEY"
+
+  [ "$fail" = 0 ] || exit 3
   exit 0
 fi
 

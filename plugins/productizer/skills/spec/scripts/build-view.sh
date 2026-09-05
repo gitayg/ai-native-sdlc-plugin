@@ -139,14 +139,22 @@ if git -C "$ROOT" rev-parse --git-dir >/dev/null 2>&1; then
   TZ=UTC git -C "$ROOT" log -1 --date=format-local:'%Y-%m-%d' --pretty=format:'%ad' >"$TMP/head-date" 2>/dev/null || :
   TZ=UTC git -C "$ROOT" log -1 --date=format-local:'%Y-%m-%d' --pretty=format:'%ad' \
       -- .claude/productizer/spec.md >"$TMP/spec-date" 2>/dev/null || :
+  # The working tree against HEAD, which is the base the bar already names.
+  # A repo with no commit has no HEAD, and `git diff` failing there produces an
+  # empty file that is indistinguishable from a clean tree - so the SUCCESS is
+  # recorded separately, and the panel draws unknown rather than a zero.
+  if git -C "$ROOT" diff --name-status --no-renames HEAD >"$TMP/delta" 2>/dev/null; then
+    : >"$TMP/delta-ok"
+  fi
+  git -C "$ROOT" ls-files --others --exclude-standard >"$TMP/delta-new" 2>/dev/null || :
 fi
 
-python3 - "$ROOT" "$TMP" "$TEMPLATE" "$OUT" "$STALE_AFTER" "$REGEN_CMD" <<'PYEOF'
+python3 - "$ROOT" "$TMP" "$TEMPLATE" "$OUT" "$STALE_AFTER" "$REGEN_CMD" "$HERE" <<'PYEOF'
 # -*- coding: utf-8 -*-
 """Render the lifecycle dashboard. Reads only; writes one HTML file."""
 import io, json, os, re, sys, time
 
-ROOT, TMP, TEMPLATE, OUT, STALE_AFTER, REGEN_CMD = sys.argv[1:7]
+ROOT, TMP, TEMPLATE, OUT, STALE_AFTER, REGEN_CMD, SCRIPTS = sys.argv[1:8]
 STALE_AFTER = int(STALE_AFTER)
 
 # --------------------------------------------------------------------------
@@ -2212,6 +2220,571 @@ else:
         % (LIM_TOTAL, len(LIM_WITH), len(lim_order), ''.join(body), und, esc(CHECKS_PATH)))
 
 # --------------------------------------------------------------------------
+# panel: visualizer
+# --------------------------------------------------------------------------
+# Four drawings of things this page already reports as numbers. A drawing is
+# worth a tab only where the SHAPE is the fact - one trigger owing five
+# obligations, a supersession pointer that crosses an EARS lane, a script that
+# is called by nine others - and none of those survive a count.
+#
+# Everything below obeys the same three-state rule as the rest of the file, and
+# it matters more here than anywhere else on the page: an empty canvas looks
+# exactly like a measured zero, and a drawing is the one rendering where a
+# reader cannot tell the difference by squinting at it. So no section is ever
+# omitted, no section is ever drawn empty, and every one of the three answers
+# gets a .vz-empty that says which of the three it is.
+#
+# Position is computed here and written inline. The stylesheet sets `position`
+# on .vz-node / .vz-lane / .vz-act / .vz-wires and none of the four offsets, so
+# a rule there can never move a node off the wire drawn to it.
+
+VZ_W = 860           # canvas width; the board scrolls itself below this
+_vz_built = 0        # sections that produced a drawing rather than an absence
+
+
+def vz_empty(title, body):
+    return '<div class="vz-empty"><b>%s</b><p>%s</p></div>' % (esc(title), body)
+
+
+def vz_sec(sid, title, note, body):
+    return ('<section class="vz-sec" id="%s"><h2>%s</h2><p class="vz-note">%s</p>%s</section>'
+            % (sid, esc(title), note, body))
+
+
+def vz_wires(w, h, paths):
+    return ('<svg class="vz-wires" style="left:0;top:0;width:%dpx;height:%dpx" '
+            'viewBox="0 0 %d %d" aria-hidden="true" focusable="false">%s</svg>'
+            % (w, h, w, h, ''.join(paths)))
+
+
+def vz_path(d, cls=''):
+    return '<path class="vz-wire%s" d="%s"/>' % ((' ' + cls) if cls else '', d)
+
+
+def vz_node(x, y, w, h, lab, sub='', cls='', title='', extra=''):
+    return ('<div class="vz-node%s" style="left:%dpx;top:%dpx;width:%dpx;height:%dpx" '
+            'tabindex="0" title="%s"><span class="vz-nlab">%s</span>%s%s</div>'
+            % ((' ' + cls) if cls else '', x, y, w, h, esc(title), lab,
+               ('<span class="vz-nsub">%s</span>' % esc(sub)) if sub else '', extra))
+
+
+def vz_lane(x, y, w, h, name, sub):
+    return ('<div class="vz-lane" style="left:%dpx;top:%dpx;width:%dpx;height:%dpx">'
+            '<span class="vz-lname">%s</span><span class="vz-lsub">%s</span></div>'
+            % (x, y, w, h, esc(name), esc(sub)))
+
+
+# The parser is the repository's own. A second EARS grammar written here would
+# disagree with contradiction-check.py the first time either was edited, and
+# the disagreement would be invisible: this page would draw obligations the
+# solver never compared. It is imported as a module and nothing in it is run.
+VZ_CC_PATH = os.path.join(SCRIPTS, 'contradiction-check.py')
+vz_cc, VZ_CC_STATE = None, 'read'
+if not os.path.exists(VZ_CC_PATH):
+    VZ_CC_STATE = 'absent'
+else:
+    try:
+        import importlib.util
+        # Importing must not write into the tree being reported on. R4 is
+        # asserted by hashing every file before and after this script runs, and
+        # a __pycache__ entry created by the import would be a file this
+        # generator moved.
+        _vz_bc = sys.dont_write_bytecode
+        sys.dont_write_bytecode = True
+        _vz_spec = importlib.util.spec_from_file_location('productizer_ears', VZ_CC_PATH)
+        vz_cc = importlib.util.module_from_spec(_vz_spec)
+        sys.modules['productizer_ears'] = vz_cc
+        _vz_spec.loader.exec_module(vz_cc)
+        sys.dont_write_bytecode = _vz_bc
+    except Exception:
+        vz_cc, VZ_CC_STATE = None, 'unreadable'
+
+RE_VZ_H3 = re.compile(r'^###\s+(.+?)\s*$')
+RE_VZ_SUPBY = re.compile(r'^\s*Superseded by (R[0-9]+)')
+
+# One pass over spec.md, carrying each requirement's EARS lane, its status and
+# the parse. A requirement the parser cannot read is kept with req=None rather
+# than dropped: an obligation this page silently omitted would be one nobody
+# knows is unmeasured, which is the failure the whole file is built against.
+VZ_REQS = []
+if spec is not None:
+    _vzl = spec.split('\n')
+    _vzsec = ''
+    for i, line in enumerate(_vzl):
+        h = RE_VZ_H3.match(line)
+        if h:
+            _vzsec = h.group(1)
+        mm = RE_ACTIVE.match(line)
+        if not mm:
+            continue
+        text = line[mm.end():].strip().lstrip('—-').strip()
+        status, sup = 'active', None
+        for follow in _vzl[i + 1:]:
+            if not follow.strip() or RE_ACTIVE.match(follow):
+                break
+            s = RE_VZ_SUPBY.match(follow)
+            if s:
+                status, sup = 'superseded', s.group(1)
+                break
+            if RE_WITHDRW.match(follow):
+                status = 'withdrawn'
+                break
+        VZ_REQS.append({'id': mm.group(1), 'lane': _vzsec, 'status': status,
+                        'sup': sup, 'text': text,
+                        'req': vz_cc.parse(text, mm.group(1)) if vz_cc else None})
+
+VZ_KEYWORD = {'event': 'when', 'unwanted': 'if', 'state': 'while',
+              'optional': 'where', 'complex': 'while / when', 'ubiquitous': 'always'}
+
+
+def vz_norm(t):
+    return re.sub(r'[^a-z0-9]+', ' ', (t or '').lower()).strip()
+
+
+# --- section 1: what the product must do ----------------------------------
+# Grouped by NORMALISED TRIGGER, over active requirements only. A superseded
+# requirement is not an obligation - it is the record of one that stopped being
+# true - so counting it here would draw work the product must no longer do.
+# Section 2 below is where supersession is the subject and they all appear.
+vz_groups = {}
+vz_order = []
+vz_unparsed = []
+for r in VZ_REQS:
+    if r['status'] != 'active':
+        continue
+    if r['req'] is None:
+        vz_unparsed.append(r)
+        continue
+    key = vz_norm(r['req'].guard) or '\x00always'
+    if key not in vz_groups:
+        vz_groups[key] = {'guard': r['req'].guard, 'items': [], 'kw': []}
+        vz_order.append(key)
+    g = vz_groups[key]
+    g['items'].append(r)
+    kw = VZ_KEYWORD.get(r['req'].pattern, r['req'].pattern)
+    if kw not in g['kw']:
+        g['kw'].append(kw)
+
+VZ_MULTI = [vz_groups[k] for k in vz_order if len(vz_groups[k]['items']) > 1]
+VZ_SINGLE = [vz_groups[k] for k in vz_order if len(vz_groups[k]['items']) == 1]
+VZ_ACTIVE_N = len([r for r in VZ_REQS if r['status'] == 'active'])
+
+if spec is None:
+    p_vz_act = vz_empty(
+        'NOT RUN — there is no %s to read.' % SPEC_PATH,
+        'This drawing is the spec’s obligations, so with no spec there are none to draw. '
+        'That is not a product with nothing to do: it is a product whose obligations have '
+        'never been written down, which is the state every other panel on this page is also '
+        'reporting. Nothing here is a zero.')
+elif vz_cc is None:
+    p_vz_act = vz_empty(
+        'UNKNOWN — the EARS parser could not be loaded.',
+        '<span class="mono">%s</span> is %s. This section refuses to ship a second EARS grammar '
+        'of its own: a private parser would disagree with the one that decides contradictions, '
+        'and the disagreement would show up as obligations drawn here that the solver never '
+        'compared. So the trigger grouping is unknown rather than approximated.'
+        % (esc('contradiction-check.py'),
+           'not where this script expects it' if VZ_CC_STATE == 'absent' else 'present and would not import'))
+elif not vz_order:
+    p_vz_act = vz_empty(
+        '%s was read and holds no active requirement this parser can read.' % SPEC_PATH,
+        'A measured zero for the drawing, and not necessarily one for the spec: '
+        '%d requirement line(s) were found and %d of them are active. '
+        'Nothing is inferred about the ones the grammar did not match.'
+        % (len(VZ_REQS), VZ_ACTIVE_N))
+else:
+    _vz_parts = []
+    for g in VZ_MULTI:
+        acts, paths, y = [], [], 6
+        for r in g['items']:
+            body = r['req'].response
+            # Height is estimated against a NARROW line, not a wide one: an act
+            # box is `overflow:hidden`, so an underestimate clips the sentence
+            # and an overestimate only leaves air.
+            lines = max(1, min(4, (len(body) + 10 + 77) // 78))
+            hh = 20 + 16 * lines
+            acts.append('<div class="vz-act" style="left:52px;top:%dpx;'
+                        'width:calc(100%% - 52px);height:%dpx">'
+                        '<span class="vz-rid">%s</span> %s</div>'
+                        % (y, hh, esc(r['id']), esc(body)))
+            cy = y + hh // 2
+            paths.append(vz_path('M 6 8 C 6 %d, 24 %d, 52 %d' % (cy, cy, cy)))
+            y += hh + 8
+        h = y - 8 + 6
+        _vz_parts.append(
+            '<div class="vz-cluster"><div class="vz-trig">'
+            '<span class="vz-tk">%s</span><span class="vz-ttxt">%s</span>'
+            '<span class="vz-badge">%d obligations</span></div>'
+            '<div class="vz-acts" style="height:%dpx">%s%s</div></div>'
+            % (esc(' / '.join(g['kw'])),
+               esc(g['guard'] or 'no trigger — always in force'),
+               len(g['items']), h, vz_wires(52, h, paths), ''.join(acts)))
+    for g in VZ_SINGLE:
+        r = g['items'][0]
+        _vz_parts.append(
+            '<div class="vz-row"><span class="vz-rid">%s</span>'
+            '<span class="vz-txt"><b>%s</b> %s → %s</span></div>'
+            % (esc(r['id']), esc(' / '.join(g['kw'])),
+               esc(g['guard'] or 'always in force'), esc(r['req'].response)))
+    for r in vz_unparsed:
+        _vz_parts.append(
+            '<div class="vz-row c-na"><span class="vz-rid">%s</span>'
+            '<span class="vz-txt">%s <b>— not drawn.</b> The repository’s own EARS '
+            'parser matched no pattern in this sentence, so it has no trigger to group under. '
+            'It is listed rather than dropped: an obligation missing from this drawing would '
+            'otherwise be one nobody knows is unmeasured.</span></div>'
+            % (esc(r['id']), esc(r['text'])))
+    _vz_supn = len([r for r in VZ_REQS if r['status'] == 'superseded'])
+    p_vz_act = ('<div class="vz-board">%s</div>'
+                '<p class="provenance">Read from <span class="mono">%s</span>, parsed by '
+                '<span class="mono">scripts/contradiction-check.py</span> — the same grammar '
+                'that decides contradictions, imported rather than re-implemented. '
+                '%d active requirement(s): %d distinct trigger(s), %d of which owe more than one '
+                'obligation, %d sentence(s) the grammar did not match. %d superseded '
+                'requirement(s) are deliberately absent — a replaced obligation is not one the '
+                'product still owes, and it is drawn in the next section instead.</p>'
+                % (''.join(_vz_parts), esc(SPEC_PATH), VZ_ACTIVE_N, len(vz_order),
+                   len(VZ_MULTI), len(vz_unparsed), _vz_supn))
+    _vz_built += 1
+
+# --- section 2: the spec by EARS pattern ----------------------------------
+# Lanes are the spec's own `###` headings, in the order the file writes them,
+# not a list kept here. A heading this file did not know about would otherwise
+# be a lane of requirements that silently vanished.
+VZ_LANE_ORDER = []
+for r in VZ_REQS:
+    if r['lane'] and r['lane'] not in VZ_LANE_ORDER:
+        VZ_LANE_ORDER.append(r['lane'])
+
+VZ_SUP_EDGES = [(r['id'], r['sup']) for r in VZ_REQS if r['sup']]
+
+if spec is None:
+    p_vz_str = vz_empty(
+        'NOT RUN — there is no %s to read.' % SPEC_PATH,
+        'The lanes of this drawing are the spec’s own pattern headings and the wires are its '
+        '<span class="mono">Superseded by</span> pointers. With no file there is neither. An '
+        'empty canvas here would read as a spec with no supersessions, which is a very '
+        'different claim from a spec that does not exist.')
+elif not VZ_REQS:
+    p_vz_str = vz_empty(
+        '%s was read and holds no requirement line.' % SPEC_PATH,
+        'A measured zero. The file is there, it parsed, and no line in it matches the '
+        '<span class="mono">**Rn**</span> shape every requirement in this spec carries.')
+else:
+    # 56px of header room above the first node. A lane subtitle wraps to two
+    # lines in a 158px column, and a node drawn under the wrap sits on top of
+    # the text rather than beside it.
+    LW, LG, NW, NH, NS, HDR = 158, 10, 136, 46, 54, 56
+    _by_lane = {}
+    for r in VZ_REQS:
+        _by_lane.setdefault(r['lane'], []).append(r)
+    _maxn = max(len(v) for v in _by_lane.values())
+    _lh = HDR + _maxn * NS + 8
+    _cw = len(VZ_LANE_ORDER) * LW + (len(VZ_LANE_ORDER) - 1) * LG + 26
+    _lanes, _nodes, _pos = [], [], {}
+    for li, lname in enumerate(VZ_LANE_ORDER):
+        lx = li * (LW + LG)
+        rs = _by_lane[lname]
+        nsup = len([x for x in rs if x['status'] == 'superseded'])
+        _lanes.append(vz_lane(lx, 0, LW, _lh, lname.split('\u2014')[0].strip(),
+                              '%d requirement(s)%s'
+                              % (len(rs), ', %d superseded' % nsup if nsup else '')))
+        for ni, r in enumerate(rs):
+            nx, ny = lx + 11, HDR + ni * NS
+            _pos[r['id']] = (nx, ny, NW, NH, li)
+            if r['status'] == 'superseded':
+                lab, cls = '<s>%s</s>' % esc(r['id']), 'c-sup'
+                sub = 'superseded by %s' % r['sup']
+            elif r['status'] == 'withdrawn':
+                lab, cls, sub = '<s>%s</s>' % esc(r['id']), 'c-na', 'withdrawn'
+            else:
+                lab, cls = esc(r['id']), ''
+                sub = r['req'].pattern if r['req'] else 'no EARS pattern matched'
+            _nodes.append(vz_node(nx, ny, NW, NH, lab, sub, cls, r['text']))
+    _paths, _crossing = [], 0
+    for src, dst in VZ_SUP_EDGES:
+        if src not in _pos or dst not in _pos:
+            continue
+        sx, sy, sw, sh, sl = _pos[src]
+        tx, ty, tw, th, tl = _pos[dst]
+        y1, y2 = sy + sh // 2, ty + th // 2
+        if tl < sl:
+            _crossing += 1
+            _paths.append(vz_path('M %d %d C %d %d, %d %d, %d %d'
+                                  % (sx, y1, sx - 40, y1, tx + tw + 40, y2, tx + tw, y2)))
+        elif tl > sl:
+            _crossing += 1
+            _paths.append(vz_path('M %d %d C %d %d, %d %d, %d %d'
+                                  % (sx + sw, y1, sx + sw + 40, y1, tx - 40, y2, tx, y2)))
+        else:
+            _paths.append(vz_path('M %d %d C %d %d, %d %d, %d %d'
+                                  % (sx + sw, y1, sx + sw + 22, y1, tx + tw + 22, y2, tx + tw, y2)))
+    p_vz_str = ('<div class="vz-board"><div class="vz-canvas" style="width:%dpx;height:%dpx">'
+                '%s%s%s</div></div>'
+                '<p class="provenance">Read from <span class="mono">%s</span>. '
+                '%d requirement(s) across %d pattern lane(s); %d supersession pointer(s), %d of '
+                'them crossing a lane. A superseded requirement keeps its original sentence in '
+                'place — that is the spec’s own rule, not a rendering choice — so it is drawn '
+                'struck through and left where it was written rather than removed.</p>'
+                % (_cw, _lh + 6, ''.join(_lanes), vz_wires(_cw, _lh + 6, _paths), ''.join(_nodes),
+                   esc(SPEC_PATH), len(VZ_REQS), len(VZ_LANE_ORDER),
+                   len(VZ_SUP_EDGES), _crossing))
+    _vz_built += 1
+
+# --- section 3: components and the calls between them ---------------------
+# Call edges are derived by reading each script for another script's filename
+# in an EXECUTION shape. Read/write edges to the data files are NOT drawn, and
+# the reason is measurable rather than fastidious: `check-spec-home-stop.sh`
+# builds a fixture spec at `$d/.claude/productizer/spec.md` in a temporary
+# tree, and by the text alone that is indistinguishable from a script writing
+# the repository's own spec. Drawing it would assert a component writes the
+# living spec when it does not. So the data column carries the number of
+# scripts that NAME each file, which is what the text actually establishes,
+# and the arrows are left off.
+VZ_SD = SCRIPTS
+try:
+    _vz_scripts = sorted(f for f in os.listdir(VZ_SD) if f.endswith(('.sh', '.py')))
+    VZ_MACH_STATE = 'read'
+except OSError:
+    _vz_scripts, VZ_MACH_STATE = [], 'unreadable'
+
+_vz_arts = []
+try:
+    _vz_arts = sorted(os.listdir(rel('.claude/productizer')))
+except OSError:
+    pass
+
+RE_VZ_EXEC = ('(?:\\$\\{?[A-Za-z_]\\w*\\}?/|\\./|\\bbash\\s+|\\bsh\\s+|\\bpython3?\\s+|"\\$HERE"/)'
+              '[^\\s"\';|&]*%s\\b')
+_vz_calls, _vz_names = [], {}
+for s in _vz_scripts:
+    body = slurp(os.path.join(VZ_SD, s))
+    if body is None:
+        continue
+    code = re.sub(r'^\s*#.*$', '', body, flags=re.M)
+    for t in _vz_scripts:
+        if t != s and re.search(RE_VZ_EXEC % re.escape(t), code):
+            _vz_calls.append((s, t))
+    for a in _vz_arts:
+        if a in body:
+            _vz_names.setdefault(a, []).append(s)
+
+_vz_callers = sorted(set(a for a, _ in _vz_calls))
+_vz_callees = sorted(set(b for _, b in _vz_calls))
+
+if VZ_MACH_STATE == 'unreadable':
+    p_vz_mach = vz_empty(
+        'UNKNOWN — the scripts directory could not be listed.',
+        'This drawing is derived by reading the scripts themselves. Without the listing there '
+        'is no component set, and a canvas drawn from nothing would read as a lifecycle with no '
+        'moving parts.')
+elif not _vz_calls:
+    p_vz_mach = vz_empty(
+        '%d script(s) were read and none of them invokes another.' % len(_vz_scripts),
+        'A measured zero for the call graph. The files were opened; no filename appears in '
+        'another file in an execution shape. Every script is then a leaf, which is a real '
+        'answer about this repository and not a failure to look.')
+else:
+    CA, CB, CC = 0, 300, 580
+    CWA, CWB, CWC = 230, 230, 256
+    NH3, NS3, HDR3 = 46, 54, 56
+    _n = max(len(_vz_callers), len(_vz_callees), len(_vz_arts))
+    _h3 = HDR3 + _n * NS3 + 8
+    _lanes3, _nodes3, _pa, _pb = [], [], {}, {}
+    _lanes3.append(vz_lane(CA, 0, CWA, _h3, 'calls another script',
+                           '%d of %d script(s)' % (len(_vz_callers), len(_vz_scripts))))
+    _lanes3.append(vz_lane(CB, 0, CWB, _h3, 'is called',
+                           '%d of %d script(s)' % (len(_vz_callees), len(_vz_scripts))))
+    _lanes3.append(vz_lane(CC, 0, CWC, _h3, 'data under .claude/productizer',
+                           '%d file(s) or director(ies)' % len(_vz_arts)))
+    for i, s in enumerate(_vz_callers):
+        y = HDR3 + i * NS3
+        _pa[s] = y
+        n = len([1 for a, _ in _vz_calls if a == s])
+        _nodes3.append(vz_node(CA + 11, y, CWA - 22, NH3, esc(s),
+                               'calls %d' % n, '', s))
+    for i, s in enumerate(_vz_callees):
+        y = HDR3 + i * NS3
+        _pb[s] = y
+        n = len([1 for _, b in _vz_calls if b == s])
+        _nodes3.append(vz_node(CB + 11, y, CWB - 22, NH3, esc(s),
+                               'called by %d' % n, '', s))
+    for i, a in enumerate(_vz_arts):
+        y = HDR3 + i * NS3
+        k = len(_vz_names.get(a, []))
+        _nodes3.append(vz_node(CC + 11, y, CWC - 22, NH3, esc(a),
+                               'named by %d script(s)' % k, '' if k else 'd-unc',
+                               'named by: %s' % (', '.join(_vz_names.get(a, [])) or 'no script')))
+    _paths3 = []
+    for a, b in _vz_calls:
+        y1, y2 = _pa[a] + NH3 // 2, _pb[b] + NH3 // 2
+        _paths3.append(vz_path('M %d %d C %d %d, %d %d, %d %d'
+                               % (CA + CWA - 11, y1, CA + CWA + 34, y1,
+                                  CB - 23, y2, CB + 11, y2)))
+    _cw3 = CC + CWC
+    p_vz_mach = ('<div class="vz-board"><div class="vz-canvas" style="width:%dpx;height:%dpx">'
+                 '%s%s%s</div></div>'
+                 '<p class="provenance">Derived by reading every <span class="mono">.sh</span> '
+                 'and <span class="mono">.py</span> file under the skill’s '
+                 '<span class="mono">scripts/</span> directory: %d call edge(s) between %d '
+                 'script(s), found by matching another script’s filename in an execution shape '
+                 'with comments stripped. <b>No read or write arrow is drawn to the data '
+                 'column, and that is a refusal rather than an omission.</b> A path literal in a '
+                 'script establishes that the script names the file, not which way the data '
+                 'moves — one check here builds a fixture spec under a temporary directory, and '
+                 'by the text alone that is identical to a script writing the living spec. So '
+                 'each data node carries the number of scripts that name it, which is what was '
+                 'actually measured.</p>'
+                 % (_cw3, _h3 + 6, ''.join(_lanes3), vz_wires(_cw3, _h3 + 6, _paths3),
+                    ''.join(_nodes3), len(_vz_calls), len(_vz_scripts)))
+    _vz_built += 1
+
+# --- section 4: what the current change moved -----------------------------
+# The base is HEAD, and it is not a new one: the bar at the top of this page
+# already says `generated from <sha>`, so the working tree against that commit
+# is the only change this page has ever claimed to be looking at. Inventing a
+# second base here - a branch point, a remote ref - would put a delta on the
+# page measured against something the rest of the page never mentions.
+VZ_DELTA_OK = os.path.exists(os.path.join(TMP, 'delta-ok'))
+VZ_D_STATUS = {'A': ('d-add', 'added'), 'D': ('d-rem', 'removed')}
+# This page's own output file is excluded, and not for tidiness. Written under
+# the work tree it is a file this run created, so the first build in a fresh
+# clone would draw a delta the second build draws differently - and byte-stable
+# output across runs is the property R11 is asserted on. A generator that
+# reported its own artifact as part of the change would also be telling the
+# reader that regenerating the view changed something in the repository.
+_vz_self = os.path.relpath(os.path.abspath(OUT), ROOT).replace(os.sep, '/')
+_vz_changed = []
+raw = tmpf('delta')
+if VZ_DELTA_OK and raw:
+    for line in raw.split('\n'):
+        if '\t' not in line:
+            continue
+        code, path = line.split('\t', 1)
+        path = path.strip()
+        if path == _vz_self:
+            continue
+        cls, word = VZ_D_STATUS.get(code[:1], ('d-mod', 'modified'))
+        _vz_changed.append({'path': path, 'cls': cls, 'word': word})
+raw = tmpf('delta-new')
+if VZ_DELTA_OK and raw:
+    for line in raw.split('\n'):
+        if line.strip() and line.strip() != _vz_self:
+            _vz_changed.append({'path': line.strip(), 'cls': 'd-add',
+                                'word': 'untracked'})
+_vz_changed.sort(key=lambda d: d['path'])
+_vz_moved = set(d['path'] for d in _vz_changed)
+
+
+def vz_top(p):
+    return p.split('/', 1)[0] if '/' in p else '(repository root)'
+
+
+if not IS_GIT:
+    p_vz_del = vz_empty(
+        'NOT RUN — there is no git history here.',
+        'This section is a diff, and a directory that is not a work tree has nothing to diff '
+        'against. Drawing an empty board would say the current change moved no file, which is '
+        'a claim about a change; there is no change here because there is nothing to compare.')
+elif not VZ_DELTA_OK:
+    p_vz_del = vz_empty(
+        'UNKNOWN — the diff against HEAD did not run.',
+        '<span class="mono">git diff --name-status HEAD</span> was attempted and did not '
+        'answer — a repository with no commit yet has no HEAD to compare against. That is not '
+        'a clean tree: it is a comparison nobody could make, and the two are drawn differently '
+        'here for exactly that reason.')
+elif not _vz_changed:
+    _vz_lastchk = dig(json.loads(result_raw), 'change', 'files') if (
+        result_raw and check_state == 'ok') else None
+    p_vz_del = vz_empty(
+        'The working tree is identical to %s. A measured zero.'
+        % (HEAD_SHA or 'HEAD'),
+        'The diff ran and found nothing: no tracked file differs from the commit this page '
+        'says it was generated from, and no untracked file is present that '
+        '<span class="mono">.gitignore</span> does not already cover. %s'
+        % ('The last check run recorded its change as %s — that run is over, and this '
+           'is the tree as it stands now.'
+           % ', '.join('<span class="mono">%s</span>' % esc(p) for p in _vz_lastchk)
+           if _vz_lastchk else
+           'The last check run recorded no file list, so there is nothing to compare '
+           'this against.'))
+else:
+    _vz_lanes_o = []
+    _vz_bylane = {}
+    for d in _vz_changed:
+        t = vz_top(d['path'])
+        if t not in _vz_bylane:
+            _vz_bylane[t] = []
+            _vz_lanes_o.append(t)
+        _vz_bylane[t].append(d)
+    _vz_lanes_o.sort()
+    LW4, LG4, PER = 270, 12, 3
+    NH4, NS4, HDR4 = 46, 54, 56
+    _rows = [_vz_lanes_o[i:i + PER] for i in range(0, len(_vz_lanes_o), PER)]
+    _lanes4, _nodes4, _y0, _tot_unc = [], [], 0, 0
+    for row in _rows:
+        _rh = HDR4 + max(len(_vz_bylane[t]) for t in row) * NS4 + 8
+        for ci, t in enumerate(row):
+            lx = ci * (LW4 + LG4)
+            ds = _vz_bylane[t]
+            unc = len([p for p in tracked
+                       if vz_top(p) == t and p not in _vz_moved])
+            _tot_unc += unc
+            _lanes4.append(vz_lane(lx, _y0, LW4, _rh, t,
+                                   '%d moved · %d tracked file(s) here did not'
+                                   % (len(ds), unc)))
+            for ni, d in enumerate(ds):
+                base = d['path'].rsplit('/', 1)[-1]
+                where = d['path'][:-len(base)].rstrip('/') or '.'
+                _nodes4.append(vz_node(lx + 11, _y0 + HDR4 + ni * NS4, LW4 - 22, NH4,
+                                       esc(base), '%s · %s' % (d['word'], where),
+                                       d['cls'], d['path']))
+        _y0 += _rh + 14
+    _cw4 = min(PER, len(_vz_lanes_o)) * LW4 + (min(PER, len(_vz_lanes_o)) - 1) * LG4
+    _vz_counts = {}
+    for d in _vz_changed:
+        _vz_counts[d['word']] = _vz_counts.get(d['word'], 0) + 1
+    p_vz_del = ('<div class="vz-board"><div class="vz-canvas" style="width:%dpx;height:%dpx">'
+                '%s%s</div></div>'
+                '<p class="provenance">Read from <span class="mono">git diff --name-status '
+                'HEAD</span> plus <span class="mono">git ls-files --others '
+                '--exclude-standard</span>, against <span class="mono">%s</span> — the same '
+                'commit the bar at the top of this page says it was generated from, not a base '
+                'invented for this section. This page’s own output file is left out, because it '
+                'is a file this run wrote and reporting it would say that regenerating the view '
+                'changed the repository. %d file(s) moved (%s) across %d director(ies); '
+                '%d tracked file(s) in those same directories did not. What this cannot tell '
+                'you is whether the change is finished.</p>'
+                % (_cw4, _y0, ''.join(_lanes4), ''.join(_nodes4), esc(HEAD_SHA or 'HEAD'),
+                   len(_vz_changed),
+                   ', '.join('%d %s' % (_vz_counts[k], k) for k in sorted(_vz_counts)),
+                   len(_vz_lanes_o), _tot_unc))
+    _vz_built += 1
+
+p_vz = ('<div class="h">Visualizer — the lifecycle as a drawing</div>'
+        '<p class="lede">Four pictures of things the rest of this page reports as numbers, '
+        'drawn because in each case the shape is the fact and a count loses it. Everything '
+        'here is read from the repository at generation time, and a section that could not be '
+        'built says which of <b>not run</b>, <b>unknown</b> and <b>a measured zero</b> it '
+        'is — an empty drawing and a drawing of nothing look identical, which is why no '
+        'section is ever left blank.</p>'
+        '<div class="vz" id="panel-visualizer">%s%s%s%s</div>'
+        % (vz_sec('vz-actions', 'What the product must do',
+                  'Every active requirement, grouped by the trigger that fires it. A trigger '
+                  'owing more than one obligation fans out; a trigger owing exactly one is a '
+                  'row. Parsed with the repository’s own EARS grammar.', p_vz_act),
+           vz_sec('vz-structure', 'The spec by EARS pattern',
+                  'One lane per pattern heading in the spec, one node per requirement, one '
+                  'wire per <span class="mono">Superseded by</span> pointer. Superseded '
+                  'requirements stay where they were written, struck through.', p_vz_str),
+           vz_sec('vz-machinery', 'Components and the calls between them',
+                  'Which script invokes which, read out of the scripts themselves, beside the '
+                  'data files those scripts name.', p_vz_mach),
+           vz_sec('vz-delta', 'What the current change moved',
+                  'The working tree against the commit this page was generated from, one node '
+                  'per file, coloured by what happened to it.', p_vz_del)))
+
+# --------------------------------------------------------------------------
 # assembly
 # --------------------------------------------------------------------------
 TABS = [('dash', 'Dashboard', ''),
@@ -2221,6 +2794,7 @@ TABS = [('dash', 'Dashboard', ''),
         ('backlog', 'Backlog', str(len(items) - _done_hidden) if backlog is not None else '—'),
         ('rel', 'Releases', str(len(releases)) if IS_GIT else '—'),
         ('lims', 'Limitations', str(LIM_TOTAL) if LIM_STATE == 'read' else '\u2014'),
+        ('vz', 'Visualizer', str(_vz_built)),
         ('cmds', 'Useful commands', '')]
 
 tabs = ''.join('<button class="tab%s" data-p="%s">%s%s</button>'
@@ -2505,10 +3079,11 @@ BODY = (
     '<section class="panel" id="p-backlog">%s</section>'
     '<section class="panel" id="p-rel">%s</section>'
     '<section class="panel" id="p-lims">%s</section>'
+    '<section class="panel" id="p-vz">%s</section>'
     '<section class="panel" id="p-cmds">%s</section>'
     '</div>'
     % (crumb, verchip, data_stamp, refresh_btn + dl_btn, stamp, setup_bar, ''.join(banners), tabs,
-       p_dash, p_board, p_stages, p_files, p_backlog, p_rel, p_lims, p_cmds))
+       p_dash, p_board, p_stages, p_files, p_backlog, p_rel, p_lims, p_vz, p_cmds))
 
 # Appended rather than threaded through the format above: that string is
 # positional, and adding a slot to it is how a panel ends up rendering another
